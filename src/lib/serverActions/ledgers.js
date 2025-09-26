@@ -69,8 +69,8 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     take: limit,
     include: {
       account: { select: { number: true, label: true } },
-      invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true } },
-      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true } },
+      invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true, invoiceLines: { select: { id: true, description: true }, take: 2 } } },
+      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true }, take: 2 } } },
       moneyMovement: { select: { id: true, voucherRef: true, kind: true, authorization: { select: { docNumber: true } }, moneyAccount: { select: { ledgerAccount: { select: { number: true, label: true } }, label: true } } } }
     }
   });
@@ -101,15 +101,20 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     // Base mapping
     let accountNumber = t.account?.number;
     let accountLabel = t.account?.label;
-    let description = t.description || t.account?.label || '';
-    let piece = t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || null;
+  let description = t.description || t.account?.label || '';
+  // piece = numéro facture client (invoiceNumber) ou numéro interne EI-* pour fournisseur
+  let piece = t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || null;
 
     // Supplier specific formatting
     if (party === 'supplier') {
       if (t.kind === 'PAYABLE' && t.incomingInvoice) {
-        // Line establishing or adjusting payable
-        description = t.incomingInvoice.entryNumber; // Libellé = entry number
-        piece = t.incomingInvoice.supplierInvoiceNumber || t.incomingInvoice.entryNumber;
+        // Determine description from lines count (1 => first line description, >1 => Achat Divers produits)
+        const lines = t.incomingInvoice.lines || [];
+        if (lines.length === 1) description = lines[0].description;
+        else if (lines.length > 1) description = 'Achat Divers produits';
+        else description = 'Achat';
+        // piece must show EI-* (entryNumber)
+        piece = t.incomingInvoice.entryNumber;
       }
       // Payment line (movement kind SUPPLIER_PAYMENT)
       if (t.moneyMovement?.kind === 'SUPPLIER_PAYMENT') {
@@ -118,7 +123,7 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
           accountNumber = t.moneyMovement.moneyAccount.ledgerAccount.number;
           accountLabel = t.moneyMovement.moneyAccount.ledgerAccount.label;
         }
-        // Libellé = entry invoice number or authorization doc
+        // Libellé = ref facture payée (EI-*) ou doc autorisation à défaut
         if (t.incomingInvoice?.entryNumber) description = t.incomingInvoice.entryNumber;
         else if (t.moneyMovement.authorization?.docNumber) description = t.moneyMovement.authorization.docNumber;
         // Pièce = voucherRef / docNumber / movement id
@@ -128,8 +133,11 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     // Client specific formatting
     if (party === 'client') {
       if (t.kind === 'RECEIVABLE' && t.invoice) {
-        description = t.invoice.invoiceNumber;
-        piece = t.invoice.invoiceNumber; // no external ref, reuse
+        const lines = t.invoice.invoiceLines || [];
+        if (lines.length === 1) description = lines[0].description;
+        else if (lines.length > 1) description = 'Vente Divers produits';
+        else description = 'Vente';
+        piece = t.invoice.invoiceNumber; // Pièce = numéro facture
       }
       if (t.moneyMovement?.kind === 'CLIENT_RECEIPT') {
         // Show treasury account
@@ -137,6 +145,7 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
           accountNumber = t.moneyMovement.moneyAccount.ledgerAccount.number;
           accountLabel = t.moneyMovement.moneyAccount.ledgerAccount.label;
         }
+        // Libellé = référence facture encaissée
         if (t.invoice?.invoiceNumber) description = t.invoice.invoiceNumber;
         else if (t.moneyMovement.authorization?.docNumber) description = t.moneyMovement.authorization.docNumber;
         piece = t.moneyMovement.voucherRef || t.moneyMovement.authorization?.docNumber || t.moneyMovement.id;
