@@ -1,0 +1,1244 @@
+numero;libelle
+100000;Capital
+101000;Capital Souscrit
+101100;Capital Souscrit, Non Appele
+101200;Capital Souscrit, Appele, Non Verse
+101300;Capital Souscrit, Appele, Verse, Non Amorti
+101400;Capital Souscrit, Appele, Verse, Amorti
+101800;Capital Souscrit Soumis A Des Conditions Particulieres
+102000;Capital Par Dotation
+102100;Dotation Initiale
+102200;Dotations Complementaires
+102800;Autres Dotations
+103000;Capital Personnel
+104000;Compte De L'Exploitant
+104100;Apports Temporaires
+104200;Operations Courantes
+104300;Remunerations, Impots Et Autres Charges Personnelles
+104700;Prelevements D'Autoconsommation
+104800;Autres Prelevements
+105000;Primes Liees Aux Capitaux Propres
+105100;Primes D'Emission
+105200;Primes D'Apport
+105300;Primes De Fusion
+105400;Primes De Conversion
+105800;Autres Primes
+106000;Ecarts De Reevaluation
+106100;Ecarts De Reevaluation Legale
+106200;Ecarts De Reevaluation Libre
+109000;Actionnaires, Capital Souscrit, Non Appele
+113100;Reserves De Plus-Values Nettes A Long Terme
+113300;Reserves Consecutives A L'Octroi De Subventions D'Investissement
+113800;Autres Reserves Reglementees
+118100;Reserves Facultatives
+118800;Reserves Diverses
+129100;Perte Nette A Reporter
+129200;Perte - Amortissements Reputes Differes
+130100;Resultat En Instance D'Affectation : Benefice
+130900;Resultat En Instance D'Affectation : Perte
+132100;Marge Brute Sur Marchandises
+132200;Marge Brute Sur Matieres
+133100;Valeur Ajoutee (V.A.)
+134100;Excedent Brut D'Exploitation (E.B.E.)
+135100;Resultat D'Exploitation (R.E.)
+136100;Resultat Financier (R.F.)
+137100;Resultat Des Activites Ordinaires (R.A.O.)
+138100;Resultat Hors Activites Ordinaires (R.H.A.O.)
+139100;Resultat Net : Perte
+140000;Subventions D'Investissement
+141000;Subventions D'Equipements A
+141100;Etat
+141200;Regions
+141300;Departements
+141400;Communes Et Collectivites Publiques Decentralisees
+141500;Entreprises Publiques Ou Mixtes
+141600;Entreprises Et Organismes Prives
+141700;Organismes Internationaux
+141800;Autres
+142000;Subventions D'Equipement B
+148000;Autres Subventions D'Investissement
+150000;Provisions Reglementees Et Fonds Assimiles
+151000;Amortissements Derogatoires
+152000;Plus-Values De Cession A Reinvestir
+153000;Fonds Reglementes
+153100;Fonds National
+153200;Prelevement Pour Le Budget
+154000;Provision Speciale De Reevaluation
+155000;Provisions Reglementees Relatives Aux
+155100;Reconstitution Des Gisements Miniers Et Petroliers
+156000;Provisions Reglementees Relatives Aux Stocks
+156100;Hausse De Prix
+156200;Fluctuation Des Cours
+157000;Provisions Pour Investissement
+158000;Autres Provisions Et Fonds Reglementes
+160000;Emprunts Et Dettes Assimilees
+161000;Emprunts Obligataires
+161100;Emprunts Obligataires Ordinaires
+161200;Emprunts Obligataires Convertibles
+161800;Autres Emprunts Obligataires
+162000;Emprunts Et Dettes Aupres Des Etablissements De Credit
+163000;Avances Recues De L'Etat
+164000;Avances Recues Et Comptes Courants Bloques
+165000;Depots Et Cautionnements Recus
+165100;Depots
+165200;Cautionnements
+166000;Interets Courus
+166100;Sur Emprunts Obligataires
+166200;Sur Emprunts Et Dettes Aupres Des Etablissements De Credit
+166300;Sur Avances Recues De L'Etat
+166400;Sur Avances Recues Et Comptes Courants Bloques
+166500;Sur Depots Et Cautionnements Recus
+166700;Sur Avances Assorties De Conditions Particulieres
+166800;Sur Autres Emprunts Et Dettes
+167000;Avances Assorties De Conditions Particulieres
+167100;Avances Bloquees Pour Augmentation Du Capital
+167200;Avances Conditionnees Par L'Etat
+167300;Avances Conditionnees Par Les Autres Organismes Africains
+167400;Avances Conditionnees Par Les Organismes Internationaux
+167600;Droits Du Concedant Exigibles En Nature
+168000;Autres Emprunts Et Dettes
+168100;Rentes Viageres Capitalisees
+168200;Billets De Fonds
+168300;Dettes Consecutives A Des Titres Empruntes
+168400;Dettes Du Concedant Exigibles En Nature
+168500;Emprunts Participatifs
+168600;Participation Des Travailleurs Aux Benefices
+170000;Dettes De Credit - Bail Et Contrats Assimiles
+172000;Emprunts Equivalents De Credit - Bail Immobilier
+173000;Emprunts Equivalents De Credit - Bail Mobilier
+176000;Interets Courus
+176200;Sur Emprunts Equivalents De Credit - Bail Immobilier
+176300;Sur Emprunts Equivalents De Credit - Bail Mobilier
+176800;Sur Emprunts Equivalents D'Autres Contrats
+178000;Emprunts Equivalents D'Autres Contrats
+180000;Dettes Liees A Des Participations Et Comptes De Liaison Des Etablissements Et Societes En Participation
+181000;Dettes Liees A Des Participations
+181100;Dettes Liees A Des Participations (Groupe)
+181200;Dettes Liees A Des Participations (Hors Groupe)
+182000;Dettes Liees A Des Societes En Participation
+183000;Interets Courus Sur Dettes Liees A Des Participations
+184000;Comptes Permanents Bloques Des Etablissements Et Succursales
+185000;Comptes Permanents Non Bloques Des Etablissements Et
+186000;Comptes De Liaison Charges
+187000;Comptes De Liaison Produits
+188000;Comptes De Liaison Des Societes En Participation
+190000;Provisions Financieres Pour Risques Et Charges
+191000;Provisions Pour Litiges
+192000;Provisions Pour Garanties Donnees Aux Clients
+193000;Provisions Pour Pertes Sur Marches A Achevement Futur
+194000;Provisions Pour Pertes De Change
+195000;Provisions Pour Impots
+196000;Provisions Pour Pensions Et Obligations Similaires
+197000;Provisions Pour Charges A Repartir Sur Plusieurs Exercices
+197100;Provisions Pour Grosses Reparations
+198000;Autres Provisions Financieres Pour Risques Et Charges
+198100;Provisions Pour Amendes Et Penalites
+198200;Provisions Pour Renouvellement Des Immobilisations (Entreprises Concessionnaires)
+198300;Provisions De Propre Assureur
+198800;Autres Provisions Financieres Pour Risques Et Charges
+200000;Charges Immobilisees
+201000;Frais D'Etablissement
+201100;Frais De Constitution
+201200;Frais De Prospection
+201300;Frais De Publicite Et De Lancement
+201400;Frais De Fonctionnement Anterieurs Au Demarrage
+201500;Frais De Modification Du Capital (Fusions, Scissions, Transformations)
+201600;Frais D'Entree A La Bourse
+201700;Frais De Restructuration
+201800;Frais Divers D'Etablissement
+202000;Charges A Repartir Sur Plusieurs Exercices
+202100;Charges Differees
+202200;Frais D'Acquisition D'Immobilisations
+202600;Frais D'Emission Des Emprunts
+202800;Charges A Etaler
+206000;Primes De Remboursement Des Obligations
+206100;Obligations Ordinaires
+206200;Obligations Convertibles
+206800;Autres Emprunts Obligataires
+210000;Immobilisations Incorporelles
+211000;Frais De Recherche Et De Developpement
+212000;Brevets, Licences, Concessions Et Droits Similaires
+213000;Logiciels
+214000;Marques
+215000;Fonds Commercial
+216000;Droit Au Bail
+217000;Investissements De Creation
+218000;Autres Droits Et Valeurs Incorporels
+219000;Immobilisations Incorporelles En Cours
+219100;Frais De Recherche Et De Developpement
+219300;Logiciels
+219800;Autres Droits Et Valeurs Incorporels
+220000;Terrains
+221000;Terrains Agricoles Et Forestiers
+221100;Terrains D'Exploitation Agricole
+221200;Terrains D'Exploitation Forestiere
+221800;Autres Terrains
+222000;Terrains Nus
+222100;Terrains A Batir
+222800;Autres Terrains Nus
+223000;Terrains Batis
+223100;Pour Batiments Industriels Et Agricoles
+223200;Pour Batiments Administratifs Et Commerciaux
+223400;Pour Batiments Affectes Aux Autres Operations Professionnelles
+223500;Pour Batiments Affectes Aux Autres Operations Non Professionnelles
+223800;Autres Terrains Batis
+224000;Travaux De Mise En Valeur Des Terrains
+224100;Plantation D'Arbres Et D'Arbustes
+224800;Autres Travaux
+225000;Terrains De Gisement
+225100;Carrieres
+226000;Terrains Amenages
+226100;Parkings
+227000;Terrains Mis En Concession
+228000;Autres Terrains
+228100;Terrains Des Immeubles De Rapport
+228500;Terrains Des Logements Affectes Au Personnel
+228800;Autres Terrains
+229000;Amenagements De Terrains En Cours
+229100;Terrains Agricoles Et Forestiers
+229200;Terrains Nus
+229500;Terrains De Gisement
+229800;Autres Terrains
+230000;Batiments, Installations Techniques Et Agencements
+231000;Batiments Industriels, Agricoles, Administratifs Et Commerciaux Sur Sol Propre
+231100;Batiments Industriels
+231200;Batiments Agricoles
+231300;Batiments Administratifs Et Commerciaux
+231400;Batiments Affectes Au Logement Du Personnel
+231500;Immeubles De Rapport
+232000;Batiments Industriels, Agricoles, Administratifs Et Commerciaux Sur Sol D'Autrui
+232100;Batiments Industriels
+232200;Batiments Agricoles
+232300;Batiments Administratifs Et Commerciaux
+232400;Batiments Affectes Au Logement Du Personnel
+232500;Immeubles De Rapport
+233000;Ouvrages D'Infrastructure
+233100;Voies De Terre
+233200;Voies De Fer
+233300;Voies D'Eau
+233400;Barrages, Digues
+233500;Pistes D'Aerodrome
+233800;Autres
+234000;Installations Techniques
+234100;Installations Complexes Specialisees Sur Sol Propre
+234200;Installations Complexes Specialisees Sur Sol D'Autrui
+234300;Installations A Caractere Specifique Sur Sol Propre
+234400;Installations A Caractere Specifique Sur Sol D'Autrui
+235000;Amenagements De Bureaux
+235100;Installations Generales
+235800;Autres
+237000;Batiments Industriels, Agricoles Et Commerciaux Mis En Concession
+238000;Autres Installations Et Agencements
+239000;Batiments Et Installations En Cours
+240000;Materiel
+241000;Materiel Et Outillage Industriel Et Commercial
+241100;Materiel Industriel
+241200;Outillage Industriel
+241300;Materiel Commercial
+241400;Outillage Commercial
+242000;Materiel Et Outillage Agricole
+242100;Materiel Agricole
+242200;Outillage Agricole
+243000;Materiel D'Emballage Recuperable Et Identifiable
+244000;Materiel Et Mobilier
+244100;Materiel De Bureau
+244200;Materiel Informatique
+244300;Materiel Bureautique
+244400;Mobilier De Bureau
+244600;Materiel Et Mobilier Des Immeubles De Rapport
+244700;Materiel Et Mobilier Des Logements Du Personnel
+245000;Materiel De Transport
+245100;Materiel Automobile
+245200;Materiel Ferroviaire
+245300;Materiel Fluvial, Lagunaire
+245400;Materiel Naval
+245500;Materiel Aerien
+245600;Materiel Hippomobile
+245800;Autres (Velo, Mobylette, Moto)
+246000;Immobilisations Animales Et Agricoles
+246100;Cheptel, Animaux De Trait
+246200;Cheptel, Animaux Reproducteurs
+246300;Animaux De Garde
+246500;Plantations Agricoles
+246800;Autres
+247000;Agencements Et Amenagements Du Materiel
+248000;Autres Materiels
+248100;Collections Et Oeuvres D'Art
+249000;Materiel En Cours
+249100;Materiel Et Outillage Industriel Et Commercial
+249200;Materiel Et Outillage Agricole
+249300;Materiel D'Emballage Recuperable Et Identifiable
+249400;Materiel Et Mobilier De Bureau
+249500;Materiel De Transport
+249600;Immobilisations Animales Et Agricoles
+249700;Agencements Et Amenagements Du Materiel
+249800;Autres Materiels
+250000;Avances Et Acomptes Verses Sur Immobilisations
+251000;Avances Et Acomptes Verses Sur Immobilisations Incorporelles
+252000;Avances Et Acomptes Verses Sur Immobilisations Corporelles
+260000;Titres De Participation
+261000;Titres De Participation Dans Des Societes Sous Controle Exclusif
+262000;Titres De Participation Dans Des Societes Sous Controle Conjoint
+263000;Titres De Participation Dans Des Societes Conferant Une Influence Notable
+265000;Participations Dans Des Organismes Professionnels
+266000;Parts Dans Des Groupements D'Interet Economique (G.I.E.)
+268000;Autres Titres De Participation
+270000;Autres Immoblisations Financieres
+271000;Prets Et Creances Non Commerciales
+271100;Prets Participatifs
+271200;Prets Aux Associes
+271300;Billets De Fonds
+271400;Titres Pretes
+272000;Prets Au Personnel
+272100;Prets Immobiliers
+272200;Prets Mobiliers Et D'Installation
+272800;Autres Prets (Frais D'Etudes)
+273000;Creances Sur L'Etat
+273100;Retenues De Garantie
+273300;Fonds Reglemente
+273800;Autres
+274000;Iitres Immobilises
+274100;Titres Immobilises De L'Activite De Portefeuille (T.I.A.P.)
+274200;Titres Participatifs
+274300;Certificats D'Investissement
+274400;Parts De Fonds Commun De Placement (F.C.P.)
+274800;Autres Titres Immobilises
+275000;Depots Et Cautionnements Verses
+275100;Depots Pour Loyers D'Avance
+275200;Depots Pour L'Electricite
+275300;Depots Pour L'Eau
+275400;Depots Pour Le Gaz
+275500;Depots Pour Le Telephone, Le Telex, La Telecopie
+275600;Cautionnements Sur Marches Publics
+275700;Cautionnements Sur Autres Operations
+275800;Autres Depots Et Cautionnements
+276000;Interets Courus
+276100;Prets Et Creances Non Commerciales
+276200;Prets Au Personnel
+276300;Creances Sur L'Etat
+276400;Titres Immobilises
+276500;Depots Et Cautionnements Verses
+276700;Creances Rattachees A Des Participations
+276800;Immobilisations Financieres Diverses
+277000;Creances Rattachees A Des Participations Et Avances A Des G.I.E.
+277100;Creances Rattachees A Des Participations (Groupe)
+277200;Creances Rattachees A Des Participations (Hors Groupe)
+277300;Creances Rattachees A Des Societes En Participation
+277400;Avances A Des Groupements D'Interet Economique (G.I.E.)
+278000;Immobilisations Financieres Diverses
+278100;Creances Diverses Groupe
+278200;Creances Divers Hors Groupe
+278500;Or Et Metaux Precieux (1)
+280000;Amortissements
+281000;Amortissements Des Immobilisations Incorporelles
+281100;Amortissements Des Frais De Recherche Et De Developpement
+281200;Amortissements Des Brevets, Licences, Concessions Et Droits Similaires
+281300;Amortissements Des Logiciels
+281400;Amortissements Des Marques
+281500;Amortissements Du Fonds Commercial
+281600;Amortissements Du Droit Au Bail
+281700;Amortissements Des Investissements De Creation
+281800;Amortissements Des Autres Droits Et Valeurs Incorporels
+282000;Amortissements Des Terrains
+282100;Amortissements Des Terrains Agricoles Et Forestiers
+282400;Amortissements Des Travaux De Mise En Valeur Des Terrains
+282500;Amortissements Des Terrains De Gisement
+283000;Amortissements Des Batiments, Installations Techniques Et Agencements
+283100;Amortissements Des Batiments Industriels, Agricoles, Administratifs Et Commerciaux Sur Sol D'Autrui
+283200;Amortissements Des Batiments Industriels, Agricoles, Administratifs Et Commerciaux Sur Sol D'Autrui
+283300;Amortissements Des Ouvrages D'Infrastructure
+283400;Amortissements Des Installations Techniques
+283500;Amortissements Des Amenagements De Bureaux
+283700;Amortissements Des Batiments Industriels, Agricoles Et Commerciaux Mis En Concession
+283800;Amortissements Des Autres Installations Et Agencements
+284000;Amortissements Du Materiel
+284100;Amortissements Du Materiel Et Outillage Industriel Et Commercial
+284200;Amortissements Du Materiel Et Outillage Agricole
+284300;Amortissements Du Materiel D'Emballage Recuperable Et Identifiable
+284400;Amortissements Du Materiel Et Mobilier
+284500;Amortissements Du Materiel De Transport
+284600;Amortissements Des Immobilisations Animales Et Agricoles
+284700;Amortissements Des Agencements Et Amenagements Du Materiel
+284800;Amortissements Des Autres Materiels
+290000;Provisions Pour Depreciation
+291000;Provisions Pour Depreciation Des Immobilisations Incorporelles
+291200;Provisions Pour Depreciation Des Brevets, Licences, Concessions Et Droits Similaires
+291300;Provisions Pour Depreciation Des Logiciels
+291400;Provisions Pour Depreciation Des Marques
+291500;Provisions Pour Depreciation Du Fonds Commercial
+291600;Provisions Pour Depreciation Du Droit Au Bail
+291700;Provisions Pour Depreciation Des Investissements De Creation
+291800;Provisions Pour Depreciation Des Autres Droits Et Valeurs Incorporels
+291900;Provisions Pour Depreciation Des Immobilisations Incorporelles En Cours
+292000;Provisions Pour Depreciation Des Terrains
+292100;Provisions Pour Depreciation Des Terrains Agricoles Et Forestiers
+292200;Provisions Pour Depreciation Des Terrains Nus
+292300;Provisions Pour Depreciation Des Terrains Batis
+292400;Provisions Pour Depreciation Des Travaux De Mise En Valeur Des Terrains
+292500;Provisions Pour Depreciation Des Terrains De Gisement
+292600;Provisions Pour Depreciation Des Terrains Amenages
+292700;Provisions Pour Depreciation Des Terrains Mis En Concession
+292800;Provisions Pour Depreciation Des Autres Terrains
+292900;Provisions Pour Depreciation Des Amenagements De Terrains En Cours
+293000;Provisions Pour Depreciation Des Batiments, Installations Technique Et Agencements
+293100;Provisions Pour Depreciation Des Batiments Industriels, Agricoles, Agricoles, Administratifs Et Commerciaux Sur Sol Propre
+293200;Provisions Pour Depreciation Des Batiments Industriels, Agricoles, Administratifs Et Commerciaux Sur Sol D'Autrui
+293300;Provisions Pour Depreciation Des Ouvrages D'Infrastructures
+293400;Provisions Pour Depreciation Des Installations Techniques
+293500;Provisions Pour Depreciation Des Amenagements De Bureaux
+293700;Provisions Pour Depreciation Des Batiments Industriels, Agricoles Et Commerciaux Mis En Concession
+293800;Provisions Pour Depreciation Des Autres Installations Et Agencements
+293900;Provisions Pour Depreciation Des Batiments Et Installations En Cours
+294000;Provisions Pour Depreciation De Materiel
+294100;Provisions Pour Depreciation Du Materiel Et Outillage Industriel Et Commercial
+294200;Provisions Pour Depreciation Du Materiel Et Outillage Agricole
+294300;Provisions Pour Depreciation Du Materiel D'Emballage Recuperable Et Identifiable
+294400;Provisions Pour Depreciation Du Materiel Et Mobilier
+294500;Provisions Pour Depreciation Du Materiel De Transport
+294600;Provisions Pour Depreciation Des Immobilisations Animales Et Agricoles
+294700;Provisions Pour Depreciation Des Agencements Et Amenagements Du Materiel
+294800;Provisions Pour Depreciation Des Autres Materiels
+294900;Provisions Pour Depreciation De Materiel En Cours
+295000;Provisions Pour Depreciation Des Avances Et Acomptes Verses Sur Immobilisation
+295100;Provisions Pour Depreciation Des Avances Et Acomptes Verses Sur Immobilisations Incorporelles
+295200;Provisions Pour Depreciation Des Avances Et Acomptes Verses Sur Immobilisation Corporelles
+296000;Provisions Pour Depreciation Des Titres De Participation
+296100;Provisions Pour Depreciation Des Titres De Participation Dans Des Societes Sous Controle Exclusif
+296200;Provisions Pour Depreciation Des Titres De Participation Dans Les Societes Sous Controle Conjoints
+296300;Provisions Pour Depreciation Des Titres De Participation Dans Les Societes Conferant Une Influence Notable
+296500;Provisions Pour Depreciation Des Participations Dans Des Organismes Professionnels
+296600;Provisions Pour Depreciation Des Parts Dans Des Gie
+296800;Provisions Pour Depreciation Des Autres Titres De Participation
+297000;Provisions Pour Depreciation Des Autres Immobilisations
+297100;Provisions Pour Depreciation Des Prets Et Creances Non Commerciales
+297200;Provisions Pour Depreciation Des Prets Au Personnel
+297300;Provisions Pour Depreciation Des Creances Sur L'Etat
+297400;Provisions Pour Depreciation Des Titres Immobilises
+297500;Provisions Pour Depreciation Des Depots Et Cautionnements Verses
+297700;Provisions Pour Depreciation Des Creances Rattachees A Des Participations Et Avances A Des Gie
+297800;Provisions Pour Depreciation Des Creances Financieres Diverses
+310000;Marchandises
+311000;Marchandises A
+311100;Marchandises A1
+311200;Marchandises A2
+312000;Marchandises B
+312100;Marchandises B1
+312200;Marchandises B2
+318000;Marchandises Hors Activites Ordinaires (H.A.O.)
+320000;Matieres Premieres Et Fournitures Liees
+321000;Matieres A
+322000;Matieres B
+323000;Fournitures (A,B)
+330000;Autres Approvisionnements
+331000;Matieres Consommables
+332000;Fournitures D'Atelier Et D'Usine
+333000;Fournitures De Magasin
+334000;Fournitures De Bureau
+335000;Emballages
+335100;Emballages Perdus
+335200;Emballages Recuperables Non Identifiables
+335300;Emballages A Usage Mixte
+335800;Autres Emballages
+338000;Autres Matieres
+340000;Produits En Cours
+341000;Produits En Cours
+341100;Produits En Cours P1
+341200;Produits En Cours P2
+342000;Travaux En Cours
+342100;Travaux En Cours T1
+342200;Travaux En Cours T2
+343000;Produits Intermediaires En Cours
+343100;Produits Intermediaires A
+343200;Produits Intermediaires B
+344000;Produits Residuels En Cours
+344100;Produits Residuels A
+344200;Produits Residuels B
+350000;Services En Cours
+351000;Etudes En Cours
+351100;Etudes En Cours E1
+351200;Etudes En Cours E2
+352000;Prestations De Services En Cours
+352100;Prestations De Services S1
+352200;Prestations De Services S2
+360000;Produits Finis
+361000;Produits Finis A
+362000;Produits Finis B
+370000;Produits Intermediaires Et Residuels
+371000;Produits Intermediaires
+371100;Produits Intermediaires A
+371200;Produits Intermediaires B
+372000;Produits Residuels
+372100;Dechets
+372200;Rebuts
+372300;Matieres De Recuperation
+380000;Stocks En Cours De Route, En Consignation Ou En Depot
+381000;Marchandises En Cours De Route
+382000;Matieres Premieres Et Fournitures Liees En Cours De Route
+383000;Autres Approvisionnements En Cours De Route
+386000;Produits Finis En Cours De Route
+387000;Stock En Consignation Ou En Depot
+387100;Stock En Consignation
+387200;Stock En Depot
+388000;Stock Provenant D'Immobilisations Mises Hors Service Ou Au Rebut
+390000;Depreciations Des Stocks
+391000;Depreciations Des Stocks De Marchandises
+392000;Depreciations Des Stocks De Matieres Premieres Et Fournitures Liees
+393000;Depreciations Des Stocks D'Autres Appovisionnements
+394000;Depreciations Des Productions En Cours
+395000;Depreciations Des Services En Cours
+396000;Depreciations Des Stocks De Produits Finis
+397000;Depreciations Des Stocks De Produits Intermediaires Et Residuels
+398000;Depreciations Des Stocks En Cours De Route, En Consignation Ou
+400000;Fournisseurs Et Comptes Rattaches
+401000;Fournisseurs, Dettes En Compte
+401100;Fournisseurs
+401200;Fournisseurs Groupe
+401300;Fournisseurs Sous-Traitants
+401700;Fournisseur, Retenues De Garantie
+402000;Fournisseurs, Effets A Payer
+402100;Fournisseurs, Effets A Payer
+402200;Fournisseurs - Groupe, Effets A Payer
+402300;Fournisseurs Sous-Traitants, Effets A Payer
+408000;Fournisseurs, Factures Non Parvenues
+408100;Fournisseurs
+408200;Fournisseurs - Groupe
+408300;Fournisseurs Sous-Traitants
+408600;Fournisseurs, Interets Courus
+409000;Fournisseurs Debiteurs
+409100;Fournisseurs Avances Et Acomptes Verses
+409200;Fournisseurs - Groupe Avances Et Acomptes Verses
+409300;Fournisseurs Sous-Traitants Avances Et Acomptes Verses
+409400;Fournisseurs Creances Pour Emballages Et Materiels A Rendre
+409800;Rabais, Remises, Ristournes Et Autres Avoirs A Obtenir
+410000;Clients Et Comptes Rattaches
+411000;Clients
+411100;Clients
+411200;Clients - Groupe
+411400;Clients, Etat Et Collectivites Publiques
+411500;Clients, Organismes Internationaux
+411700;Client, Retenues De Garantie
+411800;Clients, Degrevement De Taxes Sur La Valeur Ajoutee (T.V.A.)
+412000;Clients, Effets A Recevoir En Portefeuille
+412100;Clients, Effets A Recevoir
+412200;Clients - Groupe, Effets A Recevoir
+412400;Etat Et Collectivites Publiques, Effets A Recevoir
+412500;Organismes Internationaux, Effets A Recevoir
+414000;Creances Sur Cessions D'Immobilisations
+414100;Creances En Compte
+414200;Effets A Recevoir
+415000;Clients, Effets Escomptes Non Echus
+416000;Creances Clients Litigieuses Ou Douteuses
+416100;Creances Litigieuses
+416200;Creances Douteuses
+418000;Clients, Produits A Recevoir
+418100;Clients, Factures A Etablir
+418600;Clients, Interets Courus
+419000;Clients Crediteurs
+419100;Clients, Avances Et Acomptes Recus
+419200;Clients - Groupe, Avances Et Acomptes Recus
+419400;Clients, Dettes Pour Emballages Et Materiels Consignes
+419800;Rabais, Remises, Ristournes Et Autres Avoirs A Accorder
+420000;Personnel
+421000;Personnel, Avances Et Acomptes
+421100;Personnel, Avances
+421200;Personnel, Acomptes
+421300;Frais Avances Et Fournitures Au Personnel
+422000;Personnel, Remunerations Dues
+423000;Personnel, Oppositions, Saisies-Arrets
+423100;Personnel, Oppositions
+423200;Personnel, Saisies-Arrets
+423300;Personnel, Avis A Tiers Detenteur
+424000;Personnel, Oeuvres Sociales Internes
+424100;Assistance Medicale
+424200;Allocations Familiales
+424500;Organismes Sociaux Rattaches A L'Entreprise
+424800;Autres Oeuvres Sociales Internes
+425000;Representants Du Personnel
+425100;Delegues Du Personnel
+425200;Syndicats Et Comites D'Entreprises, D'Etablissement
+425800;Autres Representants Du Personnel
+426000;Personnel, Participation Aux Benefices
+427000;Personnel - Depots
+428000;Personnel, Charges A Payer Et Produits A Recevoir
+428100;Dettes Provisionnees Pour Conges A Payer
+428600;Autres Charges A Payer
+428700;Produits A Recevoir
+430000;Organismes Sociaux
+431000;Securite Sociale
+431100;Prestations Familiales
+431200;Accidents De Travail
+431300;Caisse De Retraite Obligatoire
+431400;Caisse De Retraite Facultative
+431800;Autres Cotisations Sociales
+432000;Caisses De Retraite Complementaire
+433000;Autres Organismes Sociaux
+433100;Mutuelle
+433400;T.V.A. Facturee Sur Production Livree A Soi-Meme
+433500;T.V.A. Sur Factures A Etablir
+438000;Organismes Sociaux, Charges A Payer Et Produits A Recevoir
+438100;Charges Sociales Sur Gratifications A Payer
+438200;Charges Sociales Sur Conges A Payer
+438600;Autres Charges A Payer
+438700;Produits A Recevoir
+440000;Etat Et Collectivites Publiques
+441000;Etat, Impot Sur Les Benefices
+442000;Etat, Autres Impots Et Taxes
+442100;Impots Et Taxes D'Etat
+442200;Impots Et Taxes Pour Les Collectivites Publiques
+442300;Impots Et Taxes Recouvrables Sur Des Obligataires
+442400;Impots Et Taxes Recouvrables Sur Des Associes
+442600;Droits De Douane
+442800;Autres Impots Et Taxes
+443000;Etat, T.V.A. Facturee
+443100;T.V.A. Facturee Sur Ventes
+443200;T.V.A. Facturee Sur Prestations De Services
+443300;T.V.A. Facturee Sur Travaux
+444000;Etat, T.V.A. Due Ou Credit De T.V.A.
+444100;Etat, T.V.A. Due
+444900;Etat, Credit De T.V.A. A Reporter
+445000;Etat, T.V.A. Recuperable
+445100;T.V.A. Recuperable Sur Immobilisations
+445200;T.V.A. Recuperable Sur Achats
+445300;T.V.A. Recuperable Sur Transport
+445400;T.V.A. Recuperable Sur Services Exterieurs Et Autres Charges
+445500;T.V.A. Recuperable Sur Factures Non Parvenues
+445600;T.V.A. Transferee Par D'Autres Entreprises
+446000;Etat, Autres Taxes Sur Le Chiffre D'Affaires
+447000;Etat, Impots Retenus A La Source
+447100;Impot General Sur Le Revenu
+447200;Impots Sur Salaires
+447300;Contribution Nationale
+447400;Contribution Nationale De Solidarite
+447800;Autres Impots Et Contributions
+448000;Etat, Charges A Payer Et Produits A Recevoir
+448600;Charges A Payer
+448700;Produits A Recevoir
+449000;Etat, Creances Et Dettes Diverses
+449100;Etat, Obligations Cautionnees
+449200;Etat, Avances Et Acomptes Verses Sur Impots
+449300;Etat, Fonds De Dotation A Recevoir
+449400;Etat, Subventions D'Equipement A Recevoir
+449500;Etat, Subventions D'Exploitation A Recevoir
+449600;Etat, Subventions D'Equilibre A Recevoir
+449900;Etat, Fonds Reglemente Provisionne
+450000;Organismes Internationaux
+451000;Operations Avec Les Organismes Africains
+452000;Operations Avec Les Autres Organismes Internationaux
+458000;Organismes Internationaux, Fonds De Dotation Et Subventions A Recevoir
+458100;Organismes Internationaux, Fonds De Dotation A Recevoir
+458200;Organismes Internationaux, Subventions A Recevoir
+460000;Associes Et Groupe
+461000;Associes, Operations Sur Le Capital
+461100;Associes Apports En Nature
+461200;Associes Apports En Numeraire
+461300;Actionnaires, Capital Souscrit Appele Non Verse
+461400;Associes, Capital Appele Non Verse
+461500;Associes, Versements Recus Sur Augmentation De Capital
+461600;Associes, Versements Anticipes
+461700;Actionnaires Defaillants
+461800;Associes, Autres Apports
+461900;Associes, Capital A Rembourser
+462000;Associes, Comptes Courants
+462100;Principal
+462600;Interets Courus
+463000;Associes, Operations Faites En Commun
+465000;Associes, Dividendes A Payer
+466000;Groupe, Comptes Courants
+467000;Actionnaires, Restant Du Sur Capital Appele
+470000;Debiteurs Et Crediteurs Divers
+471000;Comptes D'Attente
+471100;Debiteurs Divers
+471200;Crediteurs Divers
+472000;Versements Restant A Effectuer Sur Titres Non Liberes
+472600;Titres De Participation
+472700;Titres Immobilises
+472800;Titres De Placement
+474000;Repartition Periodique Des Charges Et Des Produits
+474600;Charges
+474700;Produits
+475000;Creances Sur Travaux Non Encore Facturables
+476000;Charges Constatees D'Avance
+477000;Produits Constates D'Avance
+478000;Ecarts De Conversion - Actif
+478100;Diminution Des Creances
+478200;Augmentation Des Dettes
+478800;Differences Compensees Par Couverture De Change
+479000;Ecarts De Conversion - Passif
+479100;Augmentation Des Creances
+479200;Diminution Des Dettes
+479800;Differences Compensees Par Couverture De Change
+480000;Creances Et Dettes Hors Activites Ordinaires (Hao)
+481000;Fournisseurs D'Investissements
+481100;Immobilisations Incorporelles
+481200;Immobilisations Corporelles
+481700;Retenues De Garantie
+481800;Factures Non Parvenues
+482000;Fournisseurs D'Investissements, Effets A Payer
+483000;Dettes Sur Acquisition De Titres De Placement
+484000;Autres Dettes Hors Activites Ordinaires (H.A.O.)
+485000;Creances Sur Cessions D'Immobilisations
+485100;En Compte
+485200;Effets A Recevoir
+485700;Retenues De Garantie
+485800;Factures A Etablir
+486000;Creances Sur Cessions De Titres De Placement
+488000;Autres Creances Hors Activites Ordinaires (H.A.O.)
+490000;Depreciations Et Risques Provisionnes (Tiers)
+491000;Depreciations Des Comptes Clients
+491100;Creances Litigieuses
+491200;Creances Douteuses
+492000;Depreciations Des Comptes Personnel
+493000;Depreciations Des Comptes Organismes Sociaux
+494000;Depreciations Des Comptes Etat Et Collectivites Publiques
+495000;Depreciations Des Comptes Organismes Internationaux
+496000;Depreciations Des Comptes Associes Et Groupe
+496200;Associes, Comptes Courants
+496300;Associes, Operations Faites En Commun
+496600;Groupe, Comptes Courants
+497000;Depreciations Des Comptes Debiteurs Divers
+498000;Depreciations Des Comptes De Creances H.A.O.
+498100;Creances Sur Cessions D'Immobilisations
+498200;Creances Sur Cessions De Titres De Placement
+498300;Autres Creances H.A.O.
+499000;Risques Provisionnes
+499100;Sur Operations D'Exploitation
+499800;Sur Operations H.A.O.
+500000;Titres De Placement
+501000;Titres Du Tresor Et Bons De Caisse A Court Terme
+501100;Titres Du Tresor A Court Terme
+501200;Titres D'Organismes Financiers
+501300;Bons De Caisse A Court Terme
+502000;Actions
+502100;Actions Propres
+502200;Actions Cotees
+502300;Actions Non Cotees
+502400;"Actions Demembrees (Certificats D'Investissement ; Droits De Vote)"
+502500;Autres Titres Conferant Un Droit De Propriete
+503000;Obligations
+503100;Obligations Emises Par La Societe Et Rachetees Par Elle
+503200;Obligations Cotees
+503300;Obligations Non Cotees
+503500;Autres Titres Conferant Un Droit De Creance
+504000;Bons De Souscription
+504200;Bons De Souscription D'Actions
+504300;Bons De Souscription D'Obligations
+505000;Titres Negociables Hors Region
+506000;Interets Courus
+506100;Titres Du Tresor Et Bons De Caisse A Court Terme
+506200;Actions
+506300;Obligations
+508000;Autres Valeurs Assimilees
+510000;Valeurs A Encaisser
+511000;Effets A Encaisser
+512000;Effets A L'Encaissement
+513000;Cheques A Encaisser
+514000;Cheques A L'Encaissement
+515000;Cartes De Credit A Encaisser
+518000;Autres Valeurs A L'Encaissement
+518100;Warrants
+518200;Billets De Fonds
+518500;Cheques De Voyage
+518600;Coupons Echus
+518700;Interets Echus Des Obligations
+520000;Banques
+521000;Banques Locales
+521100;Banques X
+521200;Banque Y
+522000;Banques Autres Etats Region
+523000;Banques Autres Etats Zone Monetaire
+524000;Banques Hors Zone Monetaire
+526000;Banques, Interets Courus
+530000;Etablissements Financiers Et Assimiles
+531000;Cheques Postaux
+532000;Tresor
+533000;Societes De Gestion Et D'Intermediation (S.G.I.)
+536000;Etablissements Financiers, Interets Courus
+538000;Autres Organismes Financiers
+540000;Instruments De Tresorerie
+541000;Options De Taux D'Interet
+542000;Options De Taux De Change
+543000;Options De Taux Boursiers
+544000;Instruments De Marches A Terme
+545000;Avoirs D'Or Et Autres Metaux Precieux (1)
+560000;Banques, Credits De Tresorerie Et D'Escompte
+561000;Credits De Tresorerie
+564000;Escompte De Credits De Campagne
+565000;Escompte De Credits Ordinaires
+566000;Banques, Credits De Tresorerie, Interets Courus
+570000;Caisse
+571000;Caisse Siege Social
+571100;En Unites Monetaires Legales
+571200;En Devises
+572000;Caisse Succursale A
+572100;En Unites Monetaires Legales
+572200;En Devises
+573000;Caisse Succursale B
+573100;En Unites Monetaires Legales
+573200;En Devises
+580000;Regies D'Avances, Accreditifs Et Virements Internes
+581000;Regies D'Avance
+582000;Accreditifs
+585000;Virements De Fonds
+588000;Autres Virements Internes
+590000;Depreciations Et Risques Provisionnes
+591000;Depreciations Des Titres Et Valeurs A Encaisser
+592000;Depreciations Des Comptes Banques
+593000;Depreciations Des Comptes Etablissements Financiers Et Assimiles
+594000;Depreciations Des Comptes D'Instruments De Tresorerie
+599000;Risques Provisionnes A Caractere Financier
+600000;Achats Et Variations De Stocks
+601000;Achats De Marchandises
+601100;Dans La Region (1)
+601200;Hors Region (1)
+601300;Aux Entreprises Du Groupe Dans La Region
+601400;Aux Entreprises Du Groupe Hors Region
+601900;Rabais, Remises Et Ristournes Obtenus (Non Ventiles)
+602000;Achats De Matieres Premieres Et Fournitures Liees
+602100;Dans La Region (1)
+602200;Hors Region (1)
+602300;Aux Entreprises Du Groupe Dans La Region
+602400;Aux Entreprises Du Groupe Hors Region
+602900;Rabais, Remises Et Ristournes Obtenus (Non Ventiles)
+603000;Variations Des Stocks De Biens Achetes
+603100;Variations Des Stocks De Marchandises
+603200;Variations Des Stocks De Matieres Premieres Et Fournitures Liees
+603300;Variations Des Stocks D'Autres Approvisionnements
+604000;Achats Stockes De Matieres Et Fournitures Consommables
+604100;Matieres Consommables
+604200;Matieres Combustibles
+604300;Produits D'Entretien
+604400;Fournitures D'Atelier Et D'Usine
+604600;Fournitures De Magasin
+604700;Fournitures De Bureau
+604900;Rabais, Remises Et Ristournes Obtenus (Non Ventiles)
+605000;Autres Achats
+605100;Fournitures Non Stockables -Eau
+605200;Fournitures Non Stockables - Electricite
+605300;Fournitures Non Stockables - Autres Energies
+605400;Fournitures D'Entretien Non Stockables
+605500;Fournitures De Bureau Non Stockables
+605600;Achats De Petit Materiel Et Outillage
+605700;Achats D'Etudes Et Prestations De Services
+605800;Achats De Travaux, Materiels Et Equipements
+605900;Rabais, Remises Et Ristournes Obtenus (Non Ventiles)
+608000;Achats D'Emballages
+608100;Emballages Perdus
+608200;Emballages Recuperables Non Identifiables
+608300;Emballages A Usage Mixte
+608900;Rabais, Remises Et Ristournes Obtenus (Non Ventiles)
+610000;Transports
+611000;Transports Sur Achats(1)
+612000;Transports Sur Ventes
+613000;Transports Pour Le Compte De Tiers
+614000;Transports Du Personnel
+616000;Transports De Plis
+618000;Autres Frais De Transport
+618100;Voyages Et Deplacements
+618200;Transports Entre Etablissements Ou Chantiers
+618300;Transports Administratifs
+620000;Services Exterieurs A
+621000;Sous-Traitance Generale
+622000;Locations Et Charges Locatives
+622100;Locations De Terrains
+622200;Locations De Batiments
+622300;Locations De Materiels Et Outillages
+622400;Malis Sur Emballages
+622500;Locations D'Emballages
+622800;Locations Et Charges Locatives Diverses
+623000;Redevances De Credit-Bail Et Contrats Assimiles
+623200;Credit-Bail Immobilier
+623300;Credit-Bail Mobilier
+623500;Contrats Assimiles
+624000;Entretien, Reparations Et Maintenance
+624100;Entretien Et Reparations Des Biens Immobiliers
+624200;Entretien Et Reparations Des Biens Mobiliers
+624300;Maintenance
+624800;Autres Entretiens Et Reparations
+625000;Primes D'Assurance
+625100;Assurances Multirisques
+625200;Assurances Materiel De Transport
+625300;Assurances Risques D'Exploitation
+625400;Assurances Responsabilite Du Producteur
+625500;Assurances Insolvabilite Clients
+625600;Assurances Transport Sur Achats
+625700;Assurances Transport Sur Ventes
+625800;Autres Primes D'Assurances
+626000;Etudes, Recherches Et Documentation
+626100;Etudes Et Recherches
+626500;Documentation Generale
+626600;Documentation Technique
+627000;Publicite, Publications, Relations Publiques
+627100;Annonces, Insertions
+627200;Catalogues, Imprimes Publicitaires
+627300;Echantillons
+627400;Foires Et Expositions
+627500;Publications
+627600;Cadeaux A La Clientele
+627700;Frais De Colloques, Seminaires, Conferences
+627800;Autres Charges De Publicite Et Relations Publiques
+628000;Frais De Telecommunications
+628100;Frais De Telephone
+628200;Frais De Telex
+628300;Frais De Telecopie
+628800;Autres Frais De Telecommunications
+630000;Services Exterieurs B
+631000;Frais Bancaires
+631100;Frais Sur Titres (Achat, Vente, Garde)
+631200;Frais Sur Effets
+631300;Location De Coffres
+631500;Commissions Sur Cartes De Credit
+631600;Frais D'Emission D'Emprunts
+631800;Autres Frais Bancaires
+632000;Remunerations D'Intermediaires Et De Conseils
+632100;Commissions Et Courtages Sur Achats
+632200;Commissions Et Courtages Sur Ventes
+632300;Remunerations Des Transitaires
+632400;Honoraires
+632500;Frais D'Actes Et De Contentieux
+632800;Divers Frais
+633000;Frais De Formation Du Personnel
+634000;Redevances Pour Brevets, Licences, Logiciels Et Droits Similaires
+634200;Redevances Pour Brevets, Licences, Concessions Et Droits Similaires
+634300;Redevances Pour Logiciels
+634400;Redevances Pour Marques
+635000;Cotisations
+635100;Cotisations
+635800;Concours Divers
+637000;Remunerations De Personnel Exterieur A L'Entreprise
+637100;Personnel Interimaire
+637200;Personnel Detache Ou Prete A L'Entreprise
+638000;Autres Charges Externes
+638100;Frais De Recrutement Du Personnel
+638200;Frais De Demenagement
+638300;Receptions
+638400;Missions
+640000;Impots Et Taxes
+641000;Impots Et Taxes Directs
+641100;Impots Fonciers Et Taxes Annexes
+641200;Patentes, Licences Et Taxes Annexes
+641300;Taxes Sur Appointements Et Salaires
+641400;Taxes D'Apprentissage
+641500;Formation Professionnelle Continue
+641800;Autres Impots Et Taxes Directs
+645000;Impots Et Taxes Indirects
+646000;Droits D'Enregistrement
+646100;Droits De Mutation
+646200;Droits De Timbre
+646300;Taxes Sur Les Vehicules De Societe
+646400;Vignettes
+646800;Autres Droits
+647000;Penalites Et Amendes Fiscales
+647100;Penalites D'Assiette, Impots Directs
+647200;Penalites D'Assiette, Impots Indirects
+647300;Penalites De Recouvrement, Impots Directs
+647400;Penalites De Recouvrement, Impots Indirects
+647800;Autres Amendes Penales Et Fiscales
+648000;Autres Impots Et Taxes
+650000;Autres Charges
+651000;Pertes Sur Creances Clients Et Autres Debiteurs
+651100;Clients
+651500;Autres Debiteurs
+652000;Quote-Part De Resultat Sur Operations Faites En Commun
+652100;Quote-Part Transferee De Benefices (Comptabilite Du Gerant)
+652500;Pertes Imputees Par Transfert (Comptabilite Des Associes Non Gerants)
+653000;Quote-Part De Resultat Annulee Sur Execution Partielle De Contrats Pluri-Exercice
+654000;Valeur Comptable Des Cessions Courantes D'Immobilisations
+658000;Charges Diverses
+658100;Jetons De Presence Et Autres Remunerations D'Administrateurs
+658200;Dons
+658300;Mecenat
+659000;Charges Provisionnees D'Exploitation
+659100;Sur Risques A Court Terme
+659300;Sur Stocks
+659400;Sur Creances
+659800;Autres Charges Provisionnees
+660000;Charges De Personnel
+661000;Remunerations Directes Versees Au Personnel National
+661100;Appointements Salaires Et Commissions
+661200;Primes Et Gratifications
+661300;Conges Payes
+661400;Indemnites De Preavis, De Licenciement Et De Recherche D'Embauche
+661500;Indemnites De Maladie Versees Aux Travailleurs
+661600;Supplement Familial
+661700;Avantages En Nature
+661800;Autres Remunerations Directes
+662000;Remunerations Directes Versees Au Personnel Non National
+662100;Appointements Salaires Et Commissions
+662200;Primes Et Gratifications
+662300;Conges Payes
+662400;Indemnites De Preavis, De Licenciement Et De Recherche D'Embauche
+662500;Indemnites De Maladie Versees Aux Travailleurs
+662600;Supplement Familial
+662700;Avantages En Nature
+662800;Autres Remunerations Directes
+663000;Indemnites Forfaitaires Versees Au Personnel
+663100;Indemnites De Logement
+663200;Indemnites De Representation
+663300;Indemnites D'Expatriation
+663800;Autres Indemnites Et Avantages Divers
+664000;Charges Sociales
+664100;Charges Sociales Sur Remuneration Du Personnel National
+664200;Charges Sociales Sur Remuneration Du Personnel Non National
+666000;Remunerations Et Charges Sociales De L'Exploitant Individuel
+666100;Remuneration Du Travail De L'Exploitant
+666200;Charges Sociales
+667000;Remuneration Transferee De Personnel Exterieur
+667100;Personnel Interimaire
+667200;Personnel Detache Ou Prete A L'Entreprise
+668000;Autres Charges Sociales
+668100;Versements Aux Syndicats Et Comites D'Entreprise, D'Etablissement
+668200;Versements Aux Comites D'Hygiene Et De Securite
+668300;Versements Aux Autres Oeuvres Sociales
+668400;Medecine Du Travail Et Pharmacie
+670000;Frais Financiers Et Charges Assimilees
+671000;Interets Des Emprunts
+671100;Emprunts Obligataires
+671200;Emprunts Aupres Des Etablissements De Credit
+671300;Dettes Liees A Des Participations
+672000;Interets Dans Loyers De Credit-Bail Et Contrats Assimiles
+672100;Interets Dans Loyers De Credit-Bail Immobilier
+672200;Interets Dans Loyers De Credit-Bail Mobilier
+672300;Interets Dans Loyers Des Autres Contrats
+673000;Escomptes Accordes
+674000;Autres Interets
+674100;Avances Recues Et Depots Crediteurs
+674200;Comptes Courants Bloques
+674300;Interets Sur Obligations Cautionnees
+674400;Interets Sur Dettes Commerciales
+674500;Interets Bancaires Et Sur Operations De Tresorerie Et D'Escompte
+674800;Interets Sur Dettes Diverses
+675000;Escomptes Des Effets De Commerce
+676000;Pertes De Change
+677000;Pertes Sur Cessions De Titres De Placement
+678000;Pertes Sur Risques Financiers
+678100;Sur Rentes Viageres
+678200;Sur Operations Financieres
+678400;Sur Instruments De Tresorerie
+679000;Charges Provisionnees Financieres
+679100;Sur Risques Financiers
+679500;Sur Titres De Placement
+679800;Autres Charges Provisionnees Financieres
+680000;Dotations Aux Amortissements
+681000;Dotations Aux Amortissements D'Exploitation
+681100;Dotations Aux Amortissements Des Charges Immobilisees
+681200;Dotations Aux Amortissements Des Immobilisations Incorporelles
+681300;Dotations Aux Amortissements Des Immobilisations Corporelles
+687000;Dotations Aux Amortissements A Caractere Financier
+687200;Dotations Aux Amortissements Des Primes De Remboursement Des Obligations
+687800;Autres Dotations Aux Amortissements A Caractere Financier
+690000;Dotations Aux Provisions
+691000;Dotations Aux Provisions D'Exploitation
+691100;Pour Risques Et Charges
+691200;Pour Grosses Reparations
+691300;Pour Depreciation Des Immobilisations Incorporelles
+691400;Pour Depreciation Des Immobilisations Corporelles
+697000;Dotations Aux Provisions Financieres
+697100;Pour Risques Et Charges
+697200;Pour Depreciation Des Immobilisations Financieres
+700000;Ventes
+701000;Ventes De Marchandises
+701100;Dans La Region (1)
+701200;Hors Region (1)
+701300;Aux Entreprises Du Groupe Dans La Region
+701400;Aux Entreprises Du Groupe Hors Region
+702000;Ventes De Produits Finis
+702100;Dans La Region (1)
+702200;Hors Region (1)
+702300;Aux Entreprises Du Groupe Dans La Region
+702400;Aux Entreprises Du Groupe Hors Region
+703000;Ventes De Produits Intermediaires
+703100;Dans La Region (1)
+703200;Hors Region (1)
+703300;Aux Entreprises Du Groupe Dans La Region
+703400;Aux Entreprises Du Groupe Hors Region
+704000;Ventes De Produits Residuels
+704100;Dans La Region (1)
+704200;Hors Region (1)
+704300;Aux Entreprises Du Groupe Dans La Region
+704400;Aux Entreprises Du Groupe Hors Region
+705000;Travaux Factures
+705100;Dans La Region (1)
+705200;Hors Region (1)
+705300;Aux Entreprises Du Groupe Dans La Region
+705400;Aux Entreprises Du Groupe Hors Region
+706000;Services Vendus
+706100;Dans La Region (1)
+706200;Hors Region (1)
+706300;Aux Entreprises Du Groupe Dans La Region
+706400;Aux Entreprises Du Groupe Hors Region
+707000;Produits Accessoires
+707100;Ports, Emballages Perdus Et Autres Frais Factures
+707200;Commissions Et Courtages(2)
+707300;Locations (2)
+707400;Bonis Sur Reprises Et Cessions D'Emballages
+707500;Mise A Disposition De Personnel (2)
+707600;Redevances Pour Brevets, Logiciels, Marques Et Droits Similaires (2)
+707700;Services Exploites Dans L'Interet Du Personnel
+707800;Autres Produits Accessoires
+710000;Subventions D'Exploitation
+711000;Sur Produits A L'Exportation
+712000;Sur Produits A L'Importation
+713000;Sur Produits De Perequation
+718000;Autres Subventions D'Exploitation
+718100;Versees Par L'Etat Et Les Collectivites Publiques
+718200;Versees Par Les Organismes Internationaux
+718300;Versees Par Des Tiers
+720000;Production Immobilisee
+721000;Immobilisations Incorporelles
+722000;Immobilisations Corporelles
+726000;Immobilisations Financieres (1)
+730000;Variations Des Stocks De Biens Et De Services Produits
+734000;Variations Des Stocks De Produits En Cours
+734100;Produits En Cours
+734200;Travaux En Cours
+735000;Variations Des En-Cours De Services
+735100;Etudes En Cours
+735200;Prestations De Services En Cours
+736000;Variations Des Stocks De Produits Finis
+737000;Variations Des Stocks De Produits Intermediaires Et Residuels
+737100;Produits Intermediaires
+737200;Produits Residuels
+750000;Autres Produits
+752000;Quote-Part De Resultat Sur Operations Faites En Commun
+752100;Quote-Part Transferee De Pertes (Comptabilite Du Gerant)
+752500;Benefices Attribues Par Transfert (Comptabilite Des Associes Non Non Gerants
+753000;Quote-Part De Resultat Sur Execution Partielle De Contrats Pluri-Exercice
+754000;Produits Des Cessions Courantes D'Immobilisations
+758000;Produits Divers
+758100;Jetons De Presence Et Autres Remunerations D'Administrateurs
+758200;Indemnites D'Assurances Recues
+759000;Reprises De Charges Provisionnees D'Exploitation
+759100;Sur Risques A Court Terme
+759300;Sur Stocks
+759400;Sur Creances
+759800;Sur Autres Charges Provisionnees
+770000;Revenus Financiers Et Produits Assimiles
+771000;Interets De Prets
+772000;Revenus De Participations
+773000;Escomptes Obtenus
+774000;Revenus De Titres De Placement
+776000;Gains De Change
+777000;Gains Sur Cessions De Titres De Placement
+778000;Gains Sur Risques Financiers
+778100;Sur Rentes Viageres
+778200;Sur Operations Financieres
+778400;Sur Instruments De Tresorerie
+779000;Reprises De Charges Provisionnees Financieres
+779100;Sur Risques Financiers
+779500;Sur Titres De Placement
+779800;Autres Charges Provisionnees Financieres
+780000;Transferts De Charges
+781000;Transferts De Charges D'Exploitation
+787000;Transferts De Charges Financieres
+790000;Reprises De Provisions
+791000;Reprises De Provisions D'Exploitation
+791100;Pour Risques Et Charges
+791200;Pour Grosses Reparations
+791300;Pour Depreciation Des Immobilisations Incorporelles
+791400;Pour Depreciation Des Immobilisations Corporelles
+797000;Reprises De Provisions Financieres
+797100;Pour Risques Et Charges
+797200;Pour Depreciation Des Immobilisations Financieres
+798000;Reprises D'Amortissements (1)
+810000;Valeurs Comptables Des Cessions D'Immobilisations
+811000;Immobilisations Incorporelles
+812000;Immobilisations Corporelles
+816000;Immobilisations Financieres
+820000;Produits Des Cessions D'Immobilisations
+821000;Immobilisations Incorporelles
+822000;Immobilisations Corporelles
+826000;Immobilisations Financieres
+830000;Charges Hors Activites Ordinaires
+831000;Charges H.A.O. Constatees
+834000;Pertes Sur Creances H.A.O.
+835000;Dons Et Liberalites Accordes
+836000;Abandons De Creances Consentis
+839000;Charges Provisionnees H.A.O.
+840000;Produits Hors Activites Ordinaires
+841000;Produits H.A.O Constates
+845000;Dons Et Liberalites Obtenus
+846000;Abandons De Creances Obtenus
+848000;Transferts De Charges H.A.O
+849000;Reprises Des Charges Provisionnees H.A.O.
+850000;Dotations Hors Activites Ordinaires
+851000;Dotations Aux Provisions Reglementees
+852000;Dotations Aux Amortissements H.A.O.
+853000;Dotations Aux Provisions Pour Depreciation H.A.O.
+854000;Dotations Aux Provisions Pour Risques Et Charges H.A.O.
+858000;Autres Dotations H.A.O.
+860000;Reprises Hors Activites Ordinaires
+861000;Reprises De Provisions Reglementees
+862000;Reprises D'Amortissements
+863000;Reprises De Provisions Pour Depreciation H.A.O.
+864000;Reprises De Provisions Pour Risques Et Charges H.A.O.
+865000;Reprises De Subventions D'Investissement
+868000;Autres Reprises H.A.O.
+870000;Participation Des Travailleurs
+871000;Participation Legale Aux Benefices
+874000;Participation Contractuelle Aux Benefices
+878000;Autres Participations
+880000;Subventions D'Equilibre
+881000;Etat
+884000;Collectivites Publiques
+886000;Groupe
+888000;Autres
+890000;Impots Sur Le Resultat
+891000;Impots Sur Les Benefices De L'Exercice
+891100;Activites Exercees Dans L'Etat
+891200;Activites Exercees Dans Les Autres Etats De La Region
+891300;Activites Exercees Hors Region
+892000;Rappel D'Impots Sur Resultats Anterieurs
+895000;Impot Minimum Forfaitaire (I.M.F.)
+899000;Degrevements Et Annulations D'Impots Sur Resultats Anterieurs
+899100;Degrevements
+899400;Annulations Pour Pertes Retroactives
+900000;Engagements Obtenus Et Engagements Accordes Engagements Obtenus
+901000;Engagements De Financement Obtenus
+901100;Credits Confirmes Obtenus
+901200;Emprunts Restant A Encaisser
+901300;Facilites De Financement Renouvelables
+901400;Facilites D'Emission
+901800;Autres Engagements De Financement Obtenus
+902000;Engagements De Garantie Obtenus
+902100;Avals Obtenus
+902200;Cautions, Garanties Obtenues
+902300;Hypotheques Obtenues
+902400;Effets Endosses Par Des Tiers
+902800;Autres Garanties Obtenues
+903000;Engagements Reciproques
+903100;Achats De Marchandises A Terme
+903200;Achats A Terme De Devises
+903300;Commandes Fermes Des Clients
+903800;Autres Engagements Reciproques
+904000;Autres Engagements Obtenus
+904100;Abandons De Creances Conditionnels
+904300;Ventes Avec Clause De Reserve De Propriete
+904800;Divers Engagements Obtenus
+905100;Credits Accordes Non Decaisses
+905800;Autres Engagements De Financement Accordes
+906000;Engagements De Garantie Accordes
+906100;Avals Accordes
+906200;Cautions, Garanties Accordees
+906300;Hypotheques Accordees
+906400;Effets Endosses Par L'Entreprise
+906800;Autres Garanties Accordees
+907000;Engagements Reciproques
+907100;Ventes De Marchandises A Terme
+907200;Ventes A Terme De Devises
+907300;Commandes Fermes Aux Fournisseurs
+907800;Autres Engagements Reciproques
+908100;Annulations Conditionnelles De Dettes
+908200;Engagements De Retraite
+908300;Achats Avec Clause De Reserve De Propriete
+908800;Divers Engagements Accordes
+910000;Contreparties Des Engagements
+911000;Contrepartie Des Engagements Obtenus, 901 A 904
+915000;Contrepartie Des Engagements Accordes, 905 A 908
+920000;Comptes Reflechis
+930000;Comptes De Reclassements
+940000;Comptes De Couts
+950000;Comptes De Stocks
+960000;Comptes D'Ecarts Sur Couts Preetablis
+970000;Comptes De Differences De Traitement Comptable
+980000;Comptes De Resultats
+990000;Comptes De Liaisons Internes

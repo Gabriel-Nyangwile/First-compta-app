@@ -1,0 +1,57 @@
+{
+  "createdAt": "2025-09-25T16:26:45.418Z",
+  "results": [
+    {
+      "name": "user",
+      "count": 1
+    },
+    {
+      "name": "account",
+      "count": 1268
+    },
+    {
+      "name": "moneyAccount",
+      "count": 10
+    },
+    {
+      "name": "client",
+      "count": 11
+    },
+    {
+      "name": "supplier",
+      "count": 4
+    },
+    {
+      "name": "invoice",
+      "count": 13
+    },
+    {
+      "name": "invoiceLine",
+      "count": 10
+    },
+    {
+      "name": "incomingInvoice",
+      "count": 8
+    },
+    {
+      "name": "incomingInvoiceLine",
+      "count": 17
+    },
+    {
+      "name": "transaction",
+      "count": 72
+    },
+    {
+      "name": "moneyMovement",
+      "count": 12
+    },
+    {
+      "name": "treasuryAuthorization",
+      "count": 0
+    },
+    {
+      "name": "bankAdvice",
+      "count": 0
+    }
+  ]
+}

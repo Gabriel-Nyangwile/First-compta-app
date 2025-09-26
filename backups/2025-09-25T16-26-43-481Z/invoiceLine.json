@@ -1,0 +1,112 @@
+[
+  {
+    "id": "f0bc92ac-b75c-4e09-989a-52db91cea03f",
+    "description": "Tenue et présentation de votre comptabilité pour le mois de septembre 2025",
+    "unitOfMeasure": "Forfait/mois",
+    "quantity": "1",
+    "unitPrice": "3500",
+    "lineTotal": "3500",
+    "vatRate": null,
+    "accountId": "1f0f9278-1cd5-4995-844f-9158d97b35c5",
+    "invoiceId": "90828a21-735c-4115-8604-beceb1fe97fd"
+  },
+  {
+    "id": "e1d9676e-e88d-45d5-8059-d1e6a464c146",
+    "description": "Mise à disposition personnel",
+    "unitOfMeasure": "ho/mois",
+    "quantity": "5",
+    "unitPrice": "250",
+    "lineTotal": "1250",
+    "vatRate": null,
+    "accountId": "1f0f9278-1cd5-4995-844f-9158d97b35c5",
+    "invoiceId": "90828a21-735c-4115-8604-beceb1fe97fd"
+  },
+  {
+    "id": "126b7c81-b154-4794-a458-e405f43d5101",
+    "description": "Création site internet mmutombo.com",
+    "unitOfMeasure": "Forfait",
+    "quantity": "1",
+    "unitPrice": "4500",
+    "lineTotal": "4500",
+    "vatRate": null,
+    "accountId": "e48a0e9f-5d94-4df4-952f-78fb78a77a93",
+    "invoiceId": "44dac661-a9f3-44a1-ab53-2ce72dee15cc"
+  },
+  {
+    "id": "04e07fe6-040a-4a1d-bf49-ead9188dd207",
+    "description": "Mise en ligne de votre site",
+    "unitOfMeasure": "Forfait/mois",
+    "quantity": "12",
+    "unitPrice": "100",
+    "lineTotal": "1200",
+    "vatRate": null,
+    "accountId": "e48a0e9f-5d94-4df4-952f-78fb78a77a93",
+    "invoiceId": "44dac661-a9f3-44a1-ab53-2ce72dee15cc"
+  },
+  {
+    "id": "ca49be56-e288-47bb-8c8e-01024fa5f454",
+    "description": "Mise à disposition personnel pour maintenance parc ordinateurs",
+    "unitOfMeasure": "homme/heure",
+    "quantity": "30",
+    "unitPrice": "25",
+    "lineTotal": "750",
+    "vatRate": null,
+    "accountId": "40a968e2-1b89-454f-9db2-c8d93e3f4e62",
+    "invoiceId": "fd89d675-48c0-4940-8e71-0a1b7f2e84fa"
+  },
+  {
+    "id": "b25f547a-b800-4df9-8b31-dc671b82e78a",
+    "description": "Mise à disposition du personnel",
+    "unitOfMeasure": "homme/mois",
+    "quantity": "5",
+    "unitPrice": "25",
+    "lineTotal": "125",
+    "vatRate": null,
+    "accountId": "e48a0e9f-5d94-4df4-952f-78fb78a77a93",
+    "invoiceId": "4d6dac8b-3e94-42cd-afb0-98128a505f7f"
+  },
+  {
+    "id": "3ab29b97-79ec-473a-9fd9-5499460449a6",
+    "description": "Location Véhicules",
+    "unitOfMeasure": "Véhicule/jour",
+    "quantity": "6",
+    "unitPrice": "100",
+    "lineTotal": "600",
+    "vatRate": null,
+    "accountId": "e48a0e9f-5d94-4df4-952f-78fb78a77a93",
+    "invoiceId": "4d6dac8b-3e94-42cd-afb0-98128a505f7f"
+  },
+  {
+    "id": "8fbe0108-5f66-4adf-a6be-c9202cf5cb80",
+    "description": "Aménagement espace conférences",
+    "unitOfMeasure": "Salles/jour",
+    "quantity": "4",
+    "unitPrice": "250",
+    "lineTotal": "1000",
+    "vatRate": null,
+    "accountId": "e48a0e9f-5d94-4df4-952f-78fb78a77a93",
+    "invoiceId": "4d6dac8b-3e94-42cd-afb0-98128a505f7f"
+  },
+  {
+    "id": "490fe6ec-f6d5-4a76-b084-de58ef08c11a",
+    "description": "Article Alpha",
+    "unitOfMeasure": "u",
+    "quantity": "2",
+    "unitPrice": "50",
+    "lineTotal": "100",
+    "vatRate": null,
+    "accountId": "7b2ee499-71b5-489f-ba73-b9ec1e30c0a7",
+    "invoiceId": "e35ccb80-a10d-4e37-9d7c-7d153df3809a"
+  },
+  {
+    "id": "ae474924-3db0-40eb-bdc7-63216bb34db0",
+    "description": "Article Beta",
+    "unitOfMeasure": "u",
+    "quantity": "3",
+    "unitPrice": "20",
+    "lineTotal": "60",
+    "vatRate": null,
+    "accountId": "7b2ee499-71b5-489f-ba73-b9ec1e30c0a7",
+    "invoiceId": "e35ccb80-a10d-4e37-9d7c-7d153df3809a"
+  }
+]

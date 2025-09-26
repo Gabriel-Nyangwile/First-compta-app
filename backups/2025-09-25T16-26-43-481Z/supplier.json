@@ -1,0 +1,46 @@
+[
+  {
+    "id": "2dac2b27-308c-478b-b2bb-c2905ff205d5",
+    "name": "Disciples d'Emmaus sarl",
+    "address": "Avenue Katho n° 24, Commune de Lingwala, Kinshasa.",
+    "phone": "+243998186999",
+    "email": "contact@d-emmaus.org",
+    "accountId": "46045bfc-5428-45c9-9526-1fd81c5d6aec",
+    "providedProduct": null,
+    "paymentNature": "credit",
+    "paymentDelay": 30
+  },
+  {
+    "id": "21df6405-ee26-48fd-b07e-4c59d851af1b",
+    "name": "Ets Fontana",
+    "address": "654, Avenido Nintendho, Funtumia colorado, Luanda, Angola",
+    "phone": "+244999877245",
+    "email": "albertenstein@fausseadresse.com",
+    "accountId": "9228383c-5da3-4e54-9e4e-0aa98178cd2b",
+    "providedProduct": null,
+    "paymentNature": "credit",
+    "paymentDelay": 30
+  },
+  {
+    "id": "050d2e61-368b-4fc7-93a4-e4d6fbf5057e",
+    "name": "FournisseurTest-1758466718602-772317",
+    "address": null,
+    "phone": null,
+    "email": null,
+    "accountId": "572bc965-9ba8-468c-8b3c-ea9387616749",
+    "providedProduct": null,
+    "paymentNature": "credit",
+    "paymentDelay": 30
+  },
+  {
+    "id": "0065fc0f-acd4-445c-9921-69c984db6e56",
+    "name": "FournisseurTest-1758467080273-149427",
+    "address": null,
+    "phone": null,
+    "email": null,
+    "accountId": "572bc965-9ba8-468c-8b3c-ea9387616749",
+    "providedProduct": null,
+    "paymentNature": "credit",
+    "paymentDelay": 30
+  }
+]

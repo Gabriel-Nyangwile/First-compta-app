@@ -1,0 +1,112 @@
+[
+  {
+    "id": "b6c43358-a41e-4c67-b94d-072a6678face",
+    "name": "Client Test",
+    "address": "Avenue Matafali n° 10, Bukavu dawa, Matete, Kinshasa",
+    "phone": null,
+    "email": "test@example.com",
+    "accountId": "6b1d6324-0415-478e-bdf7-8734b2eeb481",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "25bcbcf6-b944-479b-9d1f-ffee408c7d1f",
+    "name": "Gabriel Lwabeya",
+    "address": "Avenue espérance n° 4, Quartier Musangu, Commune de Mont-Ngafula, Kinshasa ",
+    "phone": null,
+    "email": "gabriel@scofex.com",
+    "accountId": "6aba440c-df37-4167-aafd-72b1d8f35891",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "b7e3d5ac-6fd8-4439-9182-3bd50d474a72",
+    "name": "Martin Mutombo",
+    "address": "Une adresse de Mont Ngafula, Kinshasa",
+    "phone": null,
+    "email": "mm@gmail.com",
+    "accountId": "94d9ef37-e634-496e-947f-fe44ab7ddc98",
+    "category": "CASH",
+    "userId": null
+  },
+  {
+    "id": "bfda3cc9-ddf5-4b6f-8df8-1b1029437c2e",
+    "name": "Scofex Sarl",
+    "address": "Avenue Mayala n° 4, Quartier Kimvula, Commune de Mont-Ngafula, Kinshasa",
+    "phone": null,
+    "email": "andremayala@scofex-sarl.com",
+    "accountId": "36286eb7-9cdd-4248-97eb-ac9f3d2732f8",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "a7dc78e7-b87a-49d4-9fa2-4403b5e1c7e8",
+    "name": "Strategic Business",
+    "address": "Avenue Télécom n° 58, Quartier Kinvula, Commune de Mont-Ngafula",
+    "phone": null,
+    "email": "contact@strategic-business.com",
+    "accountId": "09d5f2df-f6f3-42f7-aec5-0f2d7ceef0e0",
+    "category": "DAYS_45",
+    "userId": null
+  },
+  {
+    "id": "9d779157-8abc-4504-b7e6-c98befdcd8cf",
+    "name": "Jenetec sarl",
+    "address": "Avenue Ixoras n° 284, Quartier résidentiel, Commune de Limete, Kinshasa",
+    "phone": null,
+    "email": "info@jenetec-sarl.com",
+    "accountId": "c17d1a42-84c2-4c77-8cba-6da9bb1834ea",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "cdc6770f-b7bc-4cab-bdb8-9baeb073c4aa",
+    "name": "Janvier Bula Matari",
+    "address": null,
+    "phone": null,
+    "email": "jbm@noname.com",
+    "accountId": "269598e3-2ee0-469e-ab71-941d8162e360",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "b8e5b9dc-abd5-41c7-aeb7-b9a4fdc9161a",
+    "name": "Barthélemy Bafuidi Nsoni",
+    "address": "Avenue bakayawu n°03, quartier Isangi, commune de Mangobo, Kisangani, Province de la Tshopo",
+    "phone": null,
+    "email": "bbn@noname.com",
+    "accountId": "374655b6-0039-4445-9e66-a4de59088d16",
+    "category": "DAYS_45",
+    "userId": null
+  },
+  {
+    "id": "ecf5f3af-d722-41b8-92a1-7e861ed8ba85",
+    "name": "Emporium Sa",
+    "address": "Avenue Moero n° 248, Quartier Mashiripa, Commune de Lubumbashi, Lubumbashi, Province du Haut-Katanga",
+    "phone": null,
+    "email": "mukiriki@emporium-sa.com",
+    "accountId": "694a7d81-26c5-4d25-88f4-b44c1a4c8bba",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "3ebd923c-4fb4-4c51-8c51-39e5ec384ec9",
+    "name": "ClientTest-1758466718523-352033",
+    "address": null,
+    "phone": null,
+    "email": null,
+    "accountId": "18d482ca-c251-4750-9cf4-01be4f2fc854",
+    "category": "DAYS_30",
+    "userId": null
+  },
+  {
+    "id": "9a987c06-03e8-4fc4-b71d-16a1cf04b0a3",
+    "name": "ClientTest-1758467079644-289878",
+    "address": null,
+    "phone": null,
+    "email": null,
+    "accountId": "18d482ca-c251-4750-9cf4-01be4f2fc854",
+    "category": "DAYS_30",
+    "userId": null
+  }
+]

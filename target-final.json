@@ -1,0 +1,52 @@
+{
+  "mode": "hyphen",
+  "yearFilter": null,
+  "generatedAt": "2025-09-21T17:37:24.013Z",
+  "invoiceTotal": 4,
+  "transactionTotal": 13,
+  "sumDebit": 178.8,
+  "sumCredit": 715.2,
+  "netImpact": -536.4,
+  "invoices": [
+    {
+      "invoiceId": "f71c25e6-1a64-4fdb-8ac9-509f81150ac3",
+      "invoiceNumber": "INV-1758466134413",
+      "issueDate": "2025-09-21T14:48:53.434Z",
+      "lineCount": 2,
+      "transactionCount": 3,
+      "debitSum": 0,
+      "creditSum": 178.8,
+      "net": -178.8
+    },
+    {
+      "invoiceId": "952fc0a0-587a-44c3-9c54-cc8f4a18b1c1",
+      "invoiceNumber": "INV-1758466471848",
+      "issueDate": "2025-09-21T14:54:31.784Z",
+      "lineCount": 2,
+      "transactionCount": 3,
+      "debitSum": 0,
+      "creditSum": 178.8,
+      "net": -178.8
+    },
+    {
+      "invoiceId": "d7255e32-0de9-4156-bbd7-f5cb42a8ed3b",
+      "invoiceNumber": "INV-1758466718673",
+      "issueDate": "2025-09-21T14:58:38.636Z",
+      "lineCount": 2,
+      "transactionCount": 3,
+      "debitSum": 0,
+      "creditSum": 178.8,
+      "net": -178.8
+    },
+    {
+      "invoiceId": "abd582d9-3e3c-4f5b-8da9-e8ff2accdd55",
+      "invoiceNumber": "INV-1758467081113",
+      "issueDate": "2025-09-21T15:04:40.552Z",
+      "lineCount": 2,
+      "transactionCount": 4,
+      "debitSum": 178.8,
+      "creditSum": 178.8,
+      "net": 0
+    }
+  ]
+}

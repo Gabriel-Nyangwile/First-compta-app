@@ -1,36 +1,544 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# First Compta
 
-## Getting Started
+## Project Title
 
-First, run the development server:
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)](#coverage)
+
+Lightweight double-entry accounting kernel (invoices, ledger transactions, VAT) built with Next.js App Router + Prisma. (Version française : voir `README.fr.md`).
+
+## 1. Overview
+
+This project implements a minimal but extensible accounting layer for sales invoices inside a modern React (Next.js) stack:
+
+- Double-entry postings (receivable, revenue, VAT collected)
+- Transaction ledger with directional debits/credits and semantic kinds
+- Invoice lifecycle: draft → issued → paid (via settlement postings)
+- CSV export & filtering for transactions
+- Client management (CRUD) with per-client receivable account link
+- Autocomplete for accounts & clients (search + inline create)
+
+The current scope focuses on sales (customers). A supplier / purchase module will follow (see Roadmap).
+
+Full functional / technical details of accounting logic live in: [docs/accounting.md](./docs/accounting.md)
+
+## 2. Tech Stack & Architecture
+
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| UI / Routing | Next.js (App Router, React 19) | Server + Client components mixed |
+| Data Access | Prisma (PostgreSQL) | Strongly typed models & migrations |
+| Auth (temporary) | Lightweight localStorage + custom DOM events | Simplified dev-only approach (no sessions / JWT) |
+| PDF | Server-side pdf-lib (multi-page) | Unified generation for client & supplier invoices (pagination + headers/footers) |
+| Validation | Central helper (`lib/validation/client.js`) | Normalization & controlled enums |
+
+### 2.1 Frontend
+
+Pages live under `src/app/` following the App Router conventions. Reusable UI sits in `src/components/`.
+
+Key screens:
+
+- `/invoices` list & creation page
+- `/invoices/[id]` invoice detail (with PDF download)
+- `/clients` list, create, edit flows
+- `/transactions` ledger & CSV export
+
+### 2.2 Backend (API Routes)
+
+API endpoints are colocated under `src/app/api/*`. Each resource uses RESTful semantics (GET, POST, PUT, DELETE) per route folder.
+
+### 2.3 Data Flow (Invoice Creation)
+
+1. User submits invoice form (lines referencing account numbers)
+1. API validates + writes `Invoice` & `InvoiceLine` records
+1. Accounting postings generated:
+
+- Debit client receivable (411*)
+- Credit sales revenue (aggregated lines)
+- Credit VAT collected (4457*) if applicable
+
+1. Response returns the persisted invoice with generated number.
+
+### 2.4 Settlement Flow
+
+Payment triggers settlement endpoint → posts:
+
+- Debit bank / cash account (512 / 53… planned; placeholder currently)
+- Credit client receivable
+
+Invoice status moves to PAID when balance is zero.
+
+## 3. Data Model (Prisma Summary)
+
+Core models (abridged — see `prisma/schema.prisma` for authoritative schema):
+
+- `Client`: basic identity data + category + related receivable `Account`
+- `Account`: generic chart-of-accounts entry (number, name, optional relations)
+- `Invoice`: header (client, status, issueDate, total amounts)
+- `InvoiceLine`: references revenue / VAT accounts and amount bases
+- `Transaction`: single posting line with `direction` (DEBIT|CREDIT) & `kind` (semantic enum)
+
+Important enums:
+
+- `TransactionDirection`: DEBIT / CREDIT
+- `TransactionKind`: e.g. INVOICE_RECEIVABLE, INVOICE_SALES, INVOICE_VAT_COLLECTED, PAYMENT_RECEIVABLE_CLEARING (names may evolve)
+- `ClientCategory`: categorization for payment term logic
+
+## 4. Accounting Flows (Sales)
+
+Detailed logic in [docs/accounting.md](./docs/accounting.md). High-level recap:
+
+| Scenario | Postings | Notes |
+|----------|----------|-------|
+| Issue invoice | DR Receivable / CR Sales / CR VAT | Sales aggregated per revenue accounts |
+| Settlement (full) | DR Bank / CR Receivable | Marks invoice PAID |
+| Settlement (partial, future) | DR Bank / CR Receivable (partial) | Status logic will handle PARTIAL |
+
+Double-entry invariants: Σ Debit = Σ Credit for every operation group.
+
+## 5. Validation & Helpers
+
+Centralized in `lib/validation/client.js`:
+
+- `normalizeEmail(email)` → lowercases & trims
+- `validateCategory(category)` → ensures value is in `VALID_CLIENT_CATEGORIES`
+- `getPaymentDays(category)` → maps category to default payment term
+
+Applied in `POST /api/clients` and `PUT /api/clients/[id]` to maintain consistency (unicité email + logique de catégorie).
+
+## 6. API Reference (Current)
+
+Base path: `/api`
+
+| Endpoint | Method(s) | Purpose |
+|----------|-----------|---------|
+| `/accounts/search` | GET | Autocomplete chart of accounts by prefix |
+| `/account/create` | POST | Create a new account |
+| `/clients` | GET, POST | List or create clients |
+| `/clients/search` | GET | Name-based search (autocomplete) |
+| `/clients/[id]` | GET, PUT, DELETE | Retrieve, update, or delete a client (with orphan account cleanup) |
+| `/invoices` | GET, POST | List or create invoices |
+| `/invoices/next-number` | GET | Fetch next sequential invoice number |
+| `/invoice/[id]/pdf` | GET | Generate PDF (pdf-lib) for a client invoice (lines, HT/TVA/TTC) |
+| `/incoming-invoices/[id]/pdf` | GET | Generate PDF (pdf-lib) for a supplier (incoming) invoice |
+| `/transactions` | GET | Filtered ledger list + aggregates + CSV support |
+
+Example: create client
+
+```http
+POST /api/clients
+Content-Type: application/json
+{
+  "name": "Acme SARL",
+  "email": "contact@acme.fr",
+  "category": "STANDARD",
+  "address": "12 Rue Exemple, 75000 Paris"
+}
+```
+
+Returns 201 with JSON client payload (email normalized, receivable account created if needed).
+
+Error modes:
+
+- 400 invalid category
+- 409 email already exists (normalized comparison)
+
+## 7. Development Workflow
+
+### 7.1 Prerequisites
+
+- Node.js 18+
+- PostgreSQL instance
+
+### 7.2 Setup
+
+```bash
+npm install
+npx prisma migrate dev
+node scripts/import-accounts.js   # load chart of accounts (plan comptable)
+npm run dev
+```
+
+Visit <http://localhost:3000>
+
+### 7.3 Useful Commands
+
+```bash
+# Start development server
+npm run dev
+# Apply prisma migrations (interactive dev)
+npx prisma migrate dev
+# Open Prisma Studio
+npx prisma studio
+# Generate Prisma client (without running migrations)
+npx prisma generate
+# Import chart of accounts CSV
+node scripts/import-accounts.js
+```
+
+### 7.4 Adding a New Migration
+
+1. Edit `prisma/schema.prisma`
+2. Run `npx prisma migrate dev --name meaningful_change`
+3. Commit both the schema and generated migration folder
+
+### 7.5 Coding Conventions
+
+- Keep business logic in server actions or dedicated helpers (avoid duplicating in routes & UI)
+- Centralize normalization / validation (extend `lib/validation/*`)
+-- Use descriptive `TransactionKind` additions for new posting patterns
+
+## 8. Auth (Temporary Simplification)
+
+<!-- Duplicate heading fixed above -->
+Currently: localStorage user object + custom DOM events (`user:login`, `user:logout`) to trigger UI refresh. No persistence server-side yet. Replaceable later by proper session / token system.
+
+## 9. Roadmap (Next Phases)
+
+| Phase | Focus | Key Items |
+|-------|-------|-----------|
+| Suppliers & Purchases | Mirror sales for supplier invoices | Supplier model, payable accounts (401*), VAT deductible, purchase invoice postings (initial PDF done) |
+| Partial Payments | Support partial settlement | Outstanding balance logic, status PARTIAL |
+| Credit Notes | Negative invoices / adjustments | Reverse postings, link to original invoice |
+| Multi VAT Rates | Multiple VAT lines per invoice | Extend line model with rate, aggregate postings |
+| FEC / Export | Compliance exports | Generate FEC-like file (France) from Transactions |
+| Testing | Automated coverage | Unit tests for posting logic & validation |
+| Auth Hardening | Real authentication | Replace local storage shim (e.g. NextAuth or custom JWT) |
+
+## 10. Contribution Guidelines
+
+- Keep README & `docs/accounting.md` updated when adding posting logic
+- Prefer small, focused migrations
+- Ensure Δ ΣDebit = ΣCredit per transactional operation (add assertion if needed)
+- Document any new `TransactionKind`
+
+## 11. Troubleshooting
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Email duplicate error | Normalized email collision | Check existing client, adjust casing won't help |
+| Missing receivable account | Import skipped or creation race | Re-create via POST client (will auto-create) |
+| Prisma client stale | Schema changed without generate | Run `npx prisma generate` |
+| Need to remove legacy invoices | Old numbering format INV-YYYY-#### unbalanced | Run legacy purge script (see Maintenance) |
+
+## 12. Additional Resources
+
+- [docs/accounting.md](./docs/accounting.md) – deep-dive rules & examples
+- [Prisma Docs](https://www.prisma.io/docs)
+- [Next.js Docs](https://nextjs.org/docs)
+
+---
+Maintainers: update the Roadmap section as features graduate to production.
+
+## 13. Continuous Integration & Regression Tests
+
+This repo ships with a GitHub Actions workflow (`.github/workflows/ci.yml`) that performs:
+
+1. Checkout & dependency install (`npm ci`)
+2. PostgreSQL service bootstrap (port 5432) + migrations (`prisma migrate deploy`)
+3. Chart of accounts import (`node scripts/import-accounts.js`)
+4. Production build (`npm run build`) then server start (`npm start`)
+5. Extended regression script: `npm run test:regression`
+6. Artifact collection (`regression-rerun.log`) even on failure
+
+### 13.1 Regression Script Scope
+
+The script `scripts/regression-line-links.js` validates:
+
+- 1:1 linking between invoice lines and SALE/PURCHASE transactions (foreign keys non-null)
+- No line foreign key on global postings (RECEIVABLE, PAYABLE, VAT_* , PAYMENT)
+- Double-entry balance (Σ Debit = Σ Credit) for sales & purchase invoices (create + patch)
+- Intentional failure probe ensures assertion path is exercised
+
+### 13.2 Running Locally
+
+Terminal 1:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Terminal 2 (after server ready):
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+npm run test:regression
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Optional: set another base URL:
 
-## Learn More
+```bash
+BASE_URL=http://localhost:4000 npm run test:regression
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 13.3 CI Badge
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Replace `OWNER/REPO` in the badge URL at top of this README with your real GitHub slug.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Example:
 
-## Deploy on Vercel
+```text
+https://github.com/acme-org/first-compta/actions/workflows/ci.yml/badge.svg
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 13.4 Troubleshooting CI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Fails at migrations | DB not reachable yet | Increase healthcheck retries or add sleep |
+| Regression imbalance | Missing 411/401 accounts | Ensure `import-accounts.js` ran successfully |
+| fetch failed at start | Server not ready | Adjust wait loop or raise retry count in script |
+
+### 13.5 Future Enhancements
+
+- JUnit export for CI test reporting
+- Jest/Vitest migration for granular test cases
+- Matrix build (Node 18/20) & lint stage
+- Data cleanup step for test artifacts
+
+---
+Documentation badge section added in this commit.
+
+Happy hacking!
+
+## 14. Maintenance Utilities
+
+### 14.1 Purging Legacy Invoices (Formats)
+
+Supported legacy patterns:
+
+- Hyphen pattern: `INV-YYYY-####` (e.g. `INV-2024-0007`)
+- Compact pattern: `INV-########` (8–15 digits, e.g. `INV-202409150123`, extended to cover longer sequences)
+
+Select with `--mode=hyphen|compact|all` (default: hyphen). If `--mode=compact`, `--year` is ignored.
+
+Dry-run example (all hyphen pattern 2024 limited to 10):
+
+```bash
+npm run purge:legacy -- --year=2024 --limit=10
+```
+
+Flags:
+
+| Flag | Description |
+|------|-------------|
+| `--execute` | Actually delete (omit = dry-run) |
+| `--mode=hyphen\|compact\|all` | Choose legacy pattern(s) |
+| `--year=YYYY` | Restrict by year (hyphen/all only) |
+| `--limit=N` | Limit number of invoices processed |
+| `--verbose` | Print each transaction line |
+| `--export=report.json` | Write JSON report (always safe) |
+| `--force` | Skip interactive confirmation when executing |
+| `--debug` | Output sample classification of existing invoice numbers |
+| `--pattern=REGEX` | Custom regex filter applied before built-in modes |
+| `--prefix=STR` | Additional prefix constraint (runs with mode logic) |
+| `--numbers=inv1,inv2,...` | Explicit comma-separated list of invoice numbers to target (overrides all other filters) |
+
+Example full execution (dangerous – irreversible) with JSON report then force delete:
+npm run purge:legacy -- --mode=compact --export=legacy-final.json --execute --force --debug --prefix=INV- --pattern="^INV-\\d{10,16}$"
+
+Notes:
+
+1. If both --pattern and --mode are provided, a number must satisfy the custom pattern AND the selected mode logic.
+2. Use --debug when zero matches occur to see a sample of existing INV-* numbers.
+3. If --numbers is provided, it short-circuits pattern/prefix/mode logic: ONLY the exact listed invoice numbers are considered (still subject to --limit if specified).
+
+```bash
+npm run purge:legacy -- --mode=compact --export=legacy-report.json --execute --force
+```
+
+Targeted purge examples (explicit list):
+
+```bash
+# Dry-run of two specific invoices
+node scripts/purge-legacy-invoices.js --numbers=INV-1758466471848,INV-1758467081113 --export=target-dryrun.json
+
+# Actual deletion of the same two invoices (NO prompt)
+node scripts/purge-legacy-invoices.js --numbers=INV-1758466471848,INV-1758467081113 --execute --force --export=target-final.json
+```
+
+Output shows: per-invoice debit/credit sums, global totals, net impact.
+
+Safety recommendations:
+
+1. Always start with a dry-run (no `--execute`).
+2. Take a DB backup (pg_dump) before final purge.
+3. Re-run regression script after purge.
+
+### 14.2 PDF Generation (Unified & Paginated)
+
+Client and supplier (incoming) invoices share a single server-side PDF generation pipeline powered by `pdf-lib` and common helpers in `src/lib/pdf/utils.js`.
+
+Endpoints:
+
+- Client invoices: `GET /api/invoice/:id/pdf`
+- Incoming supplier invoices: `GET /api/incoming-invoices/:id/pdf`
+
+Removed legacy (client-side) components:
+
+- `src/components/InvoicePDF.jsx`
+- `src/components/DownloadInvoicePDFButton.jsx`
+
+Implemented enhancements:
+
+1. Multi-page line table pagination (automatic page breaks with repeated table header)
+2. Per-page header & footer (document title / continuation marker + page X / Y + legal note placeholder)
+3. Shared drawing utilities (logo embedding, FR date formatting, table rendering, recap block)
+4. Consistent layout between client and supplier invoices (single source of truth)
+5. Smoke test script verifies generated PDF signature (`%PDF-` prefix) to catch regressions early
+6. Remote Google font dependencies removed (build no longer blocked by network access)
+
+Local font strategy:
+
+- Current: system font fallback (no external fetch) for maximum reliability
+- Planned: bundle specific corporate fonts via `next/font/local` (drop files into `public/fonts/` and expose through layout)
+
+Smoke testing PDF generation:
+
+```bash
+node scripts/smoke-pdf.js --id=<invoiceId>
+# For incoming (supplier) invoice PDF
+node scripts/smoke-pdf.js --id=<invoiceId> --type=incoming
+```
+
+Script behavior:
+
+- Fetches the appropriate PDF route
+- Asserts the response is a valid PDF (magic header) and displays size in bytes
+- Exits non-zero if fetch fails or content is not a PDF
+
+Upcoming / next improvements:
+
+- Company identity block (address, SIRET, VAT number) + configurable legal footer
+- Local embedded font subset (for consistent metrics across platforms)
+- Optional watermark / draft badge for non-issued invoices
+- Text wrapping & cell height expansion for very long line descriptions
+- More granular PDF regression tests (parse text / metadata)
+
+#### Bloc Identité Société & Watermark
+
+Ajouts récents:
+
+- Bloc identité (Nom, Adresse multi-ligne, SIRET, TVA) injecté sur chaque page (`drawCompanyIdentity`).
+- Watermark diagonale "BROUILLON" rendu pour les factures dont le statut = DRAFT (fonction `drawDraftWatermark`).
+- Variables d'environnement supportées:
+  - `COMPANY_NAME`
+  - `COMPANY_ADDRESS` (peut contenir des retours à la ligne `\n`)
+  - `COMPANY_SIRET`
+  - `COMPANY_VAT`
+
+Sans variables définies, des valeurs de secours (placeholders) sont utilisées.
+
+#### Script de test PDF
+
+#### Police embarquée & Multi-taux TVA
+
+Améliorations récentes:
+
+- Chargement optionnel d'une police locale TTF (`PDF_FONT_PATH` ou fallback `public/fonts/Inter-Regular.ttf`).
+- Calcul dynamique multi-taux: chaque ligne peut porter `vatRate`; sinon le taux global de la facture est utilisé.
+- Récap multi-taux affiche pour chaque %: Base + TVA puis totaux HT / TVA / TTC.
+
+Variables / ENV:
+
+| Variable | Rôle |
+|----------|------|
+| `PDF_FONT_PATH` | Chemin absolu/relatif vers une police TTF à embarquer |
+| `COMPANY_*` | Identité société (voir plus haut) |
+
+Script test enrichi:
+
+```bash
+npm run test:pdf -- --id=<id> --expect-multi-vat
+```
+
+Ce flag vérifie la présence des motifs `Base (XX%)` et `TVA  (XX%)`.
+
+Limitations actuelles:
+
+- Pas encore de wrapping multi-lignes sur description longue pour conserver alignements dans tableau.
+- La detection texte dépend de l'encodage simple (latin1), ce qui peut échouer avec certaines polices ou sous-ensembles.
+
+Commande:
+
+```bash
+npm run test:pdf -- --id=<invoiceId>
+npm run test:pdf -- --id=<incomingInvoiceId> --type=incoming
+npm run test:pdf -- --id=<invoiceId> --expect-draft
+```
+
+ Ce script :
+
+1. Télécharge le PDF (client ou fournisseur) depuis le serveur local (`BASE_URL` modifiable).
+2. Vérifie l'en-tête `%PDF-`.
+3. Tente de détecter le SIRET ou le mot-clef `SIRET` (selon encodage texte).
+4. Vérifie la présence du watermark si `--expect-draft`.
+5. Sauvegarde le PDF sous `./scripts/../tmp/pdf-test-*.pdf` pour inspection.
+
+Limitations : extraction texte naïve (encodage PDF peut masquer certains glyphes). Pour tests plus robustes, intégrer un parseur dédié ultérieurement.
+
+### 14.3 Polices Locales (Intégration)
+
+Objectif: Éviter toute dépendance réseau (Google Fonts) et garantir des métriques cohérentes (layout stable, build CI sans échecs offline).
+
+Deux approches supportées:
+
+1. `@font-face` manuel dans `globals.css`
+2. `next/font/local` (recommandé: gestion automatique des préloads + hash de cache)
+
+Étapes (approche next/font/local) :
+
+1. Déposer les fichiers `.woff2` dans `public/fonts/` (ex: `Inter-Regular.woff2`, `Inter-SemiBold.woff2`).
+2. Décommenter le bloc `localFont` dans `src/app/layout.js` et ajuster la liste `src` (poids / styles nécessaires).
+3. Ajouter la classe ou variable CSS générée (ex: `inter.variable`) sur la balise `<body>` ou via Tailwind (si intégré).
+4. Supprimer toute référence à des CDN externes de polices (déjà effectué).
+5. (Optionnel) Générer des sous-ensembles (subsetting) pour réduire le poids: latin, latin-ext.
+
+Sous-ensemble (exemple indicatif utilisant glyphhanger):
+
+```bash
+npx glyphhanger --subset=./public/fonts/Inter-Regular.ttf --US-ASCII --formats=woff2
+```
+
+Approche `@font-face` directe (exemple à placer dans `globals.css`):
+
+```css
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+body { font-family: var(--font-sans, "Inter", system-ui, Arial, sans-serif); }
+```
+
+Bonnes pratiques:
+
+- Toujours privilégier WOFF2 (taille / perf). Ajouter WOFF seulement si vieux navigateurs cibles.
+- Conserver un fallback system-ui.
+- Limiter le nombre de variantes (poids) réellement utilisées pour ne pas gonfler le bundle.
+- Vérifier le CLS (Cumulative Layout Shift) après introduction des polices.
+
+Évolutions futures possibles:
+
+- Intégration d'une police variable unique (`Inter-Variable.woff2`) avec axe wght.
+- Embedding direct dans les PDFs (actuellement PDF utilise une police standard; extension future: registerFont + subset dynamique).
+- Script d'automatisation de subsetting (fonttools) dans `scripts/`.
+
+
+## Coverage
+
+Placeholder badge at top will be replaced once test coverage instrumentation (e.g. Vitest or Jest + Istanbul) is introduced. Planned steps:
+
+1. Introduce test runner (Vitest) with `--coverage` producing `lcov.info`.
+1. Upload artifact in CI and optionally send to Codecov / coveralls.
+1. Replace static shield with dynamic badge (Codecov) or Shields endpoint.
+
+Until then, the static badge communicates the feature is pending.

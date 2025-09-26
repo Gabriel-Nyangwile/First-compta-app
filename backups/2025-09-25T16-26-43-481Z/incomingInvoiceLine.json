@@ -1,0 +1,189 @@
+[
+  {
+    "id": "86593b0f-3ef3-4cf8-a83a-acf317987f31",
+    "description": "Sémoule de froment",
+    "unitOfMeasure": "sac",
+    "quantity": "200",
+    "unitPrice": "20",
+    "lineTotal": "4000",
+    "vatRate": null,
+    "accountId": "505dde74-8590-4543-a7fa-9a71ff2d1a59",
+    "incomingInvoiceId": "ad5db72b-eed7-4b03-a961-8d3aca1aa132"
+  },
+  {
+    "id": "42e22142-5754-4a8f-a97f-d6ad4088156c",
+    "description": "Farine de maïs",
+    "unitOfMeasure": "sac",
+    "quantity": "100",
+    "unitPrice": "15",
+    "lineTotal": "1500",
+    "vatRate": null,
+    "accountId": "505dde74-8590-4543-a7fa-9a71ff2d1a59",
+    "incomingInvoiceId": "ad5db72b-eed7-4b03-a961-8d3aca1aa132"
+  },
+  {
+    "id": "45fb4ef6-112f-4325-be27-b88dcbac0d14",
+    "description": "Circuits imprimés pour ordinateur",
+    "unitOfMeasure": "pièce",
+    "quantity": "25",
+    "unitPrice": "40",
+    "lineTotal": "1000",
+    "vatRate": null,
+    "accountId": "505dde74-8590-4543-a7fa-9a71ff2d1a59",
+    "incomingInvoiceId": "ad5db72b-eed7-4b03-a961-8d3aca1aa132"
+  },
+  {
+    "id": "eac528e2-ccf9-4865-a662-1055932bf68d",
+    "description": "Lait en poudre Nido",
+    "unitOfMeasure": "sac",
+    "quantity": "400",
+    "unitPrice": "10",
+    "lineTotal": "4000",
+    "vatRate": null,
+    "accountId": "505dde74-8590-4543-a7fa-9a71ff2d1a59",
+    "incomingInvoiceId": "b95c2560-c4b4-4e0f-9350-436280412c71"
+  },
+  {
+    "id": "f2e048c0-fecc-448b-979e-baa4517b3892",
+    "description": "Frais de transport",
+    "unitOfMeasure": "unité",
+    "quantity": "0.5",
+    "unitPrice": "2500",
+    "lineTotal": "1250",
+    "vatRate": null,
+    "accountId": "246b0314-6902-48e5-8483-fa733bfdcb7b",
+    "incomingInvoiceId": "b95c2560-c4b4-4e0f-9350-436280412c71"
+  },
+  {
+    "id": "ae725195-bc62-4b62-8912-5560bef4c4e2",
+    "description": "Papiers duplicateurs",
+    "unitOfMeasure": "Rame",
+    "quantity": "50",
+    "unitPrice": "5",
+    "lineTotal": "250",
+    "vatRate": null,
+    "accountId": "90c82f91-cd82-43bd-b6ed-4a20f4357c4c",
+    "incomingInvoiceId": "75c82fcb-5314-4c49-97bc-c443cfd10fd3"
+  },
+  {
+    "id": "b2039bec-7416-45e2-b2ee-f7f98fac47a5",
+    "description": "Désinfectation des locaux",
+    "unitOfMeasure": "jour",
+    "quantity": "5",
+    "unitPrice": "250",
+    "lineTotal": "1250",
+    "vatRate": null,
+    "accountId": "68c858f5-991f-416e-90a0-84267ac851a2",
+    "incomingInvoiceId": "75c82fcb-5314-4c49-97bc-c443cfd10fd3"
+  },
+  {
+    "id": "a50c7e11-a441-4b1f-8daf-df85ee30aaa2",
+    "description": "Achat Papier",
+    "unitOfMeasure": "u",
+    "quantity": "10",
+    "unitPrice": "3",
+    "lineTotal": "30",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "49b3ed54-367d-461a-87f6-b3b4e9751202"
+  },
+  {
+    "id": "48c92fe5-fc3c-4812-9b37-1ca3b78a6e06",
+    "description": "Achat Encre",
+    "unitOfMeasure": "u",
+    "quantity": "1",
+    "unitPrice": "40",
+    "lineTotal": "40",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "49b3ed54-367d-461a-87f6-b3b4e9751202"
+  },
+  {
+    "id": "3f1d9689-22e2-49ab-8e3a-052da41ccbf2",
+    "description": "Achat Papier",
+    "unitOfMeasure": "u",
+    "quantity": "10",
+    "unitPrice": "3",
+    "lineTotal": "30",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "f5871472-4ce3-472f-b5b9-b0668b20eb6f"
+  },
+  {
+    "id": "add12b7a-ab23-419a-865a-0b0a36f7bd52",
+    "description": "Achat Encre",
+    "unitOfMeasure": "u",
+    "quantity": "1",
+    "unitPrice": "40",
+    "lineTotal": "40",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "f5871472-4ce3-472f-b5b9-b0668b20eb6f"
+  },
+  {
+    "id": "318dbc23-7c3d-4840-af06-cc1542b3ec2d",
+    "description": "Achat Papier",
+    "unitOfMeasure": "u",
+    "quantity": "10",
+    "unitPrice": "3",
+    "lineTotal": "30",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "14bacc14-d5ed-450b-937c-cdfbb01e9d2a"
+  },
+  {
+    "id": "284ebfc6-afc9-4e9d-91e8-a107c6d3b5ab",
+    "description": "Achat Encre",
+    "unitOfMeasure": "u",
+    "quantity": "1",
+    "unitPrice": "40",
+    "lineTotal": "40",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "14bacc14-d5ed-450b-937c-cdfbb01e9d2a"
+  },
+  {
+    "id": "e682171b-be2c-443f-8bdb-b33859336084",
+    "description": "Achat Papier",
+    "unitOfMeasure": "u",
+    "quantity": "10",
+    "unitPrice": "3",
+    "lineTotal": "30",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "2be1c4ee-d449-4f2f-ac96-7ed466caa065"
+  },
+  {
+    "id": "0348cd16-7b3a-4144-bfc1-ccc0e8041971",
+    "description": "Achat Encre",
+    "unitOfMeasure": "u",
+    "quantity": "1",
+    "unitPrice": "40",
+    "lineTotal": "40",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "2be1c4ee-d449-4f2f-ac96-7ed466caa065"
+  },
+  {
+    "id": "f4e5cff6-ecb2-41da-997b-9f9d8450a276",
+    "description": "Achat Modifié 1",
+    "unitOfMeasure": "u",
+    "quantity": "4",
+    "unitPrice": "8",
+    "lineTotal": "32",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "fe6280af-28c7-442f-b732-225e7034d011"
+  },
+  {
+    "id": "4fc9dab7-d63e-4ff2-b982-3c5b5a256de1",
+    "description": "Achat Modifié 2",
+    "unitOfMeasure": "u",
+    "quantity": "2",
+    "unitPrice": "15",
+    "lineTotal": "30",
+    "vatRate": null,
+    "accountId": "9974901c-a4a3-471d-bd22-9aa178c6488b",
+    "incomingInvoiceId": "fe6280af-28c7-442f-b732-225e7034d011"
+  }
+]

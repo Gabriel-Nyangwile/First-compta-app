@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        ports: [ '5432:5432' ]
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: first_compta_ci
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/first_compta_ci?schema=public
+      NODE_ENV: test
+      BASE_URL: http://localhost:3000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+
+      - name: Import plan comptable
+        run: node scripts/import-accounts.js
+
+      - name: Build Next.js (prerender)
+        run: npm run build
+
+      - name: Start Next server
+        run: |
+          npm start &
+          echo "Waiting for Next.js to be ready...";
+          for i in {1..30}; do
+            if curl -sSf http://localhost:3000/api/account/search?query=7 > /dev/null; then
+              echo "Server ready"; break; fi; sleep 2;
+            if [ "$i" = "30" ]; then echo "Server not ready"; exit 1; fi;
+          done
+
+      - name: Regression tests
+        run: npm run test:regression
+
+      - name: Upload regression artifact (log)
+        if: always()
+        run: |
+          mkdir -p artifacts
+          node scripts/regression-line-links.js > artifacts/regression-rerun.log 2>&1 || true
+        
+      - name: Archive artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-logs
+          path: artifacts
+

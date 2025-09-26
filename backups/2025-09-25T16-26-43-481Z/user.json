@@ -1,0 +1,14 @@
+[
+  {
+    "id": "767c454f-ebe6-49f6-8b04-d0c12e3347f7",
+    "email": "glwabeya@noname.com",
+    "password": "$2b$10$F6QXR7LMj6sfPWMr8WhAaeJ8puo2cylPpHd/c7/OOR9bPdg6vDTyy",
+    "username": "Gabriel Lwabeya",
+    "role": "USER",
+    "provider": null,
+    "providerAccountId": null,
+    "isActive": true,
+    "createdAt": "2025-09-17T14:34:51.446Z",
+    "updatedAt": "2025-09-17T14:34:51.446Z"
+  }
+]
