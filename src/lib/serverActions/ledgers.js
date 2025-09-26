@@ -69,8 +69,8 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     take: limit,
     include: {
       account: { select: { number: true, label: true } },
-      invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true, invoiceLines: { select: { id: true, description: true }, take: 2 } } },
-      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true }, take: 2 } } },
+      invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true, invoiceLines: { select: { id: true, description: true, lineTotal: true }, take: 2 }, _count: { select: { invoiceLines: true } } } },
+      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true, lineTotal: true }, take: 2 }, _count: { select: { lines: true } } } },
       moneyMovement: { select: { id: true, voucherRef: true, kind: true, authorization: { select: { docNumber: true } }, moneyAccount: { select: { ledgerAccount: { select: { number: true, label: true } }, label: true } } } }
     }
   });
@@ -106,13 +106,20 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
   let piece = t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || null;
 
     // Supplier specific formatting
+    let linesPreview = null; // tooltip preview for multi-line factures
     if (party === 'supplier') {
       if (t.kind === 'PAYABLE' && t.incomingInvoice) {
         // Determine description from lines count (1 => first line description, >1 => Achat Divers produits)
         const lines = t.incomingInvoice.lines || [];
-        if (lines.length === 1) description = lines[0].description;
-        else if (lines.length > 1) description = 'Achat Divers produits';
+        const totalLines = t.incomingInvoice._count?.lines ?? lines.length;
+        if (totalLines === 1 && lines[0]) description = lines[0].description;
+        else if (totalLines > 1) description = 'Achat Divers produits';
         else description = 'Achat';
+        if (totalLines > 1) {
+          const parts = lines.map((ln,i)=> `${i+1}) ${ln.description}` + (ln.lineTotal ? ` – ${Number(ln.lineTotal).toFixed(2)} € HT` : ''));
+          if (totalLines > lines.length) parts.push(`(+${totalLines - lines.length} autres…)`);
+          linesPreview = parts.join('\n');
+        }
         // piece must show EI-* (entryNumber)
         piece = t.incomingInvoice.entryNumber;
       }
@@ -134,9 +141,15 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     if (party === 'client') {
       if (t.kind === 'RECEIVABLE' && t.invoice) {
         const lines = t.invoice.invoiceLines || [];
-        if (lines.length === 1) description = lines[0].description;
-        else if (lines.length > 1) description = 'Vente Divers produits';
+        const totalLines = t.invoice._count?.invoiceLines ?? lines.length;
+        if (totalLines === 1 && lines[0]) description = lines[0].description;
+        else if (totalLines > 1) description = 'Vente Divers produits';
         else description = 'Vente';
+        if (totalLines > 1) {
+          const parts = lines.map((ln,i)=> `${i+1}) ${ln.description}` + (ln.lineTotal ? ` – ${Number(ln.lineTotal).toFixed(2)} € HT` : ''));
+          if (totalLines > lines.length) parts.push(`(+${totalLines - lines.length} autres…)`);
+          linesPreview = parts.join('\n');
+        }
         piece = t.invoice.invoiceNumber; // Pièce = numéro facture
       }
       if (t.moneyMovement?.kind === 'CLIENT_RECEIPT') {
@@ -167,7 +180,8 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
       running: Number(orientedRunning),
       movementId: t.moneyMovement?.id || null,
       paymentRef: t.moneyMovement?.voucherRef || t.moneyMovement?.authorization?.docNumber || null,
-      movementKind: t.moneyMovement?.kind || null
+      movementKind: t.moneyMovement?.kind || null,
+      linesPreview
     };
   });
 

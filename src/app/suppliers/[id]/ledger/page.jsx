@@ -115,7 +115,7 @@ export default function SupplierLedgerPage({ params }) {
                     <tr key={r.id} className="border-b hover:bg-gray-50">
                       <td className="px-2 py-1 whitespace-nowrap">{new Date(r.date).toLocaleDateString()}</td>
                       <td className="px-2 py-1 font-mono">{r.accountNumber}</td>
-                      <td className="px-2 py-1">{r.description}</td>
+                      <td className="px-2 py-1" title={r.linesPreview || undefined}>{r.description}{r.linesPreview ? <span className="ml-1 text-[10px] text-gray-400">ⓘ</span> : null}</td>
                       <td className="px-2 py-1">{r.invoiceRef || ''}</td>
                       <td className="px-2 py-1 text-xs">{r.paymentRef || ''}</td>
                       <td className="px-2 py-1 text-[10px] font-mono">{r.movementId ? r.movementId.slice(0,8) : ''}</td>
