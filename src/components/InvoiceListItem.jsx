@@ -47,6 +47,11 @@ export default function InvoiceListItem({ invoice }) {
              invoice.status === 'PENDING' ? 'En attente' : 
              invoice.status === 'PARTIAL' ? 'Partielle' : 'En retard'}
           </span>
+          {Array.isArray(invoice.moneyMovements) && invoice.moneyMovements.length > 0 && (
+            (() => { const last = invoice.moneyMovements[invoice.moneyMovements.length - 1]; return (
+              <p className="text-[10px] text-gray-500 mt-1">Dernière pièce: <span className="font-mono">{last.voucherRef}</span></p>
+            ); })()
+          )}
         </Link>
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <a

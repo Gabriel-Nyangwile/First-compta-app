@@ -32,8 +32,10 @@ export async function GET() {
     orderBy: { receiptDate: 'desc' },
     include: {
       supplier: { select: { id: true, name: true } },
+      purchaseOrder: { select: { id: true, number: true } },
       lines: true,
-      transactions: { select: { id: true, kind: true, amount: true } }
+      transactions: { select: { id: true, kind: true, amount: true } },
+      moneyMovements: { select: { id: true, date: true, voucherRef: true, direction: true }, orderBy: { date: 'asc' } }
     }
   });
   return NextResponse.json({ invoices });
@@ -43,13 +45,14 @@ export async function GET() {
  POST /api/incoming-invoices
  Body: {
    supplierId, receiptDate?, issueDate?, dueDate?, vat, supplierInvoiceNumber,
+   purchaseOrderId?,
    lines: [ { description, accountId, unitOfMeasure, quantity, unitPrice } ]
  }
 */
 export async function POST(req) {
   try {
     const body = await req.json();
-  let { supplierId, receiptDate, issueDate, dueDate, vat, supplierInvoiceNumber, lines } = body || {};
+  let { supplierId, receiptDate, issueDate, dueDate, vat, supplierInvoiceNumber, purchaseOrderId, lines } = body || {};
 
     if (!supplierId) return NextResponse.json({ error: 'supplierId requis' }, { status: 400 });
     if (!supplierInvoiceNumber || !String(supplierInvoiceNumber).trim()) return NextResponse.json({ error: 'Numéro facture fournisseur requis' }, { status: 400 });
@@ -58,6 +61,13 @@ export async function POST(req) {
     const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
     if (!supplier) return NextResponse.json({ error: 'Fournisseur introuvable' }, { status: 404 });
     if (!supplier.accountId) return NextResponse.json({ error: 'Compte fournisseur (401) manquant sur le fournisseur' }, { status: 400 });
+    // Validation purchaseOrderId si fourni (et cohérence du fournisseur)
+    let po = null;
+    if (purchaseOrderId) {
+      po = await prisma.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, select: { id: true, number: true, supplierId: true } });
+      if (!po) return NextResponse.json({ error: 'Bon de commande introuvable' }, { status: 400 });
+      if (po.supplierId !== supplierId) return NextResponse.json({ error: 'BC et fournisseur incompatibles' }, { status: 400 });
+    }
 
     // Normalisation multi-taux: vat fallback global si lignes sans vatRate
     const fallbackVat = vat !== undefined && vat !== null ? Number(vat) : 0.2;
@@ -112,7 +122,8 @@ export async function POST(req) {
           vatAmount: String(vatAmount),
           totalAmountHt: String(totalHt),
           totalAmount: String(totalTtc),
-          supplier: { connect: { id: supplierId } }
+          supplier: { connect: { id: supplierId } },
+          purchaseOrderId: po ? po.id : undefined
         }
       });
 
@@ -178,7 +189,7 @@ export async function POST(req) {
 
     const full = await prisma.incomingInvoice.findUnique({
       where: { id: invoice },
-      include: { supplier: true, lines: true, transactions: true }
+      include: { supplier: true, lines: true, transactions: true, purchaseOrder: true }
     });
     return NextResponse.json(full, { status: 201 });
   } catch (e) {

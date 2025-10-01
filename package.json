@@ -16,6 +16,7 @@
     "test:pdf": "node scripts/test-pdf.js",
     "test:incoming-invoice-pdf": "node scripts/test-incoming-invoice-pdf.js",
   "test:client-invoice-pdf": "node scripts/test-client-invoice-pdf.js",
+  "test:pdf:both": "node scripts/test-pdf-both.js",
     "check:vat": "node scripts/check-vat-ledger.js --details",
     "backfill:vat:add": "node scripts/backfill-vat-multirate-add-only.js --verbose",
     "backfill:invoice-balances": "node scripts/backfill-invoice-paid-outstanding.js",

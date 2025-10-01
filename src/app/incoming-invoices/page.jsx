@@ -70,12 +70,14 @@ export default function IncomingInvoicesPage() {
               <tr>
                 <th className="px-3 py-2 text-left">Entry #</th>
                 <th className="px-3 py-2 text-left">Num. Fournisseur</th>
+                <th className="px-3 py-2 text-left">BC</th>
                 <th className="px-3 py-2 text-left">Fournisseur</th>
                 <th className="px-3 py-2 text-left">Date réception</th>
                 <th className="px-3 py-2 text-left">Total TTC</th>
                 <th className="px-3 py-2 text-left">Payé</th>
                 <th className="px-3 py-2 text-left">Reste</th>
                 <th className="px-3 py-2 text-left">Statut</th>
+                <th className="px-3 py-2 text-left">Dernière pièce</th>
                 <th className="px-3 py-2 text-left">Actions</th>
               </tr>
             </thead>
@@ -90,6 +92,7 @@ export default function IncomingInvoicesPage() {
                 <tr key={inv.id} className="border-b hover:bg-gray-50">
                   <td className="px-3 py-2 font-mono text-xs">{inv.entryNumber}</td>
                   <td className="px-3 py-2">{inv.supplierInvoiceNumber}</td>
+                  <td className="px-3 py-2 text-xs">{inv.purchaseOrder ? <Link className="text-blue-600 underline" href={`/purchase-orders/${inv.purchaseOrder.id}`}>{inv.purchaseOrder.number}</Link> : '—'}</td>
                   <td className="px-3 py-2">{inv.supplier?.name || '-'}</td>
                   <td className="px-3 py-2">{new Date(inv.receiptDate).toLocaleDateString()}</td>
                   <td className="px-3 py-2"><Amount value={inv.totalAmount} /></td>
@@ -98,6 +101,7 @@ export default function IncomingInvoicesPage() {
                   <td className="px-3 py-2">{inv.status}{inv.status!=='PAID' && inv.status!=='PENDING' && inv.status!=='OVERDUE' && inv.status!=='PARTIAL' ? '' : ''}
                     <div className="mt-1 h-1.5 bg-gray-200 rounded overflow-hidden"><div className={"h-full "+(pct===100?'bg-green-500':'bg-indigo-500')} style={{width:`${pct}%`}}></div></div>
                   </td>
+                  <td className="px-3 py-2 text-[10px] font-mono">{Array.isArray(inv.moneyMovements) && inv.moneyMovements.length ? inv.moneyMovements[inv.moneyMovements.length-1].voucherRef : '—'}</td>
                   <td className="px-3 py-2 flex gap-2 flex-wrap">
                     <Link href={`/incoming-invoices/edit/${inv.id}`} className="text-xs text-blue-600 underline">Modifier</Link>
                     {inv.status !== 'PAID' && <button onClick={()=>openPay(inv)} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">Régler</button>}

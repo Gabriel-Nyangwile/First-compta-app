@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { applyOutMovement } from '@/lib/inventory';
 import { getSystemAccounts } from '@/lib/systemAccounts';
 
 // GET /api/invoices
@@ -16,7 +17,10 @@ export async function GET(request) {
     data: { status: 'OVERDUE' }
   });
   const invoices = await prisma.invoice.findMany({
-    include: { client: true },
+    include: { 
+      client: true,
+      moneyMovements: { select: { id: true, date: true, amount: true, voucherRef: true, direction: true }, orderBy: { date: 'asc' } }
+    },
     orderBy: { issueDate: 'desc' }
   });
   const clients = await prisma.client.findMany({ orderBy: { name: 'asc' } });
@@ -78,7 +82,8 @@ export async function POST(request) {
         quantity: String(quantityNum),
         unitPrice: String(unitPriceNum),
         lineTotal: String(lineTotalNum),
-        vatRate: lineVatRate // stocké numériquement (sera converti en Decimal string)
+        vatRate: lineVatRate, // stocké numériquement (sera converti en Decimal string)
+        productId: line.productId || null
       };
     });
     // Agrégation VAT
@@ -124,7 +129,8 @@ export async function POST(request) {
             unitPrice: l.unitPrice,
             lineTotal: l.lineTotal,
             vatRate: l.vatRate !== undefined ? l.vatRate.toFixed(2) : undefined,
-            invoiceId: inv.id
+            invoiceId: inv.id,
+            productId: l.productId || undefined
           }
         });
         await tx.transaction.create({
@@ -141,6 +147,25 @@ export async function POST(request) {
             invoiceLineId: lineRecord.id
           }
         });
+        // Si la ligne référence un produit stocké → création d'un mouvement de stock OUT (phase 2)
+        if (l.productId) {
+          try {
+            const out = await applyOutMovement(tx, { productId: l.productId, qty: Number(l.quantity) });
+            await tx.stockMovement.create({
+              data: {
+                productId: l.productId,
+                movementType: 'OUT',
+                quantity: l.quantity,
+                unitCost: out.unitCost.toFixed(4),
+                totalCost: out.totalCost.toFixed(2),
+                invoiceLineId: lineRecord.id
+              }
+            });
+          } catch (e) {
+            // Stock insuffisant: on peut soit échouer soit autoriser coût null. Ici on échoue.
+            throw new Error(`Stock insuffisant pour le produit lié à la ligne ${l.index+1}.`);
+          }
+        }
       }
 
       // Créance client (411) TTC

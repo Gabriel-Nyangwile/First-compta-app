@@ -1,12 +1,13 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import { formatAmount } from '@/lib/utils';
+import DownloadIncomingInvoicePDFButton from '@/components/DownloadIncomingInvoicePDFButton';
 
 export default async function IncomingInvoiceDetail({ params, searchParams }) {
   const { id } = await params;
   const inv = await prisma.incomingInvoice.findUnique({
     where: { id },
-    include: { supplier: true, lines: { include: { account: true } }, transactions: true }
+    include: { supplier: true, lines: { include: { account: true } }, transactions: true, purchaseOrder: { select: { id: true, number: true } }, moneyMovements: { select: { id: true, date: true, amount: true, direction: true, kind: true, voucherRef: true, moneyAccount: { select: { label: true } } }, orderBy: { date: 'asc' } } }
   });
   if (!inv) return <div className="p-8 text-sm text-red-600">Introuvable</div>;
   const paid = Number(inv.paidAmount||0);
@@ -16,19 +17,28 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
   return (
     <main className="flex min-h-screen flex-col items-center p-8 bg-gray-50">
       <div className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md border border-gray-200 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Facture Fournisseur {inv.entryNumber}</h1>
-          {returnTo ? (
-            <Link href={returnTo} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Retour autorisation</Link>
-          ) : (
-            <Link href="/incoming-invoices" className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Retour</Link>
-          )}
+        <div className="flex justify-between items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-bold">Facture Fournisseur {inv.entryNumber}</h1>
+            {inv.purchaseOrder && (
+              <p className="text-xs text-gray-600">Bon de commande lié : <Link href={`/purchase-orders/${inv.purchaseOrder.id}`} className="text-blue-600 underline">{inv.purchaseOrder.number}</Link></p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <DownloadIncomingInvoicePDFButton incomingInvoiceId={inv.id} />
+            {returnTo ? (
+              <Link href={returnTo} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Retour autorisation</Link>
+            ) : (
+              <Link href="/incoming-invoices" className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Retour</Link>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="space-y-1">
             <h2 className="font-semibold mb-1">Fournisseur</h2>
             <p><span className="font-medium">Nom:</span> {inv.supplier?.name||'—'}</p>
             {inv.supplier?.email && <p><span className="font-medium">Email:</span> {inv.supplier.email}</p>}
+            {inv.purchaseOrder && <p><span className="font-medium">Bon de commande:</span> <Link href={`/purchase-orders/${inv.purchaseOrder.id}`} className="text-blue-600 underline">{inv.purchaseOrder.number}</Link></p>}
           </div>
           <div className="space-y-1">
             <h2 className="font-semibold mb-1">Montants</h2>
@@ -56,6 +66,19 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
             </tbody>
           </table>
         </div>
+        {Array.isArray(inv.moneyMovements) && inv.moneyMovements.length > 0 && (
+          <div>
+            <h3 className="font-semibold mb-2 text-sm">Pièces de paiement (voucherRef)</h3>
+            <ul className="space-y-1 text-xs">
+              {inv.moneyMovements.map(m => (
+                <li key={m.id} className="flex justify-between">
+                  <span className="text-gray-600">{new Date(m.date).toLocaleDateString()} • {m.moneyAccount?.label || 'Compte'} • {m.direction === 'OUT' ? 'Paiement' : 'Entrée'}</span>
+                  <span className="font-mono text-gray-900">{m.voucherRef}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </main>
   );
