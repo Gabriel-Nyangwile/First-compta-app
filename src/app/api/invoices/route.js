@@ -18,12 +18,17 @@ export async function GET(request) {
     },
     data: { status: 'OVERDUE' }
   });
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10)));
+  const totalCount = await prisma.invoice.count();
   let invoices = await prisma.invoice.findMany({
     include: { 
       client: true,
       moneyMovements: { select: { id: true, date: true, amount: true, voucherRef: true, direction: true }, orderBy: { date: 'asc' } }
     },
-    orderBy: { issueDate: 'desc' }
+    orderBy: { issueDate: 'desc' },
+    skip: (page - 1) * pageSize,
+    take: pageSize
   });
   // Calcul dynamique statut partiel & filtrage paiement
   invoices = invoices.map(inv => {
@@ -45,7 +50,7 @@ export async function GET(request) {
     });
   }
   const clients = await prisma.client.findMany({ orderBy: { name: 'asc' } });
-  return new Response(JSON.stringify({ invoices, clients }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ invoices, clients, page, pageSize, totalCount }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
 // POST /api/invoices

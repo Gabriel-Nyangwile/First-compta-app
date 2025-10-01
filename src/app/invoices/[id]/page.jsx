@@ -73,7 +73,7 @@ export default async function InvoiceDetailsPage({ params, searchParams }) {
                   {invoice.moneyMovements.map(mv => (
                     <li key={mv.id} className="flex justify-between">
                       <span className="text-gray-600">{formatDateFR(mv.date)} • {mv.moneyAccount?.label || 'Compte'} • {mv.direction === 'IN' ? 'Encaissement' : 'Décaissement'}</span>
-                      <span className="font-mono text-gray-900">{mv.voucherRef}</span>
+                      <Link href={`/treasury/movements/${mv.id}`} className="font-mono text-indigo-600 underline">{mv.voucherRef}</Link>
                     </li>
                   ))}
                 </ul>

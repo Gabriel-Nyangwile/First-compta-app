@@ -17,7 +17,11 @@ async function generateNextEntryNumber(tx) {
 }
 
 // GET /api/incoming-invoices  (simple listing with supplier & lines basic aggregation)
-export async function GET() {
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const paymentFilter = searchParams.get('payment');
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10)));
   const now = new Date();
   // Mettre à jour OVERDUE pour factures fournisseurs non payées échéances dépassées
   await prisma.incomingInvoice.updateMany({
@@ -28,7 +32,8 @@ export async function GET() {
     },
     data: { status: 'OVERDUE' }
   });
-  const invoices = await prisma.incomingInvoice.findMany({
+  const totalCount = await prisma.incomingInvoice.count();
+  let invoices = await prisma.incomingInvoice.findMany({
     orderBy: { receiptDate: 'desc' },
     include: {
       supplier: { select: { id: true, name: true } },
@@ -36,9 +41,29 @@ export async function GET() {
       lines: true,
       transactions: { select: { id: true, kind: true, amount: true } },
       moneyMovements: { select: { id: true, date: true, voucherRef: true, direction: true }, orderBy: { date: 'asc' } }
-    }
+    },
+    skip: (page - 1) * pageSize,
+    take: pageSize
   });
-  return NextResponse.json({ invoices });
+  invoices = invoices.map(inv => {
+    const paid = Number(inv.paidAmount || 0);
+    const total = Number(inv.totalAmount || 0);
+    let dyn = inv.status;
+    if (total > 0 && paid > 0 && paid < total) dyn = 'PARTIAL';
+    return { ...inv, status: dyn };
+  });
+  if (paymentFilter && paymentFilter !== 'all') {
+    invoices = invoices.filter(inv => {
+      const paid = Number(inv.paidAmount || 0); const total = Number(inv.totalAmount || 0);
+      switch (paymentFilter) {
+        case 'paid': return total > 0 && paid >= total;
+        case 'unpaid': return paid === 0;
+        case 'partial': return total > 0 && paid > 0 && paid < total;
+        default: return true;
+      }
+    });
+  }
+  return NextResponse.json({ invoices, page, pageSize, totalCount });
 }
 
 /*

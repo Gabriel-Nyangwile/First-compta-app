@@ -5,16 +5,19 @@ import Amount from '@/components/Amount.jsx';
 
 export default function IncomingInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
+  const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(()=> {
-    fetch('/api/incoming-invoices')
+    const url = new URL('/api/incoming-invoices', window.location.origin);
+    if (paymentFilter !== 'ALL') url.searchParams.set('payment', paymentFilter.toLowerCase());
+    fetch(url.toString())
       .then(r=>r.json())
       .then(d=> { if (d.error) setError(d.error); else setInvoices(d.invoices || []); })
       .catch(()=>setError('Erreur chargement'))
       .finally(()=>setLoading(false));
-  }, []);
+  }, [paymentFilter]);
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -60,6 +63,16 @@ export default function IncomingInvoicesPage() {
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold">Factures Fournisseurs Reçues</h1>
+          <div className="flex items-center gap-2 text-xs bg-gray-100 px-3 py-2 rounded">
+            <label className="text-gray-600">Paiement:</label>
+            <select value={paymentFilter} onChange={e=> setPaymentFilter(e.target.value)} className="border rounded px-2 py-1 bg-white">
+              <option value="ALL">Tous</option>
+              <option value="UNPAID">Non payés</option>
+              <option value="PARTIAL">Partiels</option>
+              <option value="PAID">Payés</option>
+            </select>
+            <a href="/api/incoming-invoices/export" className="text-indigo-600 underline">Export CSV</a>
+          </div>
           <Link href="/incoming-invoices/create" className="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Nouvelle facture reçue</Link>
           <Link href="/suppliers" className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Fournisseurs</Link>
         </div>
