@@ -44,16 +44,22 @@ async function ensureSampleIncomingInvoice() {
   return created.id;
 }
 
-async function waitForServer(url, { timeoutMs = 90000, intervalMs = 1500 } = {}) {
+async function waitForServer(baseUrl, { timeoutMs = 90000, intervalMs = 1500 } = {}) {
   const start = Date.now();
+  const healthUrl = `${baseUrl}/api/health`;
   while (Date.now() - start < timeoutMs) {
     try {
-      const r = await fetch(url, { method: 'HEAD' });
-      if (r.ok || r.status === 404) return true; // server responding
+      const r = await fetch(healthUrl, { method: 'GET', cache: 'no-store' });
+      if (r.ok) {
+        try {
+          const data = await r.json();
+          if (data && data.ok) return true;
+        } catch { /* JSON parse ignore */ }
+      }
     } catch { /* swallow */ }
     await delay(intervalMs);
   }
-  throw new Error(`Server not responding at ${url} after ${(timeoutMs/1000)}s`);
+  throw new Error(`Server not healthy at ${healthUrl} after ${(timeoutMs/1000)}s`);
 }
 
 async function fetchWithRetry(url, { retries, retryDelay }) {
@@ -83,10 +89,14 @@ async function run() {
   const pdfUrl = `${opts.baseUrl}/api/incoming-invoices/${id}/pdf`;
 
   let devProc = null;
-  // Detect server availability
+  // Detect server availability using explicit health endpoint
   let serverUp = false;
   try {
-    serverUp = await fetch(`${opts.baseUrl}/api/health`).then(r => true).catch(()=>false);
+    const h = await fetch(`${opts.baseUrl}/api/health`, { cache: 'no-store' });
+    if (h.ok) {
+      const j = await h.json().catch(()=>null);
+      serverUp = !!(j && j.ok);
+    }
   } catch { serverUp = false; }
   if (!serverUp && opts.startServer) {
     console.log('Starting dev server...');
@@ -100,7 +110,7 @@ async function run() {
     devProc.stderr.on('data', d => {
       // silence or log minimal
     });
-    await waitForServer(`${opts.baseUrl}/api/incoming-invoices`);
+  await waitForServer(opts.baseUrl);
   } else if (!serverUp && !opts.startServer) {
     throw new Error('Server not running and --start-server not provided');
   }
