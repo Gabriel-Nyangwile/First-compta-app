@@ -97,11 +97,10 @@ export default function SupplierLedgerPage({ params }) {
                 <thead className="bg-gray-100 border-b">
                   <tr>
                     <th className="px-2 py-2 text-left">Date</th>
-                    <th className="px-2 py-2 text-left">Compte</th>
-                    <th className="px-2 py-2 text-left">Libellé</th>
-                    <th className="px-2 py-2 text-left">Pièce</th>
-                    <th className="px-2 py-2 text-left">Réf Paiement</th>
-                    <th className="px-2 py-2 text-left">Mouv.</th>
+                    <th className="px-2 py-2 text-left">Compte c/p</th>
+                    <th className="px-2 py-2 text-left">Libellé c/p</th>
+                    <th className="px-2 py-2 text-left">Pièce (Facture)</th>
+                    <th className="px-2 py-2 text-left">Réf Paiement / Encaissement</th>
                     <th className="px-2 py-2 text-left">Statut</th>
                     <th className="px-2 py-2 text-right">Débit</th>
                     <th className="px-2 py-2 text-right">Crédit</th>
@@ -118,7 +117,6 @@ export default function SupplierLedgerPage({ params }) {
                       <td className="px-2 py-1" title={r.linesPreview || undefined}>{r.description}{r.linesPreview ? <span className="ml-1 text-[10px] text-gray-400">ⓘ</span> : null}</td>
                       <td className="px-2 py-1">{r.invoiceRef || ''}</td>
                       <td className="px-2 py-1 text-xs">{r.paymentRef || ''}</td>
-                      <td className="px-2 py-1 text-[10px] font-mono">{r.movementId ? r.movementId.slice(0,8) : ''}</td>
                       <td className="px-2 py-1">{r.invoiceStatus || ''}</td>
                       <td className="px-2 py-1 text-right text-blue-700">{r.debit !== null ? <Amount value={r.debit} /> : ''}</td>
                       <td className="px-2 py-1 text-right text-orange-700">{r.credit !== null ? <Amount value={r.credit} /> : ''}</td>

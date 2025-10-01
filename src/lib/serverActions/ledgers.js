@@ -69,9 +69,9 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     take: limit,
     include: {
       account: { select: { number: true, label: true } },
-      invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true, invoiceLines: { select: { id: true, description: true, lineTotal: true }, take: 2 }, _count: { select: { invoiceLines: true } } } },
-      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true, lineTotal: true }, take: 2 }, _count: { select: { lines: true } } } },
-      moneyMovement: { select: { id: true, voucherRef: true, kind: true, authorization: { select: { docNumber: true } }, moneyAccount: { select: { ledgerAccount: { select: { number: true, label: true } }, label: true } } } }
+      invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true, invoiceLines: { select: { id: true, description: true, lineTotal: true, account: { select: { number: true, label: true } } }, take: 5 }, _count: { select: { invoiceLines: true } } } },
+      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true, lineTotal: true, account: { select: { number: true, label: true } } }, take: 5 }, _count: { select: { lines: true } } } },
+      moneyMovement: { select: { id: true, voucherRef: true, kind: true, authorization: { select: { docNumber: true } }, bankAdvice: { select: { refNumber: true } }, moneyAccount: { select: { ledgerAccount: { select: { number: true, label: true } }, label: true } } } }
     }
   });
 
@@ -101,7 +101,23 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     // Base mapping
     let accountNumber = t.account?.number;
     let accountLabel = t.account?.label;
-  let description = t.description || t.account?.label || '';
+    let description = t.description || t.account?.label || '';
+    // Counterpart logic: replace accountNumber/label with counterpart account for receivable/payable lines
+    if (party === 'client') {
+      if (t.kind === 'RECEIVABLE' && t.invoice) {
+        // pick first 7xxx account from invoice lines if present
+        const revLine = (t.invoice.invoiceLines || []).map(l => l.account).find(a => a && /^7/.test(a.number || ''));
+        if (revLine) { accountNumber = revLine.number; accountLabel = revLine.label; }
+        description = accountLabel || description;
+      }
+    }
+    if (party === 'supplier') {
+      if (t.kind === 'PAYABLE' && t.incomingInvoice) {
+        const expLine = (t.incomingInvoice.lines || []).map(l => l.account).find(a => a && /^6/.test(a.number || ''));
+        if (expLine) { accountNumber = expLine.number; accountLabel = expLine.label; }
+        description = accountLabel || description;
+      }
+    }
   // piece = numéro facture client (invoiceNumber) ou numéro interne EI-* pour fournisseur
   let piece = t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || null;
 
@@ -179,7 +195,7 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
       invoiceDueDate: t.invoice?.dueDate || t.incomingInvoice?.dueDate || null,
       running: Number(orientedRunning),
       movementId: t.moneyMovement?.id || null,
-      paymentRef: t.moneyMovement?.voucherRef || t.moneyMovement?.authorization?.docNumber || null,
+  paymentRef: t.moneyMovement?.voucherRef || t.moneyMovement?.authorization?.docNumber || t.moneyMovement?.bankAdvice?.refNumber || null,
       movementKind: t.moneyMovement?.kind || null,
       linesPreview
     };
