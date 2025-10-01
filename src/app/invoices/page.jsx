@@ -25,6 +25,7 @@ export default function InvoicesPage({ searchParams }) {
     dateField: 'issueDate',
     startDate: '',
     endDate: '',
+    payment: 'ALL'
   });
 
   useEffect(() => {
@@ -34,14 +35,16 @@ export default function InvoicesPage({ searchParams }) {
     } else {
       setUser(JSON.parse(stored));
       // Exemple de chargement des données via API REST
-      fetch("/api/invoices")
+      const url = new URL('/api/invoices', window.location.origin);
+      if (filters.payment && filters.payment !== 'ALL') url.searchParams.set('payment', filters.payment.toLowerCase());
+      fetch(url.toString())
         .then(res => res.json())
         .then(data => {
           setInvoices(data.invoices || []);
           setClients(data.clients || []);
         });
     }
-  }, [router]);
+  }, [router, filters.payment]);
 
   // Les calculs de totaux peuvent être adaptés à partir des invoices
   const totalPaidAmount = invoices.filter(i => i.status === 'PAID').reduce((sum, i) => sum + parseFloat(i.totalAmount || 0), 0);
@@ -56,7 +59,17 @@ export default function InvoicesPage({ searchParams }) {
           <h1 className="text-3xl font-bold text-gray-900">
             Factures & Clients
           </h1>
-          <div className="space-x-4">
+          <div className="space-x-4 flex items-center">
+            <div className="flex items-center gap-2 text-xs bg-gray-100 px-3 py-2 rounded">
+              <label className="text-gray-600">Paiement:</label>
+              <select value={filters.payment} onChange={e=> setFilters(f=> ({...f, payment: e.target.value}))} className="border rounded px-2 py-1 bg-white">
+                <option value="ALL">Tous</option>
+                <option value="UNPAID">Non payés</option>
+                <option value="PARTIAL">Partiels</option>
+                <option value="PAID">Payés</option>
+              </select>
+              <a href="/api/invoices/export" className="text-indigo-600 underline">Export CSV</a>
+            </div>
             <Link
               href="/clients/create"
               className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out"

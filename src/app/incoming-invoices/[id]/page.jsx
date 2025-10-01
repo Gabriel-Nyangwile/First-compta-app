@@ -73,7 +73,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
               {inv.moneyMovements.map(m => (
                 <li key={m.id} className="flex justify-between">
                   <span className="text-gray-600">{new Date(m.date).toLocaleDateString()} • {m.moneyAccount?.label || 'Compte'} • {m.direction === 'OUT' ? 'Paiement' : 'Entrée'}</span>
-                  <span className="font-mono text-gray-900">{m.voucherRef}</span>
+                  <a href={`/treasury/movements/${m.id}`} className="font-mono text-indigo-600 underline">{m.voucherRef}</a>
                 </li>
               ))}
             </ul>

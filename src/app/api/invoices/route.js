@@ -6,6 +6,8 @@ import { getSystemAccounts } from '@/lib/systemAccounts';
 
 // GET /api/invoices
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const paymentFilter = searchParams.get('payment'); // paid|unpaid|partial|all
   // Mettre à jour à la volée les statuts OVERDUE (lazy update)
   const now = new Date();
   await prisma.invoice.updateMany({
@@ -16,13 +18,32 @@ export async function GET(request) {
     },
     data: { status: 'OVERDUE' }
   });
-  const invoices = await prisma.invoice.findMany({
+  let invoices = await prisma.invoice.findMany({
     include: { 
       client: true,
       moneyMovements: { select: { id: true, date: true, amount: true, voucherRef: true, direction: true }, orderBy: { date: 'asc' } }
     },
     orderBy: { issueDate: 'desc' }
   });
+  // Calcul dynamique statut partiel & filtrage paiement
+  invoices = invoices.map(inv => {
+    const paid = Number(inv.paidAmount || 0);
+    const total = Number(inv.totalAmount || 0);
+    let dynStatus = inv.status;
+    if (total > 0 && paid > 0 && paid < total) dynStatus = 'PARTIAL';
+    return { ...inv, status: dynStatus };
+  });
+  if (paymentFilter && paymentFilter !== 'all') {
+    invoices = invoices.filter(inv => {
+      const paid = Number(inv.paidAmount || 0); const total = Number(inv.totalAmount || 0);
+      switch (paymentFilter) {
+        case 'paid': return total > 0 && paid >= total;
+        case 'unpaid': return paid === 0;
+        case 'partial': return total > 0 && paid > 0 && paid < total;
+        default: return true;
+      }
+    });
+  }
   const clients = await prisma.client.findMany({ orderBy: { name: 'asc' } });
   return new Response(JSON.stringify({ invoices, clients }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
