@@ -137,11 +137,11 @@ export async function listAuthorizations({ status, docType, flow, party, limit =
       // Indicateur dépassement: montant autorisé > restant (pour flux cohérent)
       const authAmountNum = Number(r.amount);
       const outstandingNum = outstanding.toString ? Number(outstanding.toString()) : Number(outstanding);
-      if (!isNaN(authAmountNum) && !isNaN(outstandingNum) && auth.flow === 'IN' && r.invoiceId) {
+  if (!isNaN(authAmountNum) && !isNaN(outstandingNum) && r.flow === 'IN' && r.invoiceId) {
         // Encaissement client: dépassement si montant autorisation > reste dû
         if (authAmountNum > outstandingNum) exceededRemaining = true;
       }
-      if (!isNaN(authAmountNum) && !isNaN(outstandingNum) && auth.flow === 'OUT' && r.incomingInvoiceId) {
+  if (!isNaN(authAmountNum) && !isNaN(outstandingNum) && r.flow === 'OUT' && r.incomingInvoiceId) {
         // Paiement fournisseur: pareil
         if (authAmountNum > outstandingNum) exceededRemaining = true;
       }
