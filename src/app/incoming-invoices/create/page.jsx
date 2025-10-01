@@ -17,6 +17,7 @@ export default function CreateIncomingInvoicePage() {
   const [lines, setLines] = useState([newEmptyLine()]);
   const [autoFromPO, setAutoFromPO] = useState(false); // si true => lignes auto issues du PO
   const [poLoading, setPoLoading] = useState(false);
+  const [poQuantityMode, setPoQuantityMode] = useState('received'); // 'received' | 'ordered' | 'remaining'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -50,16 +51,28 @@ export default function CreateIncomingInvoicePage() {
         if (!res.ok) throw new Error('PO introuvable');
         const po = await res.json();
         if (abort) return;
-        // Utiliser toutes les lignes (ou uniquement celles reçues ? Demande: produits déjà réceptionnés => on suppose lignes dont receivedQty > 0)
-        const usable = (po.lines || []).filter(l => Number(l.receivedQty) > 0); // produits déjà réceptionnés
-        // fallback si aucune receivedQty>0 => on prend quand même l'ensemble des lignes
-        const base = usable.length ? usable : (po.lines || []);
-        const mapped = base.map(l => ({
+        const rawLines = (po.lines || []).map(l => ({
+          product: l.product,
+          orderedQty: Number(l.orderedQty),
+          receivedQty: Number(l.receivedQty),
+          remainingQty: Number((Number(l.orderedQty) - Number(l.receivedQty)).toFixed(3)),
+          unitPrice: l.unitPrice,
+        }));
+        // Sélection selon mode
+        let selected = rawLines.map(l => {
+          let qty;
+          if (poQuantityMode === 'received') qty = l.receivedQty;
+          else if (poQuantityMode === 'ordered') qty = l.orderedQty;
+          else qty = l.remainingQty; // remaining
+          return { ...l, qty };
+        });
+        // Filtrer lignes avec quantité > 0
+        selected = selected.filter(l => l.qty > 0.000001);
+        const mapped = selected.map(l => ({
           description: l.product?.name || l.product?.sku || 'Produit',
-          accountId: '', // restera à calculer si on veut un mapping produit->compte; laisser vide = utilisateur choisira éventuellement après
+          accountId: '',
           unitOfMeasure: l.product?.unit || 'u',
-            // Si on facture la quantité déjà reçue: prendre receivedQty, sinon orderedQty
-          quantity: String(usable.length ? l.receivedQty : l.orderedQty),
+          quantity: String(l.qty),
           unitPrice: String(l.unitPrice),
           _locked: true
         }));
@@ -72,7 +85,7 @@ export default function CreateIncomingInvoicePage() {
     }
     loadPOLines();
     return () => { abort = true; };
-  }, [form.purchaseOrderId]);
+  }, [form.purchaseOrderId, poQuantityMode]);
 
   // Permettre forçage recalcul si besoin (ex: bouton refresh futur)
   const forceReloadPO = useCallback(()=>{
@@ -135,7 +148,30 @@ export default function CreateIncomingInvoicePage() {
                 {purchaseOrders.map(po=> <option key={po.id} value={po.id}>{po.number} ({po.status})</option>)}
               </select>
               {poLoading && <div className="text-xs text-gray-500 mt-1">Chargement lignes du BC...</div>}
-              {autoFromPO && !poLoading && <div className="text-[11px] text-blue-600 mt-1 flex items-center gap-2">Lignes auto remplies depuis le BC. <button type="button" onClick={()=> { setForm(f=>({...f,purchaseOrderId:''})); }} className="underline">Détacher</button><button type="button" onClick={forceReloadPO} className="underline">↻</button></div>}
+              {autoFromPO && !poLoading && (
+                <div className="text-[11px] text-blue-600 mt-1 flex flex-col gap-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    Lignes auto remplies depuis le BC.
+                    <button type="button" onClick={()=> { setForm(f=>({...f,purchaseOrderId:''})); }} className="underline">Détacher</button>
+                    <button type="button" onClick={forceReloadPO} className="underline">↻</button>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-gray-700">
+                    <span>Quantités :</span>
+                    <label className="inline-flex items-center gap-1">
+                      <input type="radio" name="poQtyMode" value="received" checked={poQuantityMode==='received'} onChange={()=>setPoQuantityMode('received')} />
+                      <span>Reçues</span>
+                    </label>
+                    <label className="inline-flex items-center gap-1">
+                      <input type="radio" name="poQtyMode" value="ordered" checked={poQuantityMode==='ordered'} onChange={()=>setPoQuantityMode('ordered')} />
+                      <span>Commandées</span>
+                    </label>
+                    <label className="inline-flex items-center gap-1">
+                      <input type="radio" name="poQtyMode" value="remaining" checked={poQuantityMode==='remaining'} onChange={()=>setPoQuantityMode('remaining')} />
+                      <span>Restantes</span>
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block mb-1">Numéro facture fournisseur *</label>
