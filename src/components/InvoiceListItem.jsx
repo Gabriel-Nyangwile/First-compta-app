@@ -49,8 +49,9 @@ export default function InvoiceListItem({ invoice }) {
           </span>
           {Array.isArray(invoice.moneyMovements) && invoice.moneyMovements.length > 0 && (() => { 
             const last = invoice.moneyMovements[invoice.moneyMovements.length - 1]; 
+            const multi = invoice.moneyMovements.length > 1;
             return (
-              <p className="text-[10px] text-gray-500 mt-1">Dernière pièce: <Link href={`/treasury/movements/${last.id}`} className="font-mono underline text-indigo-600">{last.voucherRef}</Link></p>
+              <p className="text-[10px] text-gray-500 mt-1">Dernière pièce: <Link href={`/treasury/movements/${last.id}`} className="font-mono underline text-indigo-600">{last.voucherRef}</Link>{multi && <span className="ml-1 inline-block px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">×{invoice.moneyMovements.length}</span>}</p>
             ); })()}
         </Link>
         <div className="flex items-center gap-3 mt-3 flex-wrap">

@@ -18,6 +18,7 @@ export default function InvoicesPage({ searchParams }) {
   const [user, setUser] = useState(null);
   const [clients, setClients] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [pageMeta, setPageMeta] = useState({ page: 1, pageSize: 20, totalCount: 0 });
   const [filters, setFilters] = useState({
     query: '',
     status: 'ALL',
@@ -37,14 +38,17 @@ export default function InvoicesPage({ searchParams }) {
       // Exemple de chargement des données via API REST
       const url = new URL('/api/invoices', window.location.origin);
       if (filters.payment && filters.payment !== 'ALL') url.searchParams.set('payment', filters.payment.toLowerCase());
+      url.searchParams.set('page', String(pageMeta.page));
+      url.searchParams.set('pageSize', String(pageMeta.pageSize));
       fetch(url.toString())
         .then(res => res.json())
         .then(data => {
           setInvoices(data.invoices || []);
           setClients(data.clients || []);
+          if (data.page) setPageMeta(m => ({ ...m, page: data.page, pageSize: data.pageSize, totalCount: data.totalCount }));
         });
     }
-  }, [router, filters.payment]);
+  }, [router, filters.payment, pageMeta.page, pageMeta.pageSize]);
 
   // Les calculs de totaux peuvent être adaptés à partir des invoices
   const totalPaidAmount = invoices.filter(i => i.status === 'PAID').reduce((sum, i) => sum + parseFloat(i.totalAmount || 0), 0);
@@ -69,6 +73,9 @@ export default function InvoicesPage({ searchParams }) {
                 <option value="PAID">Payés</option>
               </select>
               <a href="/api/invoices/export" className="text-indigo-600 underline">Export CSV</a>
+              <select value={pageMeta.pageSize} onChange={e=> setPageMeta(m=> ({...m, pageSize: Number(e.target.value), page: 1 }))} className="border rounded px-2 py-1 bg-white">
+                {[10,20,50,100].map(sz=> <option key={sz} value={sz}>{sz}/p</option>)}
+              </select>
             </div>
             <Link
               href="/clients/create"
@@ -116,6 +123,15 @@ export default function InvoicesPage({ searchParams }) {
                 ))
               )}
             </ul>
+            <div className="flex items-center justify-between mt-4 text-xs text-gray-600">
+              <div>
+                Page {pageMeta.page} / {Math.max(1, Math.ceil(pageMeta.totalCount / pageMeta.pageSize))} ({pageMeta.totalCount} factures)
+              </div>
+              <div className="flex items-center gap-2">
+                <button disabled={pageMeta.page<=1} onClick={()=> setPageMeta(m=> ({...m, page: Math.max(1, m.page-1)}))} className="px-2 py-1 border rounded disabled:opacity-40">Précédent</button>
+                <button disabled={pageMeta.page >= Math.ceil(pageMeta.totalCount / pageMeta.pageSize)} onClick={()=> setPageMeta(m=> ({...m, page: m.page+1}))} className="px-2 py-1 border rounded disabled:opacity-40">Suivant</button>
+              </div>
+            </div>
           </div>
 
           {/* Liste des clients */}

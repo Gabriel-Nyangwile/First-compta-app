@@ -5,6 +5,7 @@ import Amount from '@/components/Amount.jsx';
 
 export default function IncomingInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
+  const [pageMeta, setPageMeta] = useState({ page: 1, pageSize: 20, totalCount: 0 });
   const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,12 +13,14 @@ export default function IncomingInvoicesPage() {
   useEffect(()=> {
     const url = new URL('/api/incoming-invoices', window.location.origin);
     if (paymentFilter !== 'ALL') url.searchParams.set('payment', paymentFilter.toLowerCase());
+    url.searchParams.set('page', String(pageMeta.page));
+    url.searchParams.set('pageSize', String(pageMeta.pageSize));
     fetch(url.toString())
       .then(r=>r.json())
-      .then(d=> { if (d.error) setError(d.error); else setInvoices(d.invoices || []); })
+      .then(d=> { if (d.error) setError(d.error); else { setInvoices(d.invoices || []); if (d.page) setPageMeta(m=> ({...m, page: d.page, pageSize: d.pageSize, totalCount: d.totalCount })); } })
       .catch(()=>setError('Erreur chargement'))
       .finally(()=>setLoading(false));
-  }, [paymentFilter]);
+  }, [paymentFilter, pageMeta.page, pageMeta.pageSize]);
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -72,6 +75,9 @@ export default function IncomingInvoicesPage() {
               <option value="PAID">Payés</option>
             </select>
             <a href="/api/incoming-invoices/export" className="text-indigo-600 underline">Export CSV</a>
+            <select value={pageMeta.pageSize} onChange={e=> setPageMeta(m=> ({...m, pageSize: Number(e.target.value), page: 1 }))} className="border rounded px-2 py-1 bg-white">
+              {[10,20,50,100].map(sz=> <option key={sz} value={sz}>{sz}/p</option>)}
+            </select>
           </div>
           <Link href="/incoming-invoices/create" className="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Nouvelle facture reçue</Link>
           <Link href="/suppliers" className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Fournisseurs</Link>
@@ -116,7 +122,7 @@ export default function IncomingInvoicesPage() {
                   </td>
                   <td className="px-3 py-2 text-[10px] font-mono">{Array.isArray(inv.moneyMovements) && inv.moneyMovements.length ? (
                     <a href={`/treasury/movements/${inv.moneyMovements[inv.moneyMovements.length-1].id}`} className="underline text-indigo-600">{inv.moneyMovements[inv.moneyMovements.length-1].voucherRef}</a>
-                  ) : '—'}</td>
+                  ) : '—'}{Array.isArray(inv.moneyMovements) && inv.moneyMovements.length>1 && <span className="ml-1 inline-block px-1 py-0.5 rounded bg-gray-200 text-gray-700">×{inv.moneyMovements.length}</span>}</td>
                   <td className="px-3 py-2 flex gap-2 flex-wrap">
                     <Link href={`/incoming-invoices/edit/${inv.id}`} className="text-xs text-blue-600 underline">Modifier</Link>
                     {inv.status !== 'PAID' && <button onClick={()=>openPay(inv)} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">Régler</button>}
@@ -156,6 +162,13 @@ export default function IncomingInvoicesPage() {
         )}
         <div className="flex justify-center mt-8">
           <Link href="/dashboard" className="px-6 py-3 rounded bg-gray-600 hover:bg-gray-700 text-white font-semibold shadow">Retour Dashboard</Link>
+        </div>
+        <div className="flex items-center justify-between mt-6 text-xs text-gray-600">
+          <div>Page {pageMeta.page} / {Math.max(1, Math.ceil(pageMeta.totalCount / pageMeta.pageSize))} ({pageMeta.totalCount} factures)</div>
+          <div className="flex items-center gap-2">
+            <button disabled={pageMeta.page<=1} onClick={()=> setPageMeta(m=> ({...m, page: Math.max(1, m.page-1)}))} className="px-2 py-1 border rounded disabled:opacity-40">Précédent</button>
+            <button disabled={pageMeta.page >= Math.ceil(pageMeta.totalCount / pageMeta.pageSize)} onClick={()=> setPageMeta(m=> ({...m, page: m.page+1}))} className="px-2 py-1 border rounded disabled:opacity-40">Suivant</button>
+          </div>
         </div>
       </div>
     </main>
