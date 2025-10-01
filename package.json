@@ -4,25 +4,35 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:ready": "prisma generate && prisma migrate dev && next dev",
+    "dev:diagnostic": "node scripts/dev-diagnostic.js",
     "build": "next build --turbopack",
     "start": "next start",
-  "lint": "eslint src scripts eslint.config.mjs",
+    "lint": "eslint src scripts eslint.config.mjs",
+    "test:smoke": "node scripts/smoke-health.js",
     "test:regression": "node scripts/regression-line-links.js",
     "purge:legacy": "node scripts/purge-legacy-invoices.js",
     "ledger:balance": "node scripts/ledger-balance.js",
     "test:pdf": "node scripts/test-pdf.js",
+    "test:incoming-invoice-pdf": "node scripts/test-incoming-invoice-pdf.js",
     "check:vat": "node scripts/check-vat-ledger.js --details",
     "backfill:vat:add": "node scripts/backfill-vat-multirate-add-only.js --verbose",
-    "backfill:invoice-balances": "node scripts/backfill-invoice-paid-outstanding.js"
-  ,"audit:invoice-balances": "node scripts/audit-invoice-balances.js",
-  "audit:invoice-balances:fix": "node scripts/audit-invoice-balances.js --fix --no-exit-error"
-  ,"reset:soft": "node scripts/reset-data.js --soft --force"
-  ,"reset:full": "node scripts/reset-data.js --full --force",
-  "backup:data": "node scripts/backup-data.js",
-  "seed:minimal": "node scripts/seed-minimal.js",
-  "backfill:movement:vouchers": "node scripts/backfill-movement-voucher-refs.js"
-  ,"backfill:authorization:transactions": "node scripts/backfill-authorization-movements-transactions.js"
-  ,"audit:authorization:movements": "node scripts/audit-authorization-movements.js"
+    "backfill:invoice-balances": "node scripts/backfill-invoice-paid-outstanding.js",
+    "audit:invoice-balances": "node scripts/audit-invoice-balances.js",
+    "audit:invoice-balances:fix": "node scripts/audit-invoice-balances.js --fix --no-exit-error",
+    "reset:soft": "node scripts/reset-data.js --soft --force",
+    "reset:full": "node scripts/reset-data.js --full --force",
+    "backup:data": "node scripts/backup-data.js",
+    "seed:minimal": "node scripts/seed-minimal.js",
+    "backfill:movement:vouchers": "node scripts/backfill-movement-voucher-refs.js",
+    "backfill:authorization:transactions": "node scripts/backfill-authorization-movements-transactions.js",
+    "audit:authorization:movements": "node scripts/audit-authorization-movements.js",
+    "backfill:journal": "node scripts/backfill-journal-entry.js",
+    "audit:stock": "node scripts/audit-stock.js",
+    "audit:stock:fix": "node scripts/audit-stock.js --fix",
+    "test:inventory-flow": "node scripts/test-inventory-flow.js",
+    "revalue:inventory": "node scripts/revalue-inventory-cump.js",
+    "test:http:inventory": "node scripts/test-http-inventory.js"
   },
   "type": "module",
   "dependencies": {
