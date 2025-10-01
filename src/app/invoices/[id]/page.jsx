@@ -66,6 +66,19 @@ export default async function InvoiceDetailsPage({ params, searchParams }) {
                 {getStatusLabel(invoice.status)}
               </span>
             </p>
+            {Array.isArray(invoice.moneyMovements) && invoice.moneyMovements.length > 0 && (
+              <div className="mt-4 bg-gray-50 border rounded p-3">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Pièces de paiement (voucherRef)</h3>
+                <ul className="space-y-1 text-sm">
+                  {invoice.moneyMovements.map(mv => (
+                    <li key={mv.id} className="flex justify-between">
+                      <span className="text-gray-600">{formatDateFR(mv.date)} • {mv.moneyAccount?.label || 'Compte'} • {mv.direction === 'IN' ? 'Encaissement' : 'Décaissement'}</span>
+                      <span className="font-mono text-gray-900">{mv.voucherRef}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Bouton de téléchargement PDF côté serveur */}

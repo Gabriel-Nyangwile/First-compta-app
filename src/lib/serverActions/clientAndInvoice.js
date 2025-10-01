@@ -250,6 +250,19 @@ export async function fetchInvoiceById(id){
           include: {
             account: { select: { number: true, label: true } }
           }
+        },
+        // Ajout des mouvements de trésorerie liés pour exposer voucherRef (pièce comptable)
+        moneyMovements: {
+          select: {
+            id: true,
+            date: true,
+            amount: true,
+            direction: true,
+            kind: true,
+            voucherRef: true,
+            moneyAccount: { select: { label: true } }
+          },
+          orderBy: { date: 'asc' }
         }
        }, // Inclure les informations du client lié
     });
