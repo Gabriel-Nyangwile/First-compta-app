@@ -1,10 +1,12 @@
 'use client'; // <-- Ceci est crucial, indique que c'est un Client Component
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { updateInvoiceStatus } from '@/lib/serverActions/clientAndInvoice';
 import Amount from './Amount';
 
 export default function InvoiceListItem({ invoice }) {
+  const router = useRouter();
   // Fonctions utilitaires locales pour le rendu
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
@@ -23,7 +25,14 @@ export default function InvoiceListItem({ invoice }) {
     <li className="p-4 bg-white rounded-md shadow-sm border border-gray-100 flex justify-between items-start hover:bg-gray-50 transition duration-150 ease-in-out">
       {/* Colonne principale cliquable (sans actions secondaires) */}
       <div className="flex-grow min-w-0">
-        <Link href={`/invoices/${invoice.id}`} className="block focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-sm">
+        <div
+          role="link"
+          tabIndex={0}
+          onClick={() => router.push(`/invoices/${invoice.id}`)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/invoices/${invoice.id}`); } }}
+          className="block focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-sm cursor-pointer"
+          aria-label={`Ouvrir facture ${invoice.invoiceNumber}`}
+        >
           <p className="text-sm font-medium text-gray-900">N°: {invoice.invoiceNumber}</p>
           {(() => { const total=Number(invoice.totalAmount||0); const paid=Number(invoice.paidAmount||0); const remaining = Number(invoice.outstandingAmount ?? (total - paid)); const pct = total>0 ? Math.min(100, Math.round(paid/total*100)) : 0; return (
             <div className="text-xs text-gray-600 space-y-1">
@@ -51,9 +60,9 @@ export default function InvoiceListItem({ invoice }) {
             const last = invoice.moneyMovements[invoice.moneyMovements.length - 1]; 
             const multi = invoice.moneyMovements.length > 1;
             return (
-              <p className="text-[10px] text-gray-500 mt-1">Dernière pièce: <Link href={`/treasury/movements/${last.id}`} className="font-mono underline text-indigo-600">{last.voucherRef}</Link>{multi && <span className="ml-1 inline-block px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">×{invoice.moneyMovements.length}</span>}</p>
+              <p className="text-[10px] text-gray-500 mt-1">Dernière pièce: <Link href={`/treasury/movements/${last.id}`} className="font-mono underline text-indigo-600" onClick={(e) => e.stopPropagation()}>{last.voucherRef}</Link>{multi && <span className="ml-1 inline-block px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">×{invoice.moneyMovements.length}</span>}</p>
             ); })()}
-        </Link>
+        </div>
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <a
             href={`/api/invoice/${invoice.id}/pdf`}
