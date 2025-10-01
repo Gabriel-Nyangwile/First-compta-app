@@ -148,7 +148,7 @@ export async function POST(req) {
           totalAmountHt: String(totalHt),
           totalAmount: String(totalTtc),
           supplier: { connect: { id: supplierId } },
-          purchaseOrderId: po ? po.id : undefined
+          ...(po ? { purchaseOrder: { connect: { id: po.id } } } : {})
         }
       });
 
