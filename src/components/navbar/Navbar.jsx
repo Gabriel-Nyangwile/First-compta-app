@@ -1,4 +1,3 @@
-
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -32,13 +31,13 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="w-full bg-blue-900 text-white px-6 py-3 flex items-center justify-between shadow fixed top-0 left-0 z-50">
-      <div className="flex items-center gap-5">
+    <nav className="w-full bg-blue-900 text-white px-4 sm:px-6 py-3 flex items-center justify-between shadow fixed top-0 left-0 z-50">
+      <div className="flex items-center gap-4 sm:gap-5 flex-wrap">
         <Link href="/" className="font-semibold tracking-wide hover:text-blue-300">Accueil</Link>
-        {/* Menus marketing retirés volontairement */}
-        <NavbarDropdown user={user} />
       </div>
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex items-center gap-3 sm:gap-4 text-sm">
+        <span className="hidden sm:inline-block h-6 w-px bg-white/25" aria-hidden="true" />
+        <NavbarDropdown user={user} />
         {!user ? (
           <>
             <Link href="/auth/signup" className="hover:text-blue-300">Inscription</Link>

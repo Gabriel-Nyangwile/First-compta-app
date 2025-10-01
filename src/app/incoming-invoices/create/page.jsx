@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Amount from '@/components/Amount';
 import dynamic from 'next/dynamic';
 const AccountAutocomplete = dynamic(()=> import('@/components/AccountAutocomplete'), { ssr:false });
@@ -12,8 +12,11 @@ function newEmptyLine() {
 export default function CreateIncomingInvoicePage() {
   const router = useRouter();
   const [suppliers, setSuppliers] = useState([]);
-  const [form, setForm] = useState({ supplierId: '', supplierInvoiceNumber: '', receiptDate: '', issueDate: '', dueDate: '', vat: '0.2' });
+  const [form, setForm] = useState({ supplierId: '', supplierInvoiceNumber: '', receiptDate: '', issueDate: '', dueDate: '', vat: '0.2', purchaseOrderId: '' });
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [lines, setLines] = useState([newEmptyLine()]);
+  const [autoFromPO, setAutoFromPO] = useState(false); // si true => lignes auto issues du PO
+  const [poLoading, setPoLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -22,10 +25,69 @@ export default function CreateIncomingInvoicePage() {
     fetch('/api/suppliers').then(r=>r.json()).then(d=> setSuppliers(d.suppliers || []));
   },[]);
 
+  // Charger bons de commande en fonction du fournisseur sélectionné
+  useEffect(()=>{
+    if(!form.supplierId){ setPurchaseOrders([]); setForm(f=>({...f,purchaseOrderId:''})); return; }
+    fetch('/api/purchase-orders?supplierId='+encodeURIComponent(form.supplierId))
+      .then(r=>r.json())
+      .then(d=>{ if(Array.isArray(d)) setPurchaseOrders(d); })
+      .catch(()=>{});
+  }, [form.supplierId]);
+
+  // Quand un PO est sélectionné, on va chercher ses lignes restantes et on pré-remplit
+  useEffect(()=> {
+    let abort = false;
+    async function loadPOLines() {
+      if (!form.purchaseOrderId) {
+        setAutoFromPO(false);
+        // reinitialise si on vient de désélectionner
+        setLines([newEmptyLine()]);
+        return;
+      }
+      setPoLoading(true);
+      try {
+        const res = await fetch(`/api/purchase-orders/${form.purchaseOrderId}`);
+        if (!res.ok) throw new Error('PO introuvable');
+        const po = await res.json();
+        if (abort) return;
+        // Utiliser toutes les lignes (ou uniquement celles reçues ? Demande: produits déjà réceptionnés => on suppose lignes dont receivedQty > 0)
+        const usable = (po.lines || []).filter(l => Number(l.receivedQty) > 0); // produits déjà réceptionnés
+        // fallback si aucune receivedQty>0 => on prend quand même l'ensemble des lignes
+        const base = usable.length ? usable : (po.lines || []);
+        const mapped = base.map(l => ({
+          description: l.product?.name || l.product?.sku || 'Produit',
+          accountId: '', // restera à calculer si on veut un mapping produit->compte; laisser vide = utilisateur choisira éventuellement après
+          unitOfMeasure: l.product?.unit || 'u',
+            // Si on facture la quantité déjà reçue: prendre receivedQty, sinon orderedQty
+          quantity: String(usable.length ? l.receivedQty : l.orderedQty),
+          unitPrice: String(l.unitPrice),
+          _locked: true
+        }));
+        setLines(mapped.length ? mapped : [newEmptyLine()]);
+        setAutoFromPO(true);
+      } catch (e) {
+        console.warn('Chargement PO échoué', e);
+        setAutoFromPO(false);
+      } finally { if (!abort) setPoLoading(false); }
+    }
+    loadPOLines();
+    return () => { abort = true; };
+  }, [form.purchaseOrderId]);
+
+  // Permettre forçage recalcul si besoin (ex: bouton refresh futur)
+  const forceReloadPO = useCallback(()=>{
+    if (form.purchaseOrderId) {
+      setForm(f=>({ ...f })); // retrig l'effet (pas élégant mais suffisant)
+    }
+  }, [form.purchaseOrderId]);
+
   const updateLine = (idx, patch) => {
     setLines(ls => ls.map((l,i)=> i===idx ? { ...l, ...patch } : l));
   };
-  const addLine = () => setLines(ls => [...ls, newEmptyLine()]);
+  const addLine = () => {
+    if (autoFromPO) return; // pas d'ajout manuel en mode PO
+    setLines(ls => [...ls, newEmptyLine()]);
+  };
   const removeLine = (idx) => setLines(ls => ls.filter((_,i)=>i!==idx));
 
   const totalHt = lines.reduce((sum,l)=> sum + (Number(l.quantity||0)*Number(l.unitPrice||0)), 0);
@@ -37,10 +99,11 @@ export default function CreateIncomingInvoicePage() {
     setError(''); setSuccess(false);
     if (!form.supplierId) { setError('Fournisseur requis'); return; }
     if (!form.supplierInvoiceNumber.trim()) { setError('Numéro facture fournisseur requis'); return; }
-    if (!lines.length || lines.some(l => !l.accountId)) { setError('Chaque ligne doit avoir un compte'); return; }
+    if (!lines.length) { setError('Au moins une ligne nécessaire'); return; }
+    if (lines.some(l => !l.accountId)) { setError('Chaque ligne doit avoir un compte'); return; }
     setLoading(true);
     try {
-      const payload = { ...form, lines };
+  const payload = { ...form, lines, purchaseOrderId: form.purchaseOrderId || undefined };
       const res = await fetch('/api/incoming-invoices', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) setError(data.error || 'Erreur'); else {
@@ -66,6 +129,15 @@ export default function CreateIncomingInvoicePage() {
               </select>
             </div>
             <div>
+              <label className="block mb-1">Bon de commande (optionnel)</label>
+              <select value={form.purchaseOrderId} onChange={e=>setForm(f=>({...f,purchaseOrderId:e.target.value}))} className="w-full border rounded px-3 py-2 disabled:opacity-50" disabled={!purchaseOrders.length}>
+                <option value="">-- Aucun --</option>
+                {purchaseOrders.map(po=> <option key={po.id} value={po.id}>{po.number} ({po.status})</option>)}
+              </select>
+              {poLoading && <div className="text-xs text-gray-500 mt-1">Chargement lignes du BC...</div>}
+              {autoFromPO && !poLoading && <div className="text-[11px] text-blue-600 mt-1 flex items-center gap-2">Lignes auto remplies depuis le BC. <button type="button" onClick={()=> { setForm(f=>({...f,purchaseOrderId:''})); }} className="underline">Détacher</button><button type="button" onClick={forceReloadPO} className="underline">↻</button></div>}
+            </div>
+            <div>
               <label className="block mb-1">Numéro facture fournisseur *</label>
               <input value={form.supplierInvoiceNumber} onChange={e=>setForm(f=>({...f,supplierInvoiceNumber:e.target.value}))} className="w-full border rounded px-3 py-2" />
             </div>
@@ -89,7 +161,7 @@ export default function CreateIncomingInvoicePage() {
 
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Lignes</h2>
-            <button type="button" onClick={addLine} className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">+ Ligne</button>
+            <button type="button" onClick={addLine} disabled={autoFromPO} className="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white px-3 py-1 rounded">+ Ligne</button>
           </div>
           <div className="overflow-auto border rounded">
             <table className="min-w-full text-xs">
@@ -110,7 +182,7 @@ export default function CreateIncomingInvoicePage() {
                   return (
                     <tr key={idx} className="border-t">
                       <td className="px-2 py-1">
-                        <input value={l.description} onChange={e=>updateLine(idx,{description:e.target.value})} className="border rounded px-2 py-1 w-full" />
+                        <input value={l.description} onChange={e=>updateLine(idx,{description:e.target.value})} className="border rounded px-2 py-1 w-full disabled:opacity-70" disabled={l._locked} />
                       </td>
                       <td className="px-2 py-1 min-w-[180px]">
                         <AccountAutocomplete
@@ -123,17 +195,17 @@ export default function CreateIncomingInvoicePage() {
                         />
                       </td>
                       <td className="px-2 py-1">
-                        <input value={l.unitOfMeasure} onChange={e=>updateLine(idx,{unitOfMeasure:e.target.value})} className="border rounded px-2 py-1 w-full" />
+                        <input value={l.unitOfMeasure} onChange={e=>updateLine(idx,{unitOfMeasure:e.target.value})} className="border rounded px-2 py-1 w-full disabled:opacity-70" disabled={l._locked} />
                       </td>
                       <td className="px-2 py-1 w-20">
-                        <input type="number" value={l.quantity} onChange={e=>updateLine(idx,{quantity:e.target.value})} className="border rounded px-2 py-1 w-full" />
+                        <input type="number" value={l.quantity} onChange={e=>updateLine(idx,{quantity:e.target.value})} className="border rounded px-2 py-1 w-full disabled:opacity-70" disabled={l._locked} />
                       </td>
                       <td className="px-2 py-1 w-24">
-                        <input type="number" value={l.unitPrice} onChange={e=>updateLine(idx,{unitPrice:e.target.value})} className="border rounded px-2 py-1 w-full" />
+                        <input type="number" value={l.unitPrice} onChange={e=>updateLine(idx,{unitPrice:e.target.value})} className="border rounded px-2 py-1 w-full disabled:opacity-70" disabled={l._locked} />
                       </td>
                       <td className="px-2 py-1 text-right font-mono"><Amount value={lineTotal} /></td>
                       <td className="px-2 py-1 text-center">
-                        {lines.length > 1 && <button type="button" onClick={()=>removeLine(idx)} className="text-red-600 hover:underline">X</button>}
+                        {(!l._locked && lines.length > 1) && <button type="button" onClick={()=>removeLine(idx)} className="text-red-600 hover:underline">X</button>}
                       </td>
                     </tr>
                   );

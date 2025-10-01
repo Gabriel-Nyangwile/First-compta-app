@@ -32,11 +32,11 @@ enum UserRole {
 model User {
   id                String    @id @default(uuid())
   email             String    @unique
-  password          String?   // Hash du mot de passe (null si provider OAuth)
+  password          String? // Hash du mot de passe (null si provider OAuth)
   username          String?
   role              UserRole  @default(USER)
-  provider          String?   // ex: 'google', 'github', 'credentials'
-  providerAccountId String?   // id du compte provider
+  provider          String? // ex: 'google', 'github', 'credentials'
+  providerAccountId String? // id du compte provider
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -45,18 +45,18 @@ model User {
 }
 
 model Account {
-  id              String    @id @default(uuid())
-  number          String    @unique
-  label           String
-  description     String?
-  transactions    Transaction[]
+  id                   String                @id @default(uuid())
+  number               String                @unique
+  label                String
+  description          String?
+  transactions         Transaction[]
   // Relation bidirectionnelle
-  invoiceLines    InvoiceLine[]
-  clients   Client[]   @relation("AccountToClients")
-  suppliers Supplier[] @relation("AccountToSuppliers")
+  invoiceLines         InvoiceLine[]
+  clients              Client[]              @relation("AccountToClients")
+  suppliers            Supplier[]            @relation("AccountToSuppliers")
   // Lignes des factures fournisseurs reçues
   incomingInvoiceLines IncomingInvoiceLine[]
-  moneyAccounts  MoneyAccount[]
+  moneyAccounts        MoneyAccount[]
 }
 
 enum ClientCategory {
@@ -68,37 +68,40 @@ enum ClientCategory {
 }
 
 model Client {
-  id            String    @id @default(uuid())
-  name          String
-  address       String?
-  phone         String?
-  email         String?   @unique
-  accountId     String?
-  account   Account?  @relation("AccountToClients", fields: [accountId], references: [id])
-  category      ClientCategory @default(DAYS_30)
-  invoices      Invoice[]
-  userId        String?
-  user          User?     @relation(fields: [userId], references: [id])
+  id           String         @id @default(uuid())
+  name         String
+  address      String?
+  phone        String?
+  email        String?        @unique
+  accountId    String?
+  account      Account?       @relation("AccountToClients", fields: [accountId], references: [id])
+  category     ClientCategory @default(DAYS_30)
+  invoices     Invoice[]
+  userId       String?
+  user         User?          @relation(fields: [userId], references: [id])
   // Relation inverse vers Transaction (pour l'écriture client)
-  transactions  Transaction[]
+  transactions Transaction[]
 }
 
 model Supplier {
-  id              String    @id @default(uuid())
-  name            String
-  address         String?
-  phone           String?
-  email           String?
-  accountId       String?
-  account   Account?  @relation("AccountToSuppliers", fields: [accountId], references: [id])
-  providedProduct String?
-  paymentNature   String?   @default("credit")
-  paymentDelay    Int?      @default(30)
-  invoices        Invoice[]
+  id               String            @id @default(uuid())
+  name             String
+  address          String?
+  phone            String?
+  email            String?
+  accountId        String?
+  account          Account?          @relation("AccountToSuppliers", fields: [accountId], references: [id])
+  providedProduct  String?
+  paymentNature    String?           @default("credit")
+  paymentDelay     Int?              @default(30)
+  invoices         Invoice[]
   // Factures fournisseurs reçues (IncomingInvoice)
   incomingInvoices IncomingInvoice[]
   // Transactions liées (écritures comptables)
   transactions     Transaction[]
+  // Phase 3 back-relations
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
 }
 
 enum PaymentStatus {
@@ -116,13 +119,49 @@ enum TransactionDirection {
 
 // Type fonctionnel de la ligne d'écriture
 enum TransactionKind {
-  RECEIVABLE   // Créance client (411)
-  SALE         // Produit (70x)
+  RECEIVABLE // Créance client (411)
+  SALE // Produit (70x)
   VAT_COLLECTED // TVA collectée (4457)
-  PAYMENT      // Règlement (banque)
-  PAYABLE       // Dette fournisseur (401)
-  PURCHASE      // Charge (6xx)
+  PAYMENT // Règlement (banque)
+  PAYABLE // Dette fournisseur (401)
+  PURCHASE // Charge (6xx)
   VAT_DEDUCTIBLE // TVA déductible (44566)
+}
+
+// =============================
+//  Journal (Phase 1)
+// =============================
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+}
+
+enum JournalSourceType {
+  INVOICE
+  INCOMING_INVOICE
+  MONEY_MOVEMENT
+  AUTHORIZATION
+  BANK_ADVICE
+  OTHER
+}
+
+model JournalEntry {
+  id          String            @id @default(uuid())
+  number      String            @unique
+  date        DateTime          @default(now())
+  sourceType  JournalSourceType @default(OTHER)
+  sourceId    String?
+  description String?
+  status      JournalStatus     @default(POSTED)
+  postedAt    DateTime? // Peut servir ultérieurement pour verrouillage période
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  // Relations
+  lines       Transaction[]
+
+  @@index([sourceType, sourceId])
+  @@index([date])
 }
 
 // =============================
@@ -140,17 +179,17 @@ enum MovementDirection {
 }
 
 enum MoneyMovementKind {
-  CLIENT_RECEIPT       // Encaissement client
-  SUPPLIER_PAYMENT     // Paiement fournisseur
-  VAT_PAYMENT          // Paiement TVA
-  TAX_PAYMENT          // Paiement impôts/autres
-  CASH_PURCHASE        // Achat réglé immédiatement
-  TRANSFER             // Transfert interne entre comptes
+  CLIENT_RECEIPT // Encaissement client
+  SUPPLIER_PAYMENT // Paiement fournisseur
+  VAT_PAYMENT // Paiement TVA
+  TAX_PAYMENT // Paiement impôts/autres
+  CASH_PURCHASE // Achat réglé immédiatement
+  TRANSFER // Transfert interne entre comptes
   OTHER
   ASSOCIATE_CONTRIBUTION // Apport associé (crédit 455)
-  ASSOCIATE_WITHDRAWAL   // Retrait / remboursement associé (débit 455)
-  SALARY_PAYMENT         // Paiement de salaires (débit 641)
-  SALARY_ADVANCE         // Avance sur salaire (débit 425 / 467 selon param)
+  ASSOCIATE_WITHDRAWAL // Retrait / remboursement associé (débit 455)
+  SALARY_PAYMENT // Paiement de salaires (débit 641)
+  SALARY_ADVANCE // Avance sur salaire (débit 425 / 467 selon param)
 }
 
 // =============================
@@ -162,20 +201,24 @@ enum AuthorizationDocType {
   PCR
   OP
 }
+
 enum AuthorizationScope {
   CASH
   BANK
 }
+
 enum FlowDirection {
   IN
   OUT
 }
+
 enum AuthorizationStatus {
   DRAFT
   AUTHORIZED
   EXECUTED
   CANCELLED
 }
+
 enum BeneficiaryType {
   SUPPLIER
   CLIENT
@@ -186,88 +229,257 @@ enum BeneficiaryType {
   INTERNAL_TRANSFER
   OTHER
 }
+
 enum InstrumentType {
   CASH
   CHEQUE
   TRANSFER
   OTHER
 }
+
 enum BankAdviceType {
   DEBIT
   CREDIT
 }
 
 model Invoice {
-  id              String    @id @default(uuid())
-  invoiceNumber   String    @unique
-  issueDate       DateTime  @default(now())
-  dueDate         DateTime
-  totalAmount     Decimal   @default(0) @db.Decimal(10, 2)
-  totalAmountHt   Decimal   @default(0) @db.Decimal(10, 2) // Total HT (somme des lineTotal)
-  vat             Decimal   @default(0.2) @db.Decimal(4, 2) // Taux de TVA (ex: 0.2 pour 20%)
-  vatAmount       Decimal   @default(0) @db.Decimal(10, 2)
-  updatedAt       DateTime?
-  status          PaymentStatus    @default(PENDING) // 'paid' ou 'pending'
-  paidAmount      Decimal   @default(0) @db.Decimal(10, 2)
-  outstandingAmount Decimal  @default(0) @db.Decimal(10, 2)
-  clientId        String?
-  supplierId      String?
+  id                     String                  @id @default(uuid())
+  invoiceNumber          String                  @unique
+  issueDate              DateTime                @default(now())
+  dueDate                DateTime
+  totalAmount            Decimal                 @default(0) @db.Decimal(10, 2)
+  totalAmountHt          Decimal                 @default(0) @db.Decimal(10, 2) // Total HT (somme des lineTotal)
+  vat                    Decimal                 @default(0.2) @db.Decimal(4, 2) // Taux de TVA (ex: 0.2 pour 20%)
+  vatAmount              Decimal                 @default(0) @db.Decimal(10, 2)
+  updatedAt              DateTime?
+  status                 PaymentStatus           @default(PENDING) // 'paid' ou 'pending'
+  paidAmount             Decimal                 @default(0) @db.Decimal(10, 2)
+  outstandingAmount      Decimal                 @default(0) @db.Decimal(10, 2)
+  clientId               String?
+  supplierId             String?
   // Relation bidirectionnelle
-  userId          String?
-  user            User?     @relation(fields: [userId], references: [id])
-  client          Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  supplier        Supplier? @relation(fields: [supplierId], references: [id])
-  invoiceLines    InvoiceLine[]
-  transactions    Transaction[]
-  moneyMovements  MoneyMovement[]
+  userId                 String?
+  user                   User?                   @relation(fields: [userId], references: [id])
+  client                 Client?                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  supplier               Supplier?               @relation(fields: [supplierId], references: [id])
+  invoiceLines           InvoiceLine[]
+  transactions           Transaction[]
+  moneyMovements         MoneyMovement[]
   treasuryAuthorizations TreasuryAuthorization[]
-  bankAdvices    BankAdvice[]
+  bankAdvices            BankAdvice[]
 }
 
 model InvoiceLine {
-  id              String    @id @default(uuid())
-  description     String
-  unitOfMeasure   String
-  quantity        Decimal @db.Decimal(10, 2)
-  unitPrice       Decimal @db.Decimal(10, 2)
-  lineTotal       Decimal @db.Decimal(10, 2)
+  id             String          @id @default(uuid())
+  description    String
+  unitOfMeasure  String
+  quantity       Decimal         @db.Decimal(10, 2)
+  unitPrice      Decimal         @db.Decimal(10, 2)
+  lineTotal      Decimal         @db.Decimal(10, 2)
   // Taux de TVA spécifique à la ligne (si différent du taux global de la facture)
-  vatRate         Decimal? @db.Decimal(4, 2)
-  accountId       String
-  account         Account   @relation(fields: [accountId], references: [id])
-  invoiceId       String
-  invoice         Invoice   @relation(fields: [invoiceId], references: [id])
+  vatRate        Decimal?        @db.Decimal(4, 2)
+  accountId      String
+  account        Account         @relation(fields: [accountId], references: [id])
+  invoiceId      String
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id])
   // Nouvelles écritures liées à cette ligne (SALE)
-  transactions    Transaction[]
+  transactions   Transaction[]
+  // Phase 2: lien optionnel vers un produit stocké
+  productId      String?
+  product        Product?        @relation(fields: [productId], references: [id])
+  // Relation inverse mouvements de stock (sorties vente)
+  stockMovements StockMovement[]
+}
+
+// =============================
+//  Stock (Phase 2 minimal)
+// =============================
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUST
+}
+
+// =============================
+//  Phase 3 Achats & Réception
+// =============================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  APPROVED
+  PARTIAL
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum GoodsReceiptStatus {
+  OPEN
+  CLOSED
+}
+
+model PurchaseOrder {
+  id               String                   @id @default(uuid())
+  number           String                   @unique
+  supplierId       String
+  supplier         Supplier                 @relation(fields: [supplierId], references: [id])
+  status           PurchaseOrderStatus      @default(DRAFT)
+  issueDate        DateTime                 @default(now())
+  expectedDate     DateTime?
+  currency         String                   @default("EUR")
+  notes            String?
+  lines            PurchaseOrderLine[]
+  goodsReceipts    GoodsReceipt[]
+  statusLogs       PurchaseOrderStatusLog[]
+  // Back relation vers factures fournisseurs reçues liées
+  incomingInvoices IncomingInvoice[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseOrderLine {
+  id                String             @id @default(uuid())
+  purchaseOrderId   String
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  productId         String
+  product           Product            @relation(fields: [productId], references: [id])
+  orderedQty        Decimal            @db.Decimal(14, 3)
+  receivedQty       Decimal            @default(0) @db.Decimal(14, 3)
+  unitPrice         Decimal            @db.Decimal(14, 4)
+  vatRate           Decimal?           @db.Decimal(4, 2)
+  goodsReceiptLines GoodsReceiptLine[]
+  version           Int                @default(0)
+  createdAt         DateTime           @default(now())
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+model GoodsReceipt {
+  id              String             @id @default(uuid())
+  number          String             @unique
+  supplierId      String?
+  supplier        Supplier?          @relation(fields: [supplierId], references: [id])
+  receiptDate     DateTime           @default(now())
+  status          GoodsReceiptStatus @default(OPEN)
+  notes           String?
+  lines           GoodsReceiptLine[]
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  createdAt       DateTime           @default(now())
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model GoodsReceiptLine {
+  id                  String             @id @default(uuid())
+  goodsReceiptId      String
+  goodsReceipt        GoodsReceipt       @relation(fields: [goodsReceiptId], references: [id])
+  purchaseOrderLineId String?
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  productId           String
+  product             Product            @relation(fields: [productId], references: [id])
+  qtyReceived         Decimal            @db.Decimal(14, 3)
+  unitCost            Decimal            @db.Decimal(14, 4)
+  stockMovements      StockMovement[]
+  createdAt           DateTime           @default(now())
+
+  @@index([goodsReceiptId])
+  @@index([productId])
+}
+
+model Product {
+  id                 String              @id @default(uuid())
+  sku                String              @unique
+  name               String
+  description        String?
+  unit               String              @default("PCS")
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  // Relations
+  invoiceLines       InvoiceLine[]
+  // Phase 3 back-relations
+  purchaseOrderLines PurchaseOrderLine[]
+  goodsReceiptLines  GoodsReceiptLine[]
+  inventory          ProductInventory?
+  // Mouvements de stock liés (entrées/sorties)
+  stockMovements     StockMovement[]
+
+  @@index([name])
+}
+
+// Agrégat courant de stock (pour valorisation moyenne pondérée - CUMP)
+model ProductInventory {
+  productId String   @id
+  product   Product  @relation(fields: [productId], references: [id])
+  qtyOnHand Decimal  @default(0) @db.Decimal(18, 3)
+  avgCost   Decimal? @db.Decimal(14, 4) // coût moyen courant; null si aucune entrée
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StockMovement {
+  id                 String            @id @default(uuid())
+  date               DateTime          @default(now())
+  productId          String
+  product            Product           @relation(fields: [productId], references: [id])
+  movementType       StockMovementType
+  quantity           Decimal           @db.Decimal(14, 3)
+  unitCost           Decimal?          @db.Decimal(14, 4)
+  totalCost          Decimal?          @db.Decimal(16, 2)
+  // Provenance Facture (sortie vente) — optionnel
+  invoiceLineId      String?
+  invoiceLine        InvoiceLine?      @relation(fields: [invoiceLineId], references: [id])
+  // Provenance Réception (entrée)
+  // Référence justificative unique (générée via Sequence). Étape 1: optionnelle pour backfill.
+  voucherRef         String?           @unique
+  goodsReceiptLineId String?
+  goodsReceiptLine   GoodsReceiptLine? @relation(fields: [goodsReceiptLineId], references: [id])
+  // Futur: stockWithdrawalLineId, inventoryAdjustmentId
+  createdAt          DateTime          @default(now())
+
+  @@index([productId, date])
+  @@index([movementType])
 }
 
 model Transaction {
-  id              String    @id @default(uuid())
-  date            DateTime  @default(now())
-  nature          String    @default("payment") // 'payment' ou 'receipt'
-  description     String?
-  amount          Decimal @db.Decimal(10, 2)
-  direction       TransactionDirection
-  kind            TransactionKind
-  accountId       String
-  account         Account   @relation(fields: [accountId], references: [id])
-  invoiceId       String?
-  invoice         Invoice?  @relation(fields: [invoiceId], references: [id])
+  id                    String               @id @default(uuid())
+  date                  DateTime             @default(now())
+  nature                String               @default("payment") // 'payment' ou 'receipt'
+  description           String?
+  amount                Decimal              @db.Decimal(10, 2)
+  direction             TransactionDirection
+  kind                  TransactionKind
+  accountId             String
+  account               Account              @relation(fields: [accountId], references: [id])
+  invoiceId             String?
+  invoice               Invoice?             @relation(fields: [invoiceId], references: [id])
   // Nouvelle traçabilité ligne de facture client
-  invoiceLineId   String?
-  invoiceLine     InvoiceLine? @relation(fields: [invoiceLineId], references: [id])
-  clientId        String?
-  client          Client?   @relation(fields: [clientId], references: [id])
-  supplierId      String?
-  supplier        Supplier? @relation(fields: [supplierId], references: [id])
-  incomingInvoiceId String?
-  incomingInvoice   IncomingInvoice? @relation(fields: [incomingInvoiceId], references: [id])
+  invoiceLineId         String?
+  invoiceLine           InvoiceLine?         @relation(fields: [invoiceLineId], references: [id])
+  clientId              String?
+  client                Client?              @relation(fields: [clientId], references: [id])
+  supplierId            String?
+  supplier              Supplier?            @relation(fields: [supplierId], references: [id])
+  incomingInvoiceId     String?
+  incomingInvoice       IncomingInvoice?     @relation(fields: [incomingInvoiceId], references: [id])
   // Nouvelle traçabilité ligne de facture fournisseur reçue
   incomingInvoiceLineId String?
   incomingInvoiceLine   IncomingInvoiceLine? @relation(fields: [incomingInvoiceLineId], references: [id])
   // Lien facultatif vers mouvement de trésorerie
-  moneyMovementId String?
-  moneyMovement   MoneyMovement? @relation(fields: [moneyMovementId], references: [id])
+  moneyMovementId       String?
+  moneyMovement         MoneyMovement?       @relation(fields: [moneyMovementId], references: [id])
+  // Phase 1: JournalEntry (nullable le temps du backfill)
+  journalEntryId        String?
+  journalEntry          JournalEntry?        @relation(fields: [journalEntryId], references: [id])
+
+  @@index([journalEntryId])
 }
 
 // =============================
@@ -284,42 +496,47 @@ model Transaction {
 // Les écritures comptables utilisent les nouveaux TransactionKind: PURCHASE, VAT_DEDUCTIBLE, PAYABLE.
 
 model IncomingInvoice {
-  id                   String    @id @default(uuid())
-  entryNumber          String    @unique
-  receiptDate          DateTime  @default(now())
-  supplierInvoiceNumber String
-  issueDate            DateTime?
-  dueDate              DateTime?
-  totalAmount          Decimal   @default(0) @db.Decimal(10, 2)
-  totalAmountHt        Decimal   @default(0) @db.Decimal(10, 2)
-  vat                  Decimal   @default(0.2) @db.Decimal(4, 2)
-  vatAmount            Decimal   @default(0) @db.Decimal(10, 2)
-  status               PaymentStatus @default(PENDING)
-  paidAmount           Decimal   @default(0) @db.Decimal(10, 2)
-  outstandingAmount    Decimal   @default(0) @db.Decimal(10, 2)
-  supplierId           String?
-  supplier             Supplier? @relation(fields: [supplierId], references: [id])
-  lines                IncomingInvoiceLine[]
-  transactions         Transaction[]
-  createdAt            DateTime @default(now())
-  moneyMovements       MoneyMovement[]
+  id                     String                  @id @default(uuid())
+  entryNumber            String                  @unique
+  receiptDate            DateTime                @default(now())
+  supplierInvoiceNumber  String
+  issueDate              DateTime?
+  dueDate                DateTime?
+  totalAmount            Decimal                 @default(0) @db.Decimal(10, 2)
+  totalAmountHt          Decimal                 @default(0) @db.Decimal(10, 2)
+  vat                    Decimal                 @default(0.2) @db.Decimal(4, 2)
+  vatAmount              Decimal                 @default(0) @db.Decimal(10, 2)
+  status                 PaymentStatus           @default(PENDING)
+  paidAmount             Decimal                 @default(0) @db.Decimal(10, 2)
+  outstandingAmount      Decimal                 @default(0) @db.Decimal(10, 2)
+  supplierId             String?
+  supplier               Supplier?               @relation(fields: [supplierId], references: [id])
+  // Lien optionnel vers un bon de commande pour traçabilité d'origine
+  purchaseOrderId        String?
+  purchaseOrder          PurchaseOrder?          @relation(fields: [purchaseOrderId], references: [id])
+  lines                  IncomingInvoiceLine[]
+  transactions           Transaction[]
+  createdAt              DateTime                @default(now())
+  moneyMovements         MoneyMovement[]
   treasuryAuthorizations TreasuryAuthorization[]
-  bankAdvices           BankAdvice[]
+  bankAdvices            BankAdvice[]
+
   // Optionnel: empêcher doublon du même numéro fournisseur pour un même supplier
   // @@unique([supplierId, supplierInvoiceNumber])  // (commenté car supplierId nullable)
+  @@index([purchaseOrderId])
 }
 
 model IncomingInvoiceLine {
-  id              String   @id @default(uuid())
-  description     String
-  unitOfMeasure   String
-  quantity        Decimal  @db.Decimal(10, 2)
-  unitPrice       Decimal  @db.Decimal(10, 2)
-  lineTotal       Decimal  @db.Decimal(10, 2)
+  id                String          @id @default(uuid())
+  description       String
+  unitOfMeasure     String
+  quantity          Decimal         @db.Decimal(10, 2)
+  unitPrice         Decimal         @db.Decimal(10, 2)
+  lineTotal         Decimal         @db.Decimal(10, 2)
   // Taux de TVA spécifique à la ligne (si multi-taux sur facture fournisseur)
-  vatRate         Decimal? @db.Decimal(4, 2)
-  accountId       String
-  account         Account  @relation(fields: [accountId], references: [id])
+  vatRate           Decimal?        @db.Decimal(4, 2)
+  accountId         String
+  account           Account         @relation(fields: [accountId], references: [id])
   incomingInvoiceId String
   incomingInvoice   IncomingInvoice @relation(fields: [incomingInvoiceId], references: [id])
   // Nouvelles écritures liées à cette ligne (PURCHASE)
@@ -331,102 +548,129 @@ model IncomingInvoiceLine {
 // =============================
 
 model MoneyAccount {
-  id             String          @id @default(uuid())
-  type           MoneyAccountType
-  label          String
-  code           String?         @unique
-  iban           String?         @unique
-  bic            String?
-  bankName       String?
-  currency       String          @default("EUR")
-  openingBalance Decimal         @db.Decimal(14, 2) @default(0)
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  movements      MoneyMovement[]
+  id              String           @id @default(uuid())
+  type            MoneyAccountType
+  label           String
+  code            String?          @unique
+  iban            String?          @unique
+  bic             String?
+  bankName        String?
+  currency        String           @default("EUR")
+  openingBalance  Decimal          @default(0) @db.Decimal(14, 2)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  movements       MoneyMovement[]
   // Lien vers le compte comptable support (ex: 512xxx, 53xxx)
   ledgerAccountId String?
-  ledgerAccount   Account? @relation(fields: [ledgerAccountId], references: [id])
+  ledgerAccount   Account?         @relation(fields: [ledgerAccountId], references: [id])
+
   @@index([ledgerAccountId])
 }
 
 model MoneyMovement {
-  id               String             @id @default(uuid())
-  date             DateTime           @default(now())
-  amount           Decimal            @db.Decimal(14, 2)
-  direction        MovementDirection
-  kind             MoneyMovementKind
-  moneyAccountId   String
-  moneyAccount     MoneyAccount       @relation(fields: [moneyAccountId], references: [id])
-  invoiceId        String?
-  invoice          Invoice?           @relation(fields: [invoiceId], references: [id])
+  id                String                 @id @default(uuid())
+  date              DateTime               @default(now())
+  amount            Decimal                @db.Decimal(14, 2)
+  direction         MovementDirection
+  kind              MoneyMovementKind
+  moneyAccountId    String
+  moneyAccount      MoneyAccount           @relation(fields: [moneyAccountId], references: [id])
+  invoiceId         String?
+  invoice           Invoice?               @relation(fields: [invoiceId], references: [id])
   incomingInvoiceId String?
-  incomingInvoice    IncomingInvoice? @relation(fields: [incomingInvoiceId], references: [id])
-  transferGroupId   String?
+  incomingInvoice   IncomingInvoice?       @relation(fields: [incomingInvoiceId], references: [id])
   description       String?
-  voucherRef        String?
+  // Référence justificative unique (générée via Sequence) (désormais obligatoire après backfill)
+  voucherRef        String                 @unique
   // Lot1 linking to authorization & bank advice
   authorizationId   String?
   authorization     TreasuryAuthorization? @relation(fields: [authorizationId], references: [id])
   bankAdviceId      String?
-  bankAdvice        BankAdvice? @relation(fields: [bankAdviceId], references: [id])
-  createdAt         DateTime          @default(now())
+  bankAdvice        BankAdvice?            @relation(fields: [bankAdviceId], references: [id])
+  createdAt         DateTime               @default(now())
   transactions      Transaction[]
+
   @@index([moneyAccountId, date])
   @@index([invoiceId])
   @@index([incomingInvoiceId])
-  @@index([transferGroupId])
   @@index([authorizationId])
   @@index([bankAdviceId])
-  @@unique([voucherRef])
+}
+
+model PurchaseOrderStatusLog {
+  id              String               @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id])
+  oldStatus       PurchaseOrderStatus?
+  newStatus       PurchaseOrderStatus
+  changedAt       DateTime             @default(now())
+  note            String?
+
+  @@index([purchaseOrderId])
+}
+
+// Journalisation générique multi-entités (action fonctionnelle)
+model AuditLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  action     String
+  data       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 model TreasuryAuthorization {
-  id                 String               @id @default(uuid())
-  docType            AuthorizationDocType
-  scope              AuthorizationScope
-  flow               FlowDirection
-  status             AuthorizationStatus  @default(DRAFT)
-  docNumber          String               @unique
-  issueDate          DateTime
-  amount             Decimal              @db.Decimal(14,2)
-  currency           String               @default("EUR")
-  beneficiaryType    BeneficiaryType?
+  id                   String               @id @default(uuid())
+  docType              AuthorizationDocType
+  scope                AuthorizationScope
+  flow                 FlowDirection
+  status               AuthorizationStatus  @default(DRAFT)
+  docNumber            String               @unique
+  issueDate            DateTime
+  amount               Decimal              @db.Decimal(14, 2)
+  currency             String               @default("EUR")
+  beneficiaryType      BeneficiaryType?
   beneficiaryAccountId String?
-  invoiceId          String?
-  invoice            Invoice?             @relation(fields: [invoiceId], references: [id])
-  incomingInvoiceId  String?
-  incomingInvoice    IncomingInvoice?     @relation(fields: [incomingInvoiceId], references: [id])
-  purpose            String?
-  instrumentType     InstrumentType?
-  instrumentRef      String?
-  executedAt         DateTime?
-  cancelledAt        DateTime?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  moneyMovements     MoneyMovement[]
-  bankAdvices        BankAdvice[]
+  invoiceId            String?
+  invoice              Invoice?             @relation(fields: [invoiceId], references: [id])
+  incomingInvoiceId    String?
+  incomingInvoice      IncomingInvoice?     @relation(fields: [incomingInvoiceId], references: [id])
+  purpose              String?
+  instrumentType       InstrumentType?
+  instrumentRef        String?
+  executedAt           DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  moneyMovements       MoneyMovement[]
+  bankAdvices          BankAdvice[]
+
   @@index([docType, issueDate])
   @@index([status])
 }
 
 model BankAdvice {
-  id              String          @id @default(uuid())
-  adviceType      BankAdviceType
-  refNumber       String?
-  adviceDate      DateTime
-  amount          Decimal         @db.Decimal(14,2)
-  currency        String          @default("EUR")
-  authorizationId String?
-  authorization   TreasuryAuthorization? @relation(fields: [authorizationId], references: [id])
-  purpose         String?
-  invoiceId       String?
-  invoice         Invoice?        @relation(fields: [invoiceId], references: [id])
+  id                String                 @id @default(uuid())
+  adviceType        BankAdviceType
+  refNumber         String?
+  adviceDate        DateTime
+  amount            Decimal                @db.Decimal(14, 2)
+  currency          String                 @default("EUR")
+  authorizationId   String?
+  authorization     TreasuryAuthorization? @relation(fields: [authorizationId], references: [id])
+  purpose           String?
+  invoiceId         String?
+  invoice           Invoice?               @relation(fields: [invoiceId], references: [id])
   incomingInvoiceId String?
-  incomingInvoice   IncomingInvoice? @relation(fields: [incomingInvoiceId], references: [id])
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  moneyMovements   MoneyMovement[]
+  incomingInvoice   IncomingInvoice?       @relation(fields: [incomingInvoiceId], references: [id])
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  moneyMovements    MoneyMovement[]
+
   @@index([adviceType, adviceDate])
   @@index([authorizationId])
 }

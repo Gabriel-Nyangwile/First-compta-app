@@ -10,9 +10,10 @@ export async function GET(request, context) {
     const invoice = await prisma.incomingInvoice.findUnique({
       where: { id },
       include: {
-  lines: { include: { account: { select: { id: true, number: true, label: true } } } },
+        lines: { include: { account: { select: { id: true, number: true, label: true } } } },
         supplier: { include: { account: true } },
-        transactions: true
+        transactions: true,
+        purchaseOrder: { select: { id: true, number: true } }
       }
     });
     if (!invoice) return NextResponse.json({ error: 'Facture fournisseur introuvable' }, { status: 404 });

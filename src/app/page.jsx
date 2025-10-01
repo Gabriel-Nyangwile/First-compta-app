@@ -1,15 +1,25 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import LogoutToast from '@/components/LogoutToast';
+import { HomeSectionNav, HomeSectionNavSkeleton } from '@/components/homeSection';
+import { Suspense } from 'react';
 
 export default function HomePage() {
   return (
-    <main className="u-main-container u-padding-content-container">
+    <main id="top" className="u-main-container u-padding-content-container scroll-smooth">
       <LogoutToast />
       <div className="max-w-xl p-8 bg-white rounded shadow text-center">
         <h1 className="text-4xl font-bold mb-4 text-blue-900">SCOFEX Consulting</h1>
         <p className="text-semibold text-gray-700">Bienvenue sur notre site</p>
       </div>
+      <Suspense fallback={<HomeSectionNavSkeleton />}> 
+        <HomeSectionNav sections={[
+          { id: 'about', label: 'À propos' },
+          { id: 'services', label: 'Services' },
+          { id: 'engagement', label: 'Engagement' },
+          { id: 'contact', label: 'Contact' }
+        ]} />
+      </Suspense>
       {/* Hero */}
       <section className="relative">
         <div className="mx-auto max-w-6xl px-4 py-20 grid md:grid-cols-2 gap-10 items-center">
@@ -17,7 +27,7 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-5xl font-extrabold leading-tight text-slate-900">Stratégie. Comptabilité. Excellence.</h1>
             <p className="mt-4 text-slate-600 text-lg">Partenaire de confiance des CEO et grandes entreprises : 30 ans d’expérience cumulée au service de vos décisions clés.</p>
             <div className="mt-6 flex gap-3">
-              <Link href="#ervices" className="rounded-xl px-5 py-3 border border-slate-300 hover:bg-slate-100">Découvrir nos services</Link>
+              <Link href="#services" className="rounded-xl px-5 py-3 border border-slate-300 hover:bg-slate-100">Découvrir nos services</Link>
               <Link href="#contact" className="rounded-xl px-5 py-3 bg-slate-900 text-white hover:bg-slate-800">Contactez-nous</Link>
             </div>
           </div>
@@ -62,6 +72,12 @@ export default function HomePage() {
               <div className="absolute inset-0 rounded-2xl bg-white/40" aria-hidden="true" />
             </div>
           </div>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 pb-6 -mt-8 flex justify-end">
+          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
+            <span className="sm:hidden" aria-hidden="true">↑</span>
+            <span className="hidden sm:inline">↑ Haut de page</span>
+          </a>
         </div>
       </section>
 
@@ -108,6 +124,12 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        <div className="mx-auto max-w-6xl px-4 pb-6 -mt-8 flex justify-end">
+          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
+            <span className="sm:hidden" aria-hidden="true">↑</span>
+            <span className="hidden sm:inline">↑ Haut de page</span>
+          </a>
+        </div>
       </section>
 
       {/* Engagement */}
@@ -134,6 +156,12 @@ export default function HomePage() {
               <div className="absolute inset-0 rounded-2xl bg-white/40" aria-hidden="true" />
             </div>
           </div>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 pb-6 -mt-8 flex justify-end">
+          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
+            <span className="sm:hidden" aria-hidden="true">↑</span>
+            <span className="hidden sm:inline">↑ Haut de page</span>
+          </a>
         </div>
       </section>
 
@@ -173,6 +201,12 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 pb-10 -mt-4 flex justify-end">
+          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
+            <span className="sm:hidden" aria-hidden="true">↑</span>
+            <span className="hidden sm:inline">↑ Haut de page</span>
+          </a>
         </div>
       </section>
 

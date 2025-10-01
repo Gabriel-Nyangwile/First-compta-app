@@ -36,6 +36,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint & Smoke (static)
+        run: |
+          npm run lint
+          npm run test:smoke
+
       - name: Generate Prisma Client
         run: npx prisma generate
 
@@ -57,6 +62,9 @@ jobs:
               echo "Server ready"; break; fi; sleep 2;
             if [ "$i" = "30" ]; then echo "Server not ready"; exit 1; fi;
           done
+
+      - name: Smoke health (runtime)
+        run: npm run test:smoke
 
       - name: Regression tests
         run: npm run test:regression

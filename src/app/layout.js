@@ -1,7 +1,8 @@
 
 "use client";
 
-import Navbar from "@/components/Navbar";
+// Navbar via barrel export (legacy stub supprimé, retour à l'import réactivé)
+import Navbar from "@/components/navbar";
 import Footer from "@/components/Footer/Footer";
 import "./globals.css";
 // --- Intégration polices locales ---
@@ -45,7 +46,7 @@ export default function RootLayout({ children }) {
       <body
         className={`antialiased flex flex-col min-h-screen font-sans`}
       >
-        <Navbar user={user} />
+  <Navbar />
         {/* Spacer to offset fixed navbar height (~60px) */}
         <div className="h-20" aria-hidden="true" />
         <div className="flex-1 px-4 md:px-6 pb-24">{children}</div>

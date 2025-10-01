@@ -9,6 +9,7 @@ export async function GET(req, { params }) {
     where: { id },
     include: {
       supplier: true,
+      purchaseOrder: { select: { id: true, number: true } },
       lines: { include: { account: { select: { number: true, label: true } } } }
     }
   });
@@ -34,14 +35,18 @@ export async function GET(req, { params }) {
   const fDate = (d) => d ? formatDateFR(d) : '-';
 
   page.drawText('FACTURE FOURNISSEUR', { x: 200, y: 800, size: 16, font, color: rgb(0.15,0.15,0.55) });
-  page.drawText(`Entry #: ${invoice.entryNumber}`, { x: 40, y: 760, size: 12, font });
+  page.drawText(`Référence interne: ${invoice.entryNumber}`, { x: 40, y: 760, size: 12, font });
   page.drawText(`Numéro fournisseur: ${invoice.supplierInvoiceNumber}`, { x: 40, y: 745, size: 12, font });
-  page.drawText(`Date réception: ${fDate(invoice.receiptDate)}`, { x: 40, y: 730, size: 12, font });
-  page.drawText(`Date émission: ${fDate(invoice.issueDate)}`, { x: 40, y: 715, size: 12, font });
-  page.drawText(`Date échéance: ${fDate(invoice.dueDate)}`, { x: 40, y: 700, size: 12, font });
+  if (invoice.purchaseOrder) {
+    page.drawText(`Bon de commande lié: ${invoice.purchaseOrder.number}`, { x: 40, y: 730, size: 12, font });
+  }
+  const baseY = invoice.purchaseOrder ? 715 : 730;
+  page.drawText(`Date réception: ${fDate(invoice.receiptDate)}`, { x: 40, y: baseY, size: 12, font });
+  page.drawText(`Date émission: ${fDate(invoice.issueDate)}`, { x: 40, y: baseY - 15, size: 12, font });
+  page.drawText(`Date échéance: ${fDate(invoice.dueDate)}`, { x: 40, y: baseY - 30, size: 12, font });
 
   // Supplier block
-  let y = 670;
+  let y = (invoice.purchaseOrder ? baseY - 60 : 670);
   page.drawText('Fournisseur:', { x: 40, y, size: 13, font, color: rgb(0.15,0.15,0.55) });
   y -= 15; page.drawText(invoice.supplier?.name || '-', { x: 40, y, size: 11, font });
   if (invoice.supplier?.email) { y -= 12; page.drawText(invoice.supplier.email, { x: 40, y, size: 10, font }); }

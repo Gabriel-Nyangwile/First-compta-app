@@ -532,6 +532,74 @@ Bonnes pratiques:
 - Embedding direct dans les PDFs (actuellement PDF utilise une police standard; extension future: registerFont + subset dynamique).
 - Script d'automatisation de subsetting (fonttools) dans `scripts/`.
 
+## 15. Navigation & Navbar Refactor (Legacy Path Deprecation)
+
+Récente refactorisation de la barre de navigation et de la navigation interne des sections :
+
+1. Regroupement des composants de navigation principale dans `src/components/navbar/` :
+
+  - `Navbar.jsx` (composant principal)
+  - `NavbarDropdown.jsx` (menus déroulants: Dashboard, Analyse, Trésorerie, Tiers)
+  - `index.js` (barrel export optionnel)
+
+1. Regroupement de la navigation interne de page d'accueil (scroll spy) dans `src/components/homeSection/` :
+
+  - `HomeSectionNav.jsx`
+  - `HomeSectionNavSkeleton.jsx`
+
+1. Suppression de l'ancien fichier legacy `src/components/NavbarDropdown.jsx` (à la racine du dossier `components/`). Un stub temporaire avait provoqué des erreurs de type React (duplicate default export / element type invalid) et a été définitivement retiré.
+
+1. Import racine mis à jour dans `src/app/layout.js` pour pointer directement sur `@/components/navbar/Navbar` afin d'éviter toute résolution ambiguë lors du hot reload.
+
+### 15.1 Import Correct (Exemples)
+
+Préféré (explicite) :
+
+```js
+import Navbar from '@/components/navbar/Navbar';
+// ou pour utiliser aussi le dropdown directement (rare)
+import { NavbarDropdown } from '@/components/navbar';
+```
+
+Éviter / Interdit :
+
+```js
+import NavbarDropdown from '@/components/NavbarDropdown'; // (legacy – supprimé)
+```
+
+### 15.2 Règle ESLint de Protection
+
+Une règle `no-restricted-imports` empêche toute réintroduction du chemin legacy (`@/components/NavbarDropdown` ou variantes). Si quelqu'un recrée le fichier supprimé, une règle dédiée déclenchera une erreur immédiate pour empêcher sa réutilisation accidentelle.
+
+Raison : le fichier legacy a déjà généré des ambiguïtés de résolution (HMR) et des collisions d'exportations lors de la transition. Centraliser les composants dans `navbar/` simplifie la maintenance et évite les chemins fantômes.
+
+### 15.3 Bonnes Pratiques Post-Refactor
+
+- Toujours ajouter les nouveaux éléments de navigation (boutons, badges, menus) dans `NavbarDropdown.jsx` ou dans un sous-composant local importé par celui‑ci.
+- Éviter de dupliquer la logique d'état utilisateur / événements `user:login` & `user:logout` en dehors de `Navbar.jsx`.
+- Pour des ancres internes avec surlignage de section (scroll spy), étendre `HomeSectionNav.jsx` au lieu de réinventer un observer ailleurs.
+- Si vous réactivez l'import via barrel (`@/components/navbar`), vérifier que votre IDE n'insère pas par erreur un chemin legacy mis en cache.
+
+### 15.4 Migration Résumée
+
+| Avant | Après |
+|-------|-------|
+| `src/components/NavbarDropdown.jsx` | `src/components/navbar/NavbarDropdown.jsx` |
+| `import NavbarDropdown from '@/components/NavbarDropdown'` | `import { NavbarDropdown } from '@/components/navbar'` ou import direct ciblé |
+
+Aucune autre modification fonctionnelle n'a été introduite lors de cette étape; il s'agit d'une réorganisation préventive pour stabilité et évolutivité.
+
+### 15.5 Dépannage
+
+| Symptôme | Cause probable | Action |
+|----------|----------------|--------|
+| Erreur ESLint: chemin legacy interdit | Import vers ancien fichier | Corriger import selon exemples §15.1 |
+| React: "Element type is invalid" après création manuelle du vieux fichier | Fichier legacy recréé, conflit d'exports / version incohérente | Supprimer le fichier recréé; respecter structure `navbar/` |
+| Scroll spy ne met plus à jour l'état | IntersectionObserver débranché suite refactor externe | Vérifier hooks dans `HomeSectionNav.jsx` et IDs de sections |
+
+---
+Cette section documente officiellement la dépréciation du chemin legacy afin de prévenir les régressions futures.
+
 
 ## Coverage
 
