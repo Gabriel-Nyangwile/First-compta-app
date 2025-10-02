@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSupplierLedger } from '@/lib/serverActions/ledgers';
 
-export async function GET(req, { params }) {
+export async function GET(req, rawCtx) {
   try {
+    const { params } = await rawCtx; // Next.js 15: params is a Promise
     const { searchParams } = new URL(req.url);
     const dateStart = searchParams.get('dateStart') || undefined;
     const dateEnd = searchParams.get('dateEnd') || undefined;

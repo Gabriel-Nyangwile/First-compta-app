@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getClientLedger } from '@/lib/serverActions/ledgers';
 
-export async function GET(req, { params }) {
+export async function GET(req, rawCtx) {
   try {
+    const { params } = await rawCtx;
     const { searchParams } = new URL(req.url);
     const dateStart = searchParams.get('dateStart') || undefined;
     const dateEnd = searchParams.get('dateEnd') || undefined;
