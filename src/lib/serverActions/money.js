@@ -33,7 +33,7 @@ export async function createMoneyMovement({
   description,
   invoiceId,
   incomingInvoiceId,
-  transferGroupId,
+  // transferGroupId supprimé du schéma : regroupez via voucherRef si besoin
   voucherRef, // facultatif maintenant: généré si absent
   counterpartAccountId, // compte comptable contrepartie explicite si nécessaire
   autoPost = true,
@@ -97,7 +97,6 @@ export async function createMoneyMovement({
         description,
         invoiceId,
         incomingInvoiceId,
-        transferGroupId,
         voucherRef: finalVoucherRef
       }
     });
@@ -597,7 +596,7 @@ export async function getMoneyAccountLedger({ moneyAccountId, limit = 200, dateF
 export async function createTransfer({ fromMoneyAccountId, toMoneyAccountId, amount, description, voucherRef }) {
   if (fromMoneyAccountId === toMoneyAccountId) throw new Error('Comptes identiques');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
-  const group = crypto.randomUUID();
+  // Anciennement transferGroupId : supprimé du schéma. On se base désormais sur un voucherRef commun.
   return await prisma.$transaction(async (tx) => {
     const from = await tx.moneyAccount.findUnique({ where: { id: fromMoneyAccountId }, include: { ledgerAccount: true } });
     const to = await tx.moneyAccount.findUnique({ where: { id: toMoneyAccountId }, include: { ledgerAccount: true } });
@@ -610,15 +609,15 @@ export async function createTransfer({ fromMoneyAccountId, toMoneyAccountId, amo
       const seqNum = await nextSequence('TRANSFER');
       ref = formatVoucher('TRF', new Date(), seqNum);
     }
-  const outMv = await tx.moneyMovement.create({ data: { moneyAccountId: fromMoneyAccountId, amount: new Prisma.Decimal(amount), direction: 'OUT', kind: 'TRANSFER', transferGroupId: group, description, voucherRef: ref } });
+  const outMv = await tx.moneyMovement.create({ data: { moneyAccountId: fromMoneyAccountId, amount: new Prisma.Decimal(amount), direction: 'OUT', kind: 'TRANSFER', description, voucherRef: ref } });
   // Entrée
-  const inMv = await tx.moneyMovement.create({ data: { moneyAccountId: toMoneyAccountId, amount: new Prisma.Decimal(amount), direction: 'IN', kind: 'TRANSFER', transferGroupId: group, description, voucherRef: ref } });
+  const inMv = await tx.moneyMovement.create({ data: { moneyAccountId: toMoneyAccountId, amount: new Prisma.Decimal(amount), direction: 'IN', kind: 'TRANSFER', description, voucherRef: ref } });
 
     // Écritures : Crédit source, Débit destination
     await tx.transaction.createMany({ data: [
       { date: outMv.date, amount: new Prisma.Decimal(amount), direction: 'CREDIT', kind: 'PAYMENT', accountId: from.ledgerAccountId, moneyMovementId: outMv.id, description: description || 'Transfert sortant' },
       { date: inMv.date, amount: new Prisma.Decimal(amount), direction: 'DEBIT', kind: 'PAYMENT', accountId: to.ledgerAccountId, moneyMovementId: inMv.id, description: description || 'Transfert entrant' }
     ] });
-    return { out: outMv, in: inMv, group };
+    return { out: outMv, in: inMv, group: ref, voucherRef: ref };
   });
 }
