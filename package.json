@@ -36,6 +36,7 @@
     "revalue:inventory": "node scripts/revalue-inventory-cump.js",
     "test:http:inventory": "node scripts/test-http-inventory.js",
     "backfill:party-ids": "node scripts/backfill-party-ids.js"
+    ,"audit:party-ids": "node scripts/audit-party-ids.js"
   },
   "type": "module",
   "dependencies": {
