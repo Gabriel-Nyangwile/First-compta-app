@@ -300,10 +300,22 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
 
       let consolidatedVatLine = null;
       if (vatLines.length) {
-        // Assume homogeneous direction (usual case). Aggregate amounts.
-        const dir = vatLines[0].direction;
+        const dir = vatLines[0].direction; // homogène supposé
         let sum = new Prisma.Decimal(0);
         for (const v of vatLines) sum = sum.plus(new Prisma.Decimal(v.amount));
+
+        // Correction anti-double: si on dispose de la ligne principale (401/411) on recalcule la TVA attendue
+        // expectedVat = |mainTx.amount| - somme(nonVatLines)
+        if (mainTx) {
+          let nonVatSum = new Prisma.Decimal(0);
+          for (const nv of nonVatLines) nonVatSum = nonVatSum.plus(new Prisma.Decimal(nv.amount));
+          const expectedVat = new Prisma.Decimal(mainTx.amount).abs().minus(nonVatSum.abs());
+          // Si expectedVat positif et significativement différent (>0.01) et plus petit que sum*1.01 (cas doublement), on ajuste
+          if (expectedVat.greaterThan(0) && expectedVat.minus(sum).abs().greaterThan(new Prisma.Decimal(0.01)) && (sum.greaterThan(expectedVat))) {
+            sum = expectedVat;
+          }
+        }
+
         consolidatedVatLine = {
           ...vatLines[0],
           id: vatLines[0].id + '-VAT',

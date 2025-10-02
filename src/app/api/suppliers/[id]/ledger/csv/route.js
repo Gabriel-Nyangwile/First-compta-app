@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getSupplierLedger } from '@/lib/serverActions/ledgers';
 
-export async function GET(req, { params }) {
+async function resolveParams(maybeCtx){
+  let ctx = maybeCtx; if (ctx && typeof ctx.then === 'function') ctx = await ctx; let p = ctx?.params ?? ctx; if (p && typeof p.then === 'function') p = await p; return p || {}; }
+
+export async function GET(req, context) {
   try {
+    const params = await resolveParams(context);
     const { searchParams } = new URL(req.url);
     const dateStart = searchParams.get('dateStart') || undefined;
     const dateEnd = searchParams.get('dateEnd') || undefined;
     const includeDetails = searchParams.get('includeDetails') === '1';
-  const ledger = await getSupplierLedger({ id: params.id, dateStart, dateEnd, includeDetails });
+    const ledger = await getSupplierLedger({ id: params.id, dateStart, dateEnd, includeDetails });
     const headers = ['Date','Compte','Libellé','Pièce','Statut facture','Type','Débit','Crédit','Solde'];
     const rows = ledger.rows.map(r => [
       new Date(r.date).toISOString().split('T')[0],
