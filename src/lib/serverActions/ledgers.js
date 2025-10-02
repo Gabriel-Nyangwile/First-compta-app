@@ -298,34 +298,66 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
       const vatLines = visibleLines.filter(t=> isVat(t.account?.number));
       const nonVatLines = visibleLines.filter(t=> !isVat(t.account?.number));
 
-      let consolidatedVatLine = null;
+      // Multi-taux TVA support: regrouper par compte TVA (numéro) et produire une ligne consolidée par compte.
+      let vatGroupedLines = [];
       if (vatLines.length) {
-        const dir = vatLines[0].direction; // homogène supposé
-        let sum = new Prisma.Decimal(0);
-        for (const v of vatLines) sum = sum.plus(new Prisma.Decimal(v.amount));
-
-        // Correction anti-double: si on dispose de la ligne principale (401/411) on recalcule la TVA attendue
-        // expectedVat = |mainTx.amount| - somme(nonVatLines)
+        const groupsMap = new Map();
+        for (const v of vatLines) {
+          const key = v.account?.number || 'VAT?';
+          if (!groupsMap.has(key)) groupsMap.set(key, []);
+          groupsMap.get(key).push(v);
+        }
+        // Construire consolidation par groupe
+        for (const [acct, lines] of groupsMap.entries()) {
+          const dir = lines[0].direction; // supposé homogène
+          let sum = new Prisma.Decimal(0);
+          for (const l of lines) sum = sum.plus(new Prisma.Decimal(l.amount));
+          vatGroupedLines.push({
+            ...lines[0],
+            id: lines[0].id + '-VATG-' + acct,
+            amount: sum,
+            direction: dir,
+            _isVatConsolidated: true,
+            _vatGroupAccount: acct
+          });
+        }
+        // Ajustement proportionnel si surévaluation détectée (double comptage) en comparant avec mainTx.
         if (mainTx) {
           let nonVatSum = new Prisma.Decimal(0);
-          for (const nv of nonVatLines) nonVatSum = nonVatSum.plus(new Prisma.Decimal(nv.amount));
-          const expectedVat = new Prisma.Decimal(mainTx.amount).abs().minus(nonVatSum.abs());
-          // Si expectedVat positif et significativement différent (>0.01) et plus petit que sum*1.01 (cas doublement), on ajuste
-          if (expectedVat.greaterThan(0) && expectedVat.minus(sum).abs().greaterThan(new Prisma.Decimal(0.01)) && (sum.greaterThan(expectedVat))) {
-            sum = expectedVat;
+          for (const nv of nonVatLines) nonVatSum = nonVatSum.plus(new Prisma.Decimal(nv.amount).abs());
+          const mainAbs = new Prisma.Decimal(mainTx.amount).abs();
+          const expectedTotalVat = mainAbs.minus(nonVatSum);
+          if (expectedTotalVat.greaterThan(0)) {
+            let currentVatTotal = vatGroupedLines.reduce((acc, v)=> acc.plus(new Prisma.Decimal(v.amount).abs()), new Prisma.Decimal(0));
+            // Si l'écart est significatif (>1 centime) et current > expected (signe d'un doublon), on rééchelonne proportionnellement
+            if (currentVatTotal.greaterThan(0) && currentVatTotal.minus(expectedTotalVat).greaterThan(new Prisma.Decimal(0.01)) && currentVatTotal.greaterThan(expectedTotalVat)) {
+              const ratio = expectedTotalVat.div(currentVatTotal);
+              // Redistribuer en conservant le signe et en corrigeant l'arrondi sur la première ligne
+              let redistributed = [];
+              let runningAllocated = new Prisma.Decimal(0);
+              for (let i=0;i<vatGroupedLines.length;i++) {
+                const vg = vatGroupedLines[i];
+                const originalAbs = new Prisma.Decimal(vg.amount).abs();
+                let newAbs = originalAbs.mul(ratio);
+                // Dernière ligne prend le reliquat pour garantir la somme exacte
+                if (i === vatGroupedLines.length -1) {
+                  newAbs = expectedTotalVat.minus(runningAllocated);
+                } else {
+                  // arrondir à 2 décimales
+                  newAbs = new Prisma.Decimal(newAbs.toFixed(2));
+                  runningAllocated = runningAllocated.plus(newAbs);
+                }
+                const sign = new Prisma.Decimal(vg.amount).isPositive() ? 1 : -1;
+                redistributed.push({ ...vg, amount: newAbs.mul(sign) });
+              }
+              vatGroupedLines = redistributed;
+            }
           }
         }
-
-        consolidatedVatLine = {
-          ...vatLines[0],
-          id: vatLines[0].id + '-VAT',
-          amount: sum,
-          direction: dir,
-          _isVatConsolidated: true
-        };
       }
-      const orderedDisplayed = [...nonVatLines];
-      if (consolidatedVatLine) orderedDisplayed.push(consolidatedVatLine);
+      // Ordre final : lignes non TVA puis groupes TVA (tri par numéro de compte pour stabilité)
+      vatGroupedLines.sort((a,b)=> (a._vatGroupAccount||'').localeCompare(b._vatGroupAccount||''));
+      const orderedDisplayed = [...nonVatLines, ...vatGroupedLines];
 
       // Compute neutral delta (invoice impact on main account) using mainTx
       let invoiceNeutralDelta = new Prisma.Decimal(0);
