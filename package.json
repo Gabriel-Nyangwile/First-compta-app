@@ -34,7 +34,8 @@
     "audit:stock:fix": "node scripts/audit-stock.js --fix",
     "test:inventory-flow": "node scripts/test-inventory-flow.js",
     "revalue:inventory": "node scripts/revalue-inventory-cump.js",
-    "test:http:inventory": "node scripts/test-http-inventory.js"
+    "test:http:inventory": "node scripts/test-http-inventory.js",
+    "backfill:party-ids": "node scripts/backfill-party-ids.js"
   },
   "type": "module",
   "dependencies": {
