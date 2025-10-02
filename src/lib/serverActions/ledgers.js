@@ -42,7 +42,10 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
   // For display we ALWAYS need detail lines to derive counterpart accounts (6/7 + 445) even if includeDetails=false
   const displayKinds = [...baseKinds, ...detailKinds, ...vatKinds];
 
-  const wherePartyKey = party === 'client' ? { clientId: id } : { supplierId: id };
+  // Include legacy transactions where partyId was not set but can be inferred through related documents
+  const wherePartyKey = party === 'client'
+    ? { OR: [ { clientId: id }, { invoice: { clientId: id } } ] }
+    : { OR: [ { supplierId: id }, { incomingInvoice: { supplierId: id } } ] };
 
   // Period where for MAIN account movements only (exclude PAYMENT treasury counterparts)
   const periodWhere = {
@@ -82,7 +85,7 @@ export async function getThirdPartyLedger({ party, id, dateStart, dateEnd, inclu
     include: {
       account: { select: { number: true, label: true } },
       invoice: { select: { id: true, invoiceNumber: true, status: true, dueDate: true, invoiceLines: { select: { id: true, description: true, lineTotal: true, account: { select: { number: true, label: true } } }, take: 5 }, _count: { select: { invoiceLines: true } } } },
-      incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true, lineTotal: true, account: { select: { number: true, label: true } } }, take: 5 }, _count: { select: { lines: true } } } },
+  incomingInvoice: { select: { id: true, supplierId: true, entryNumber: true, supplierInvoiceNumber: true, status: true, dueDate: true, lines: { select: { id: true, description: true, lineTotal: true, account: { select: { number: true, label: true } } }, take: 5 }, _count: { select: { lines: true } } } },
       moneyMovement: { select: { id: true, voucherRef: true, kind: true, authorization: { select: { docNumber: true } }, bankAdvice: { select: { refNumber: true } }, moneyAccount: { select: { ledgerAccount: { select: { number: true, label: true } }, label: true } } } }
     }
   });
