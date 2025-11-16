@@ -1,10 +1,12 @@
 
 "use client";
 
-// Navbar via barrel export (legacy stub supprimé, retour à l'import réactivé)
-import Navbar from "@/components/navbar";
 import Footer from "@/components/Footer/Footer";
+import Navbar from "@/components/navbar";
+import AuthSidebar from "@/components/sidebar/AuthSidebar";
 import "./globals.css";
+import { AuthorizedFetchProvider } from "@/lib/apiClient";
+import { I18nProvider } from "@/lib/i18n";
 // --- Intégration polices locales ---
 // Étapes pour activer next/font/local :
 // 1. Déposer vos fichiers WOFF2 dans /public/fonts (ex: Inter-Regular.woff2, Inter-SemiBold.woff2)
@@ -28,29 +30,19 @@ import "./globals.css";
 // and declare them via @font-face in globals.css or by using next/font/local if later desired.
 // CSS variables used below emulate previous --font-geist-* usage.
 
-import { useEffect, useState } from "react";
-
 export default function RootLayout({ children }) {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    // Exemple : récupération de l'utilisateur depuis le localStorage
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-  }, []);
-
   return (
     <html lang="fr">
-      <body
-        className={`antialiased flex flex-col min-h-screen font-sans`}
-      >
-  <Navbar />
-        {/* Spacer to offset fixed navbar height (~60px) */}
-        <div className="h-20" aria-hidden="true" />
-        <div className="flex-1 px-4 md:px-6 pb-24">{children}</div>
-        <Footer />
+      <body className="antialiased flex flex-col min-h-screen font-sans bg-gray-50">
+        <I18nProvider defaultLocale="fr">
+          <AuthorizedFetchProvider>
+            <Navbar />
+            <div className="h-20" aria-hidden="true" />
+            <AuthSidebar />
+            <div className="flex-1 px-4 md:px-6 pb-24 relative">{children}</div>
+            <Footer />
+          </AuthorizedFetchProvider>
+        </I18nProvider>
       </body>
     </html>
   );

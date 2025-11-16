@@ -1,0 +1,36 @@
+{
+  "version": "2025-11-14",
+  "notes": "Assiettes et taux RDC. CNSS basée sur RI selon consignes, ONEM employeur 0,5%, INPP employeur 3% pour 1-50 employés (paramétrable)",
+  "schemes": [
+    {
+      "code": "CNSS",
+      "label": "CNSS (RDC)",
+      "base": "RI",
+      "employeeRate": 0.05,
+      "employerRate": 0.05,
+      "ceilingCDF": null,
+      "employerRiskRate": 0.0,
+      "employerOnly": false,
+      "employeeOnly": false
+    },
+    {
+      "code": "ONEM",
+      "label": "ONEM (RDC)",
+      "base": "BRUT",
+      "employeeRate": 0.0,
+      "employerRate": 0.005,
+      "employerOnly": true,
+      "employeeOnly": false
+    },
+    {
+      "code": "INPP_1_50",
+      "label": "INPP (1–50 employés)",
+      "base": "BRUT",
+      "employeeRate": 0.0,
+      "employerRate": 0.03,
+      "employerOnly": true,
+      "employeeOnly": false,
+      "workforceBracket": { "min": 1, "max": 50 }
+    }
+  ]
+}

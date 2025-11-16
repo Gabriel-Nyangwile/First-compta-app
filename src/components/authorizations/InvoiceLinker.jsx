@@ -27,8 +27,8 @@ export default function InvoiceLinker() {
           number: r.invoiceNumber || r.entryNumber || r.supplierInvoiceNumber || r.clientInvoiceNumber || '—',
           total: Number(r.totalAmount || r.total || 0),
           paid: Number(r.paid || 0),
-            remaining: Number(r.remaining || Number(r.outstandingAmount||0) || 0)
-        })).filter(x => x.remaining > 0);
+          remaining: Number(r.remaining || Number(r.outstandingAmount||0) || 0)
+        }));
         if (active) setResults(mapped);
       } catch(e) {
         if (active) setError(e.message);

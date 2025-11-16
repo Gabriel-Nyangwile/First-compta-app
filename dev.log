@@ -1,0 +1,371 @@
+
+> first-compta@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.3
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.150:3000
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 5.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 13.6s (697 modules)
+ GET / 200 in 13242ms
+ GET / 200 in 16377ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1217ms (561 modules)
+ GET /favicon.ico 200 in 1635ms
+ ○ Compiling /api/incoming-invoices/unpaid-count ...
+ ✓ Compiled /api/incoming-invoices/unpaid-count in 3.4s (709 modules)
+ GET / 200 in 871ms
+ GET /api/incoming-invoices/unpaid-count 200 in 4612ms
+ GET /api/invoices/unpaid-count 200 in 4669ms
+ ○ Compiling /api/payroll/period ...
+ ✓ Compiled /api/payroll/period in 957ms (712 modules)
+ POST /api/payroll/period 200 in 1728ms
+ ○ Compiling /api/payroll/period/[id]/generate ...
+ ✓ Compiled /api/payroll/period/[id]/generate in 935ms (715 modules)
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/55808d41-0bf8-4453-88d9-c9a61d0dbefe/generate 200 in 4526ms
+ ○ Compiling /api/payroll/period/[id]/lock ...
+ ✓ Compiled /api/payroll/period/[id]/lock in 602ms (719 modules)
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+Error: Period must be LOCKED before posting
+    at eval (src\lib\payroll\postings.js:47:43)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:23)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+  45 |     const period = await tx.payrollPeriod.findUnique({ where: { id: periodId }, include: { payslips: { include: { lines: true } } } });
+  46 |     if (!period) throw new Error('Payroll period not found');
+> 47 |     if (period.status !== 'LOCKED') throw new Error('Period must be LOCKED before posting');
+     |                                           ^
+  48 |     if (!period.payslips.length) throw new Error('No payslips to post');
+  49 |
+  50 |     const accounts = await fetchPayrollAccounts(tx);
+ POST /api/payroll/period/55808d41-0bf8-4453-88d9-c9a61d0dbefe/lock 500 in 3049ms
+ POST /api/payroll/period 200 in 161ms
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+Error: Period must be LOCKED before posting
+    at eval (src\lib\payroll\postings.js:47:43)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:23)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+  45 |     const period = await tx.payrollPeriod.findUnique({ where: { id: periodId }, include: { payslips: { include: { lines: true } } } });
+  46 |     if (!period) throw new Error('Payroll period not found');
+> 47 |     if (period.status !== 'LOCKED') throw new Error('Period must be LOCKED before posting');
+     |                                           ^
+  48 |     if (!period.payslips.length) throw new Error('No payslips to post');
+  49 |
+  50 |     const accounts = await fetchPayrollAccounts(tx);
+ POST /api/payroll/period/76f2d654-7bad-4cb5-ae38-91975dec77bc/lock 500 in 879ms
+ ✓ Compiled in 1975ms (715 modules)
+ GET / 200 in 803ms
+ ✓ Compiled in 1527ms (712 modules)
+ GET / 200 in 496ms
+ POST /api/payroll/period 200 in 287ms
+ ✓ Compiled /api/payroll/period/[id]/generate in 399ms (443 modules)
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/ca52a27d-f2a2-4763-849b-60a8056b7179/generate 200 in 1472ms
+ ✓ Compiled /api/payroll/period/[id]/lock in 438ms (447 modules)
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+Error: Account number 433200 (mapping ONEM) not found in chart
+    at resolve (src\lib\payroll\postings.js:25:21)
+    at async fetchPayrollAccounts (src\lib\payroll\postings.js:35:11)
+    at async postPayrollPeriodTx (src\lib\payroll\postings.js:49:22)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:19)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+  23 |     if (!m.accountNumber) throw new Error(`Mapping ${code} missing accountNumber`);
+  24 |     const acc = await tx.account.findFirst({ where: { number: m.accountNumber } });
+> 25 |     if (!acc) throw new Error(`Account number ${m.accountNumber} (mapping ${code}) not found in chart`);
+     |                     ^
+  26 |     return acc.id;
+  27 |   }
+  28 |   return {
+ POST /api/payroll/period/ca52a27d-f2a2-4763-849b-60a8056b7179/lock 500 in 1930ms
+ POST /api/payroll/period 200 in 159ms
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/131f3605-d8e0-4b92-9c3a-c71101aa7ef8/generate 200 in 595ms
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+Error: Account number 433200 (mapping ONEM) not found in chart
+    at resolve (src\lib\payroll\postings.js:25:21)
+    at async fetchPayrollAccounts (src\lib\payroll\postings.js:35:11)
+    at async postPayrollPeriodTx (src\lib\payroll\postings.js:49:22)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:19)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+  23 |     if (!m.accountNumber) throw new Error(`Mapping ${code} missing accountNumber`);
+  24 |     const acc = await tx.account.findFirst({ where: { number: m.accountNumber } });
+> 25 |     if (!acc) throw new Error(`Account number ${m.accountNumber} (mapping ${code}) not found in chart`);
+     |                     ^
+  26 |     return acc.id;
+  27 |   }
+  28 |   return {
+ POST /api/payroll/period/131f3605-d8e0-4b92-9c3a-c71101aa7ef8/lock 500 in 872ms
+ ✓ Compiled in 1530ms (715 modules)
+ GET / 200 in 333ms
+ POST /api/payroll/period 200 in 325ms
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/9b6feb1d-ec23-4fe7-a007-e54efbb588e8/generate 200 in 779ms
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+Error: Journal entry unbalanced (debit=1519.01 credit=5189.02)
+    at createJournalEntry (src\lib\journal.js:37:11)
+    at async postPayrollPeriodTx (src\lib\payroll\postings.js:139:21)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:19)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+  35 |   const { debit, credit } = computeDebitCredit(transactions);
+  36 |   if (debit !== credit && !allowUnbalanced) {
+> 37 |     throw new Error(`Journal entry unbalanced (debit=${debit} credit=${credit})`);
+     |           ^
+  38 |   }
+  39 |   const number = await nextSequence(tx, 'JRN', 'JRN-');
+  40 |   const je = await tx.journalEntry.create({
+ POST /api/payroll/period/9b6feb1d-ec23-4fe7-a007-e54efbb588e8/lock 500 in 1173ms
+ POST /api/payroll/period 200 in 104ms
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/a096b212-59b3-412a-a106-cd2baa7ba854/generate 200 in 485ms
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+Error: Journal entry unbalanced (debit=1519.01 credit=5189.02)
+    at createJournalEntry (src\lib\journal.js:37:11)
+    at async postPayrollPeriodTx (src\lib\payroll\postings.js:139:21)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:19)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+  35 |   const { debit, credit } = computeDebitCredit(transactions);
+  36 |   if (debit !== credit && !allowUnbalanced) {
+> 37 |     throw new Error(`Journal entry unbalanced (debit=${debit} credit=${credit})`);
+     |           ^
+  38 |   }
+  39 |   const number = await nextSequence(tx, 'JRN', 'JRN-');
+  40 |   const je = await tx.journalEntry.create({
+ POST /api/payroll/period/a096b212-59b3-412a-a106-cd2baa7ba854/lock 500 in 944ms
+ ✓ Compiled in 1437ms (268 modules)
+ ✓ Compiled in 1271ms (268 modules)
+ GET / 200 in 1316ms
+ GET / 200 in 365ms
+ ✓ Compiled in 3.5s (715 modules)
+ GET / 200 in 1208ms
+ ✓ Compiled in 1716ms (698 modules)
+ GET / 200 in 1250ms
+ ✓ Compiled /api/payroll/period in 343ms (440 modules)
+ POST /api/payroll/period 200 in 1350ms
+ ○ Compiling /api/payroll/period/[id]/generate ...
+ ✓ Compiled /api/payroll/period/[id]/generate in 772ms (443 modules)
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/a4b2dbc6-6235-4886-be97-95ec164178bd/generate 200 in 1738ms
+ ✓ Compiled /api/payroll/period/[id]/lock in 481ms (447 modules)
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+ GET / 200 in 991ms
+Error: Aggregated net salary <= 0 (netTotal=-3670.01). Review payslip tax/withholding calculations before posting.
+    at postPayrollPeriodTx (src\lib\payroll\postings.js:101:13)
+    at async eval (src\app\api\payroll\period\[id]\lock\route.js:15:19)
+    at async POST (src\app\api\payroll\period\[id]\lock\route.js:9:20)
+   99 |
+  100 |     if (netTotal <= 0) {
+> 101 |       throw new Error(`Aggregated net salary <= 0 (netTotal=${netTotal.toFixed(2)}). Review payslip tax/withholding calculations before posting.`);
+      |             ^
+  102 |     }
+  103 |
+  104 |     // Debits: gross salary split between salary and bonus (simple proportion: all base to wagesSalary, primes to wagesBonus)
+ POST /api/payroll/period/a4b2dbc6-6235-4886-be97-95ec164178bd/lock 500 in 2174ms
+ ✓ Compiled in 1962ms (698 modules)
+ GET / 200 in 1731ms
+ ✓ Compiled in 1059ms (268 modules)
+ GET / 200 in 223ms
+ ✓ Compiled /api/payroll/period in 229ms (440 modules)
+ POST /api/payroll/period 200 in 1166ms
+ ○ Compiling /api/payroll/period/[id]/generate ...
+ ✓ Compiled /api/payroll/period/[id]/generate in 561ms (443 modules)
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ GET / 200 in 1897ms
+ POST /api/payroll/period/4ddb6a6e-bebf-4cf0-91e8-313abcd1acae/generate 200 in 2911ms
+ POST /api/payroll/period 200 in 172ms
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ POST /api/payroll/period/605dbb4d-7481-4475-8172-252070698116/generate 200 in 472ms
+ ✓ Compiled /api/payroll/period/[id]/lock in 375ms (447 modules)
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+ POST /api/payroll/period/605dbb4d-7481-4475-8172-252070698116/lock 200 in 3487ms
+ ✓ Compiled in 2.7s (715 modules)
+ GET / 200 in 799ms
+ ✓ Compiled in 1545ms (268 modules)
+ ✓ Compiled in 1444ms (268 modules)
+ GET / 200 in 1588ms
+ GET / 200 in 382ms
+ ✓ Compiled in 1193ms (268 modules)
+ GET / 200 in 207ms
+ ✓ Compiled in 1499ms (698 modules)
+ GET / 200 in 837ms
+ ✓ Compiled in 1568ms (268 modules)
+ GET / 200 in 707ms
+ ✓ Compiled in 1175ms (268 modules)
+ GET / 200 in 355ms
+ ✓ Compiled in 1709ms (268 modules)
+ ✓ Compiled in 2s (268 modules)
+ GET / 200 in 2181ms
+ GET / 200 in 413ms
+ ✓ Compiled in 1503ms (268 modules)
+ ✓ Compiled in 1499ms (268 modules)
+ GET / 200 in 1700ms
+ GET / 200 in 379ms
+ ✓ Compiled /api/payroll/period in 309ms (440 modules)
+ POST /api/payroll/period 200 in 1435ms
+ ○ Compiling /api/payroll/period/[id]/generate ...
+ ✓ Compiled /api/payroll/period/[id]/generate in 624ms (443 modules)
+Error: Route "/api/payroll/period/[id]/generate" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\generate\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  9 |     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });
+ GET / 200 in 1293ms
+ POST /api/payroll/period/9205dd4f-be2e-4456-82b2-30cd93ce14ce/generate 200 in 2459ms
+ ✓ Compiled /api/payroll/period/[id]/lock in 289ms (447 modules)
+Error: Route "/api/payroll/period/[id]/lock" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at POST (src\app\api\payroll\period\[id]\lock\route.js:6:16)
+  4 | export async function POST(_req, { params }) {
+  5 |   try {
+> 6 |     const id = params?.id;
+    |                ^
+  7 |     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  8 |     // Wrap in transaction: lock then post
+  9 |     const result = await prisma.$transaction(async (tx) => {
+ POST /api/payroll/period/9205dd4f-be2e-4456-82b2-30cd93ce14ce/lock 200 in 1000ms
+ ✓ Compiled in 2.6s (715 modules)
+ GET / 200 in 451ms
+ ✓ Compiled in 1163ms (268 modules)
+ GET / 200 in 246ms
+ ✓ Compiled in 1583ms (698 modules)
+ GET / 200 in 947ms
+ ✓ Compiled in 1932ms (268 modules)
+ GET / 200 in 714ms
+ ✓ Compiled in 1001ms (268 modules)
+ ✓ Compiled in 1316ms (268 modules)
+ GET / 200 in 1413ms
+ GET / 200 in 246ms

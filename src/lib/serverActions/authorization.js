@@ -12,13 +12,47 @@ function generateDocNumber(docType) {
 
 export async function createAuthorization({ docType, scope, flow, amount, currency='EUR', beneficiaryType, beneficiaryAccountId, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
   if (!docType) throw new Error('docType requis');
-  if (!scope) throw new Error('scope requis');
-  if (!flow) throw new Error('flow requis');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
-  const docNumber = generateDocNumber(docType);
+
+  const normalizedDocType = String(docType).toUpperCase();
+  let resolvedScope;
+  let resolvedFlow;
+
+  switch (normalizedDocType) {
+    case 'PCD':
+      resolvedScope = 'CASH';
+      resolvedFlow = 'OUT';
+      break;
+    case 'PCR':
+      resolvedScope = 'CASH';
+      resolvedFlow = 'IN';
+      break;
+    case 'OP':
+      resolvedScope = 'BANK';
+      if (flow && flow !== 'IN' && flow !== 'OUT') {
+        throw new Error('flow OP doit etre IN ou OUT');
+      }
+      resolvedFlow = flow || 'OUT';
+      break;
+    default:
+      throw new Error('docType inconnu (attendu: PCD, PCR, OP)');
+  }
+
+  if (scope && scope !== resolvedScope) {
+    throw new Error(`docType ${normalizedDocType} impose scope ${resolvedScope}`);
+  }
+  if (normalizedDocType !== 'OP' && flow && flow !== resolvedFlow) {
+    throw new Error(`docType ${normalizedDocType} impose flow ${resolvedFlow}`);
+  }
+
+  const docNumber = generateDocNumber(normalizedDocType);
   return prisma.treasuryAuthorization.create({
     data: {
-      docType, scope, flow, amount: new Prisma.Decimal(amount), currency,
+      docType: normalizedDocType,
+      scope: resolvedScope,
+      flow: resolvedFlow,
+      amount: new Prisma.Decimal(amount),
+      currency,
       beneficiaryType: beneficiaryType || null,
       beneficiaryAccountId: beneficiaryAccountId || null,
       invoiceId: invoiceId || null,
@@ -36,8 +70,8 @@ export async function authorizeAuthorization(id) {
   return prisma.$transaction(async (tx) => {
     const auth = await tx.treasuryAuthorization.findUnique({ where: { id } });
     if (!auth) throw new Error('Authorization introuvable');
-    if (auth.status !== 'DRAFT') throw new Error('Seulement DRAFT -> AUTHORIZED');
-    return tx.treasuryAuthorization.update({ where: { id }, data: { status: 'AUTHORIZED' } });
+    if (auth.status !== 'DRAFT') throw new Error('Seulement DRAFT -> APPROVED');
+    return tx.treasuryAuthorization.update({ where: { id }, data: { status: 'APPROVED' } });
   });
 }
 
@@ -51,12 +85,12 @@ export async function cancelAuthorization(id) {
   });
 }
 
-/** Create a movement executing an AUTHORIZED authorization. */
+/** Create a movement executing an APPROVED authorization. */
 export async function executeAuthorizationViaMovement({ authorizationId, moneyAccountId, description }) {
   return prisma.$transaction(async (tx) => {
     const auth = await tx.treasuryAuthorization.findUnique({ where: { id: authorizationId } });
     if (!auth) throw new Error('Authorization introuvable');
-    if (auth.status !== 'AUTHORIZED') throw new Error('Authorization non AUTHORIZED');
+    if (auth.status !== 'APPROVED') throw new Error('Authorization non APPROVED');
     // Create movement
     const voucherRef = `AUT-${auth.docNumber}`;
     const moneyAccount = await tx.moneyAccount.findUnique({ where: { id: moneyAccountId }, include: { ledgerAccount: true } });
@@ -101,8 +135,9 @@ function deriveKindFromAuthorization(auth) {
 }
 
 export async function listAuthorizations({ status, docType, flow, party, limit = 50 }) {
+  const normalizedStatus = status === 'AUTHORIZED' ? 'APPROVED' : status;
   const where = {};
-  if (status) where.status = status;
+  if (normalizedStatus) where.status = normalizedStatus;
   if (docType) where.docType = docType;
   if (flow) where.flow = flow;
   if (party === 'CLIENT') where.invoiceId = { not: null };
@@ -146,6 +181,7 @@ export async function listAuthorizations({ status, docType, flow, party, limit =
         if (authAmountNum > outstandingNum) exceededRemaining = true;
       }
     }
+    const statusOut = r.status === 'AUTHORIZED' ? 'APPROVED' : r.status;
     return {
       id: r.id,
       docNumber: r.docNumber,
@@ -153,7 +189,7 @@ export async function listAuthorizations({ status, docType, flow, party, limit =
       flow: r.flow,
       amount: r.amount?.toString?.() || r.amount,
       currency: r.currency,
-      status: r.status,
+      status: statusOut,
       issueDate: r.issueDate,
       invoiceNumber: invoiceNumber || null,
       incomingInvoiceNumber: incomingNumber || null,
@@ -199,10 +235,10 @@ export async function linkBankAdviceToMovement({ bankAdviceId, moneyAccountId, d
         voucherRef
       }
     });
-    // If advice links an authorization still AUTHORIZED and matching flow, mark executed
+    // If advice links an authorization still APPROVED and matching flow, mark executed
     if (advice.authorizationId) {
       const auth = await tx.treasuryAuthorization.findUnique({ where: { id: advice.authorizationId } });
-      if (auth && auth.status === 'AUTHORIZED') {
+      if (auth && auth.status === 'APPROVED') {
         await tx.treasuryAuthorization.update({ where: { id: auth.id }, data: { status: 'EXECUTED', executedAt: new Date() } });
       }
     }

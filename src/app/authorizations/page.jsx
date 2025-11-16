@@ -1,8 +1,16 @@
-import { listAuthorizations } from '@/lib/serverActions/authorization';
+import { listAuthorizations, authorizeAuthorization } from '@/lib/serverActions/authorization';
 import Link from 'next/link';
+import { revalidatePath } from 'next/cache';
 import { formatAmount } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+async function approveAuthorizationFromList(formData) { 'use server';
+  const id = formData.get('id');
+  if (!id) return;
+  await authorizeAuthorization(id);
+  revalidatePath('/authorizations');
+}
 
 export default async function AuthorizationsPage({ searchParams }) {
   const sp = await searchParams;
@@ -36,7 +44,7 @@ export default async function AuthorizationsPage({ searchParams }) {
             <select name="status" defaultValue={status} className="border rounded px-2 py-1 text-xs">
               <option value="">(Tous)</option>
               <option value="DRAFT">DRAFT</option>
-              <option value="AUTHORIZED">AUTHORIZED</option>
+              <option value="APPROVED">APPROVED</option>
               <option value="EXECUTED">EXECUTED</option>
               <option value="CANCELLED">CANCELLED</option>
             </select>
@@ -128,7 +136,13 @@ export default async function AuthorizationsPage({ searchParams }) {
                     </td>
                     <td className="px-2 py-1 text-[10px]">{r.partyName || '—'}</td>
                     <td className="px-2 py-1">{r.status}</td>
-                    <td className="px-2 py-1 space-x-2">
+                    <td className="px-2 py-1 flex items-center gap-2">
+                      {r.status === 'DRAFT' && (
+                        <form action={approveAuthorizationFromList} className="inline">
+                          <input type="hidden" name="id" value={r.id} />
+                          <button type="submit" className="text-[10px] px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-500 focus:outline-none focus:ring-1 focus:ring-green-400">Approuver</button>
+                        </form>
+                      )}
                       <Link href={`/authorizations/${r.id}`} className="text-blue-600 underline">Ouvrir</Link>
                     </td>
                   </tr>

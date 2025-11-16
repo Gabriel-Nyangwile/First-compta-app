@@ -36,6 +36,12 @@ export async function PATCH(request, context) {
       include: { transactions: true, invoiceLines: true }
     });
     if (!existing) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 });
+    if (existing.invoiceLines.some((line) => line.salesOrderLineId)) {
+      return NextResponse.json(
+        { error: 'Impossible de modifier une facture liée à une commande client.' },
+        { status: 400 }
+      );
+    }
     if (existing.status === 'PAID') return NextResponse.json({ error: 'Facture déjà payée, modification interdite.' }, { status: 400 });
     const hasPayment = existing.transactions.some(t => t.kind === 'PAYMENT');
     if (hasPayment) return NextResponse.json({ error: 'Paiements enregistrés : modification interdite.' }, { status: 400 });

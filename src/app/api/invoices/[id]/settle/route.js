@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { finalizeBatchToJournal } from '@/lib/journal';
 
 /*
   POST /api/invoices/:id/settle
@@ -41,6 +42,7 @@ export async function POST(request, { params }) {
 
     const result = await prisma.$transaction(async(tx) => {
       // Création des deux transactions miroir
+      const createdTxs = [];
       const debitBank = await tx.transaction.create({
         data: {
           date: paymentDateObj,
@@ -66,7 +68,8 @@ export async function POST(request, { params }) {
           invoice: { connect: { id: invoice.id } },
           client: { connect: { id: invoice.client.id } }
         }
-      });
+  });
+  createdTxs.push(debitBank, creditReceivable);
 
       const newPaidTotal = alreadyPaid + Number(amount);
       let updatedInvoice = invoice;
@@ -76,6 +79,13 @@ export async function POST(request, { params }) {
           data: { status: 'PAID' }
         });
       }
+      await finalizeBatchToJournal(tx, {
+        sourceType: 'INVOICE',
+        sourceId: invoice.id,
+        date: paymentDateObj,
+        description: `Règlement facture ${invoice.invoiceNumber}`,
+        transactions: createdTxs
+      });
       return { debitBank, creditReceivable, invoice: updatedInvoice, paidTotal: newPaidTotal };
     });
 

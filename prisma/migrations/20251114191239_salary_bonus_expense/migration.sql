@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TransactionKind" ADD VALUE 'SALARY_BONUS_EXPENSE';

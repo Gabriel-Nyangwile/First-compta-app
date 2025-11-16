@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import AccountAutocomplete from '../AccountAutocomplete.jsx';
 import Amount from '@/components/Amount.jsx';
 
+const decimalToNumber = (value) => (value && typeof value === "object" && typeof value.toNumber === "function" ? value.toNumber() : Number(value ?? 0));
+
 export default function NewMoneyMovementForm({ accounts }) {
   const [moneyAccountId, setMoneyAccountId] = useState(accounts[0]?.id || '');
   const [direction, setDirection] = useState('IN');
@@ -101,10 +103,11 @@ export default function NewMoneyMovementForm({ accounts }) {
     const t = setTimeout(async () => {
       try {
         setSearchingInvoices(true); setInvoiceSearchError('');
+        const queryParam = encodeURIComponent(invoiceQuery || '');
         const endpoints = [];
-        if (kind === 'CLIENT_RECEIPT') endpoints.push(`/api/invoices/search-unpaid?query=${encodeURIComponent(invoiceQuery)}`);
-        if (kind === 'SUPPLIER_PAYMENT') endpoints.push(`/api/incoming-invoices/search-unpaid?query=${encodeURIComponent(invoiceQuery)}`);
-        if (!endpoints.length) { setSearchingInvoices(false); return; }
+        if (kind === 'CLIENT_RECEIPT') endpoints.push(`/api/invoices/search-unpaid?query=${queryParam}&limit=80`);
+        if (kind === 'SUPPLIER_PAYMENT') endpoints.push(`/api/incoming-invoices/search-unpaid?query=${queryParam}&limit=80`);
+        if (!endpoints.length) { setSearchingInvoices(false); setInvoiceResults([]); return; }
         const all = [];
         for (const ep of endpoints) {
           const res = await fetch(ep);
@@ -115,14 +118,14 @@ export default function NewMoneyMovementForm({ accounts }) {
               id: r.id,
               number: r.entryNumber || r.invoiceNumber || r.supplierInvoiceNumber || '—',
               thirdPartyName: r.client?.name || r.supplier?.name || '—',
-              total: Number(r.totalAmount),
-              paid: Number(r.paid || 0),
-              remaining: Number(r.remaining || 0),
+              total: decimalToNumber(r.totalAmount),
+              paid: decimalToNumber(r.paid || 0),
+              remaining: decimalToNumber(r.remaining || 0),
               kind: kind === 'CLIENT_RECEIPT' ? 'CLIENT' : 'SUPPLIER'
             });
           }
         }
-        if (active) setInvoiceResults(all);
+        if (active) setInvoiceResults(all.slice(0, 80));
       } catch(e) {
         if (active) setInvoiceSearchError(e.message);
       } finally {
@@ -190,7 +193,7 @@ export default function NewMoneyMovementForm({ accounts }) {
     if (qi) {
       setKind('CLIENT_RECEIPT');
       // fetch single invoice unpaid data
-      fetch(`/api/invoices/search-unpaid?query=${encodeURIComponent(qi)}`).then(r=>r.json()).then(list=>{
+      fetch(`/api/invoices/search-unpaid?query=${encodeURIComponent(qi)}&limit=1`).then(r=>r.json()).then(list=>{
         const match = list.find(i=> i.id===qi);
         if (match) {
           const inv = {
@@ -209,7 +212,7 @@ export default function NewMoneyMovementForm({ accounts }) {
       }).catch(()=>{});
     } else if (qs) {
       setKind('SUPPLIER_PAYMENT');
-      fetch(`/api/incoming-invoices/search-unpaid?query=${encodeURIComponent(qs)}`).then(r=>r.json()).then(list=>{
+      fetch(`/api/incoming-invoices/search-unpaid?query=${encodeURIComponent(qs)}&limit=1`).then(r=>r.json()).then(list=>{
         const match = list.find(i=> i.id===qs);
         if (match) {
           const inv = {

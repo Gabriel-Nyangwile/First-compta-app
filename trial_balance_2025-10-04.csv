@@ -1,0 +1,35 @@
+Compte;Libellé;Débit;Crédit;Solde(D-C)
+401000;"Fournisseurs, Dettes En Compte";74.40;158.40;-84.00
+401003;"Ecole Acadex";0.00;240.00;-240.00
+401004;"Réal de Kinshasa";0.00;18000.00;-18000.00
+401121;"Fournisseur Disciples d'Emmaus";9170.00;15976.20;-6806.20
+401122;"Fournisseur Ets Fontana";0.00;1740.00;-1740.00
+411101;"Client Test 1";314.00;0.00;314.00
+411126;"Client Scofex Sarl";0.00;3900.00;-3900.00
+411127;"Strategic Business";750.00;0.00;750.00
+411128;"Client Jenetec sarl";2001.00;2001.00;0.00
+411130;"Client Martin Mutombo";6840.00;6840.00;0.00
+411141;"Client Bafuidi Nsoni";192.00;0.00;192.00
+445660;"T.V.A. Déductible";7781.00;0.00;7781.00
+445700;"T.V.A. Collectée";0.00;3700.00;-3700.00
+471000;"Comptes D'Attente";19488.00;17488.40;1999.60
+512000TEST1758643900225;"Banque Test 1";0.00;250.00;-250.00
+512001TEST1758643900306;"Banque Test 2";250.00;0.00;250.00
+521300;"Banque BANQUE EQUITY/BCDC Euros";8001.00;9020.00;-1019.00
+530TEST1758643821210;"Caisse Test Ledger";8940.00;9000.00;-60.00
+530TEST1758643877089;"Caisse Test Ledger";50.00;30.00;20.00
+530VAT1758646714238;"Caisse TVA";0.00;120.00;-120.00
+571300;"Caisse Devise 2";0.00;74.40;-74.40
+571500;"Caisse Caisse Centrale Monnaie nationale";10800.00;8150.00;2650.00
+600000;"Achats Et Variations De Stocks";542.00;0.00;542.00
+601000;"Achats De Marchandises";9050.00;0.00;9050.00
+601100;"Dans La Region (1)";7700.00;0.00;7700.00
+601200;"Hors Region (1)";10500.00;0.00;10500.00
+605500;"Fournitures De Bureau Non Stockables";250.00;0.00;250.00
+60611758646714573;"Achats Marchandises";100.00;0.00;100.00
+611100;"Transport en container";1250.00;0.00;1250.00
+621000;"Sous-Traitance Generale";1250.00;0.00;1250.00
+700000;"Ventes";0.00;430.00;-430.00
+705000;"Travaux Factures";0.00;750.00;-750.00
+705100;"Dans La Region (1)";0.00;7425.00;-7425.00
+TOTAL;;105293.40;105293.40;0.00

@@ -7,10 +7,19 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('query')?.trim() || '';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '40', 10), 100);
     const where = {
       status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
-      ...(q ? { entryNumber: { contains: q, mode: 'insensitive' } } : {})
+      ...(q
+        ? {
+            OR: [
+              { entryNumber: { contains: q, mode: 'insensitive' } },
+              { supplierInvoiceNumber: { contains: q, mode: 'insensitive' } },
+              { supplier: { name: { contains: q, mode: 'insensitive' } } },
+            ],
+          }
+        : {}
+      )
     };
     const rows = await prisma.incomingInvoice.findMany({
       where,

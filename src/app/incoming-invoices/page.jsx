@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useCallback } from 'react';
 import Amount from '@/components/Amount.jsx';
 
 export default function IncomingInvoicesPage() {
@@ -21,6 +22,31 @@ export default function IncomingInvoicesPage() {
       .catch(()=>setError('Erreur chargement'))
       .finally(()=>setLoading(false));
   }, [paymentFilter, pageMeta.page, pageMeta.pageSize]);
+
+  const canDelete = useCallback((inv) => {
+    if (!inv) return false;
+    if (['PAID','PARTIAL'].includes(inv.status)) return false;
+    if (Array.isArray(inv.moneyMovements) && inv.moneyMovements.length) return false;
+    if (Array.isArray(inv.transactions) && inv.transactions.some(t=> t.kind === 'PAYMENT')) return false;
+    return true;
+  }, []);
+
+  async function deleteInvoice(inv){
+    if(!canDelete(inv)) return;
+    if(!confirm(`Supprimer la facture ${inv.entryNumber} ?`)) return;
+    try {
+      const res = await fetch(`/api/incoming-invoices/${inv.id}`, { method:'DELETE' });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok || !data.ok){
+        alert(data.error || 'Suppression impossible');
+        return;
+      }
+      // Rafraîchir
+      setInvoices(prev => prev.filter(i => i.id !== inv.id));
+    } catch {
+      alert('Erreur réseau suppression');
+    }
+  }
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -123,7 +149,7 @@ export default function IncomingInvoicesPage() {
                   <td className="px-3 py-2 text-[10px] font-mono">{Array.isArray(inv.moneyMovements) && inv.moneyMovements.length ? (
                     <a href={`/treasury/movements/${inv.moneyMovements[inv.moneyMovements.length-1].id}`} className="underline text-indigo-600">{inv.moneyMovements[inv.moneyMovements.length-1].voucherRef}</a>
                   ) : '—'}{Array.isArray(inv.moneyMovements) && inv.moneyMovements.length>1 && <span className="ml-1 inline-block px-1 py-0.5 rounded bg-gray-200 text-gray-700">×{inv.moneyMovements.length}</span>}</td>
-                  <td className="px-3 py-2 flex gap-2 flex-wrap">
+                  <td className="px-3 py-2 flex gap-2 flex-wrap items-center">
                     <Link href={`/incoming-invoices/edit/${inv.id}`} className="text-xs text-blue-600 underline">Modifier</Link>
                     {inv.status !== 'PAID' && <button onClick={()=>openPay(inv)} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">Régler</button>}
                     {inv.status !== 'PAID' && remaining>0 && <a href={`/treasury?quickIncoming=${inv.id}`} className="text-xs text-emerald-600 underline">Payer restant</a>}
@@ -131,6 +157,7 @@ export default function IncomingInvoicesPage() {
                       href={`/api/incoming-invoices/${inv.id}/pdf`}
                       className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded"
                     >PDF</a>
+                    {canDelete(inv) && <button onClick={()=>deleteInvoice(inv)} className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Supprimer</button>}
                   </td>
                 </tr>
               )})}

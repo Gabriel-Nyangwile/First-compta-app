@@ -149,3 +149,37 @@ export async function PATCH(request, context) {
     return NextResponse.json({ error: e.message || 'Erreur mise à jour facture fournisseur' }, { status: 500 });
   }
 }
+
+// DELETE /api/incoming-invoices/:id
+// Conditions: pas de paiement (transactions kind=PAYMENT), pas de mouvements de trésorerie, statut non PAID/PARTIAL
+export async function DELETE(request, context) {
+  try {
+    const { id } = await context.params;
+    const inv = await prisma.incomingInvoice.findUnique({
+      where: { id },
+      include: {
+        transactions: true,
+        moneyMovements: true,
+        treasuryAuthorizations: true,
+        bankAdvices: true
+      }
+    });
+    if (!inv) return NextResponse.json({ error: 'Facture fournisseur introuvable' }, { status: 404 });
+    if (['PAID','PARTIAL'].includes(inv.status)) return NextResponse.json({ error: 'Facture réglée ou partiellement réglée: suppression interdite' }, { status: 400 });
+    const hasPayment = inv.transactions.some(t => t.kind === 'PAYMENT');
+    if (hasPayment) return NextResponse.json({ error: 'Paiements associés: suppression interdite' }, { status: 400 });
+    if (inv.moneyMovements.length) return NextResponse.json({ error: 'Mouvements de trésorerie liés: suppression interdite' }, { status: 400 });
+    if (inv.treasuryAuthorizations.length) return NextResponse.json({ error: 'Autorisation trésorerie liée: suppression interdite' }, { status: 400 });
+    if (inv.bankAdvices.length) return NextResponse.json({ error: 'Bank advice lié: suppression interdite' }, { status: 400 });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.deleteMany({ where: { incomingInvoiceId: id } });
+      await tx.incomingInvoiceLine.deleteMany({ where: { incomingInvoiceId: id } });
+      await tx.incomingInvoice.delete({ where: { id } });
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE incoming invoice error', e);
+    return NextResponse.json({ error: e.message || 'Erreur suppression facture fournisseur' }, { status: 500 });
+  }
+}

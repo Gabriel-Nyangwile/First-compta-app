@@ -1,93 +1,131 @@
-import prisma from '@/lib/prisma';
+import prisma from "@/lib/prisma";
 
-// Fetch current inventory aggregate (or create with zero)
-export async function getOrCreateInventory(productId) {
-  let inv = await prisma.productInventory.findUnique({ where: { productId } });
-  if (!inv) {
-    inv = await prisma.productInventory.create({ data: { productId, qtyOnHand: '0' } });
-  }
+async function ensureInventory(txOrClient, productId) {
+  const client = txOrClient || prisma;
+  const inv = await client.productInventory.upsert({
+    where: { productId },
+    update: {},
+    create: { productId, qtyOnHand: "0", qtyStaged: "0", avgCost: null },
+  });
   return inv;
 }
 
-// Apply an IN movement to update CUMP (weighted average)
-export async function applyInMovement(tx, { productId, qty, unitCost }) {
-  // qty, unitCost are Numbers already validated
-  const current = await tx.productInventory.upsert({
-    where: { productId },
-    update: {},
-    create: { productId, qtyOnHand: '0', avgCost: null }
-  });
-  const prevQty = Number(current.qtyOnHand);
-  const prevAvg = current.avgCost != null ? Number(current.avgCost) : null;
-  const incomingQty = qty;
-  const incomingCost = unitCost;
+export async function getOrCreateInventory(productId) {
+  return ensureInventory(prisma, productId);
+}
+
+function toFixed(value, digits = 3) {
+  return Number(value).toFixed(digits);
+}
+
+export async function applyInMovement(
+  tx,
+  { productId, qty, unitCost, stage = "AVAILABLE" }
+) {
+  if (!qty || Number.isNaN(qty)) throw new Error("qty invalide");
+  if (unitCost == null || Number.isNaN(unitCost))
+    throw new Error("unitCost invalide");
+  const inv = await ensureInventory(tx, productId);
+  const currentQty = Number(inv.qtyOnHand);
+  const currentStaged = Number(inv.qtyStaged || 0);
+  const currentAvg = inv.avgCost != null ? Number(inv.avgCost) : null;
+
+  if (stage === "STAGED") {
+    const nextStaged = currentStaged + qty;
+    if (nextStaged < -1e-9) {
+      throw new Error("Quantité staged insuffisante pour correction.");
+    }
+    const updated = await tx.productInventory.update({
+      where: { productId },
+      data: { qtyStaged: toFixed(nextStaged) },
+    });
+    return { inventory: updated, stage: "STAGED" };
+  }
+
+  const baseQty = currentQty;
   let newAvg;
-  if (prevQty <= 0 || prevAvg == null) {
-    newAvg = incomingCost; // first batch
+  if (baseQty <= 0 || currentAvg == null) {
+    newAvg = unitCost;
   } else {
-    const totalPrevCost = prevQty * prevAvg;
-    const totalIncomingCost = incomingQty * incomingCost;
-    newAvg = (totalPrevCost + totalIncomingCost) / (prevQty + incomingQty);
+    const totalPrevCost = baseQty * currentAvg;
+    const totalIncomingCost = qty * unitCost;
+    newAvg = (totalPrevCost + totalIncomingCost) / (baseQty + qty);
+  }
+
+  const updated = await tx.productInventory.update({
+    where: { productId },
+    data: {
+      qtyOnHand: toFixed(baseQty + qty),
+      avgCost: newAvg != null ? newAvg.toFixed(4) : null,
+    },
+  });
+  return { inventory: updated, stage: "AVAILABLE", avgCost: newAvg };
+}
+
+export async function moveStagedToAvailable(tx, { productId, qty, unitCost }) {
+  if (!qty || Number.isNaN(qty)) throw new Error("qty invalide");
+  const inv = await ensureInventory(tx, productId);
+  const staged = Number(inv.qtyStaged || 0);
+  if (qty > staged + 1e-9) throw new Error("Quantité staged insuffisante");
+  const currentQty = Number(inv.qtyOnHand);
+  const currentAvg = inv.avgCost != null ? Number(inv.avgCost) : null;
+  const cost =
+    unitCost != null && !Number.isNaN(unitCost) ? unitCost : currentAvg ?? 0;
+  let newAvg;
+  if (currentQty <= 0 || currentAvg == null) {
+    newAvg = cost;
+  } else {
+    const totalPrevCost = currentQty * currentAvg;
+    const totalIncomingCost = qty * cost;
+    newAvg = (totalPrevCost + totalIncomingCost) / (currentQty + qty);
   }
   const updated = await tx.productInventory.update({
     where: { productId },
     data: {
-      qtyOnHand: (prevQty + incomingQty).toFixed(3),
-      avgCost: newAvg.toFixed(4)
-    }
+      qtyOnHand: toFixed(currentQty + qty),
+      qtyStaged: toFixed(staged - qty),
+      avgCost: newAvg != null ? newAvg.toFixed(4) : null,
+    },
   });
-  return updated;
+  return { inventory: updated, avgCost: newAvg };
 }
 
-// Apply an OUT movement: consume at current avg cost -> returns cost info
-export async function applyOutMovement(tx, { productId, qty }) {
-  const inv = await tx.productInventory.upsert({
+export async function removeStaged(tx, { productId, qty }) {
+  const inv = await ensureInventory(tx, productId);
+  const staged = Number(inv.qtyStaged || 0);
+  if (qty > staged + 1e-9) throw new Error("Quantité staged insuffisante");
+  const updated = await tx.productInventory.update({
     where: { productId },
-    update: {},
-    create: { productId, qtyOnHand: '0', avgCost: null }
+    data: { qtyStaged: toFixed(staged - qty) },
   });
+  return { inventory: updated };
+}
+
+export async function applyOutMovement(tx, { productId, qty }) {
+  if (!qty || Number.isNaN(qty)) throw new Error("qty invalide");
+  const inv = await ensureInventory(tx, productId);
   const prevQty = Number(inv.qtyOnHand);
   const avg = inv.avgCost != null ? Number(inv.avgCost) : 0;
   if (qty > prevQty + 1e-9) {
-    // Allow negative? For now disallow.
-    throw new Error('Stock insuffisant pour sortie.');
+    throw new Error("Stock insuffisant pour sortie.");
   }
-  const remaining = (prevQty - qty).toFixed(3);
   const updated = await tx.productInventory.update({
     where: { productId },
-    data: { qtyOnHand: remaining }
+    data: { qtyOnHand: toFixed(prevQty - qty) },
   });
   return { unitCost: avg, totalCost: avg * qty, inventory: updated };
 }
 
-// Adjustment movement (can be positive or negative). For positive we require unitCost (if no prior avg) to update avg; if prior avg exists and unitCost omitted we use prior avg. For negative we reuse avg and validate stock.
 export async function applyAdjustMovement(tx, { productId, qty, unitCost }) {
   if (qty === 0) return { unitCost: 0, totalCost: 0 };
-  if (qty > 0 && (unitCost == null || isNaN(unitCost))) {
-    // unitCost mandatory if no previous avg
-    const invPre = await tx.productInventory.findUnique({ where: { productId } });
-    if (!invPre || invPre.avgCost == null) throw new Error('unitCost requis pour un ajustement positif initial.');
-  }
   if (qty > 0) {
-    // treat as IN using provided unitCost or current avg
-    const inv = await tx.productInventory.upsert({
-      where: { productId },
-      update: {},
-      create: { productId, qtyOnHand: '0', avgCost: null }
+    const cost = unitCost != null ? Number(unitCost) : 0;
+    return applyInMovement(tx, {
+      productId,
+      qty,
+      unitCost: cost,
+      stage: "AVAILABLE",
     });
-    const cost = unitCost != null ? Number(unitCost) : (inv.avgCost != null ? Number(inv.avgCost) : 0);
-    const prevQty = Number(inv.qtyOnHand);
-    const prevAvg = inv.avgCost != null ? Number(inv.avgCost) : null;
-    let newAvg;
-    if (prevQty <= 0 || prevAvg == null) newAvg = cost; else newAvg = ((prevQty * prevAvg) + (qty * cost)) / (prevQty + qty);
-    await tx.productInventory.update({
-      where: { productId },
-      data: { qtyOnHand: (prevQty + qty).toFixed(3), avgCost: newAvg.toFixed(4) }
-    });
-    return { unitCost: cost, totalCost: cost * qty };
-  } else { // negative
-    const out = await applyOutMovement(tx, { productId, qty: Math.abs(qty) });
-    // applyOutMovement already decreased qtyOnHand.
-    return { unitCost: out.unitCost, totalCost: out.totalCost * -1 };
   }
+  return applyOutMovement(tx, { productId, qty: Math.abs(qty) });
 }

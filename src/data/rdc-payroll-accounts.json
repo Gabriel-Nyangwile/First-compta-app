@@ -1,0 +1,26 @@
+{
+  "version": "2025-11-14",
+  "notes": "Mapping codes -> numéros OHADA pour la paie RDC. Banque 521xxx et Caisse 57xxxx gérées par le module Treasury (non fixées ici).",
+  "accounts": {
+    "WAGES_NATIONAL_SALARIES": { "number": "661100", "label": "Appointements, Salaires et Commissions (Personnel national)" },
+    "WAGES_NATIONAL_BONUS": { "number": "661200", "label": "Primes et gratifications (Personnel national)" },
+    "WAGES_NONNATIONAL_SALARIES": { "number": "662100", "label": "Appointements, Salaires et Commissions (Personnel non national)" },
+    "WAGES_NONNATIONAL_BONUS": { "number": "662200", "label": "Primes et Gratifications (Personnel non National)" },
+    "EMPLOYER_CONTRIB_NATIONAL": { "number": "664100", "label": "Charges sociales sur Rémunération du Personnel National" },
+    "EMPLOYER_CONTRIB_NONNATIONAL": { "number": "664200", "label": "Charges sociales sur Rémunération du Personnel Non National" },
+    "NET_PAY": { "number": "422000", "label": "Rémunérations dues" },
+    "EMPLOYEE_ADVANCE": { "number": "427100", "label": "Personnel - Opposition (Avances sur salaires)" },
+    "EMPLOYEE_GARNISHMENT": { "number": "427200", "label": "Personnel - Opposition (Saisie sur salaires)" },
+    "CNSS": { "number": "431300", "label": "CNSS (Caisse Nationale de Sécurité Sociale)" },
+    "INPP": { "number": "433100", "label": "INPP (Institut National de Préparation Professionnelle)" },
+    "ONEM": { "number": "433200", "label": "ONEM (Office National de l'Emploi)" },
+    "PAYE_TAX": { "number": "442100", "label": "Impôts et Taxes d'Etat (IPR)" },
+    "BENEFIT_IN_KIND": { "number": "661700", "label": "Avantages en Natures (AEN)" },
+    "TRANSFER_REVENUE": { "number": "781000", "label": "Transferts De Charges D'Exploitation" }
+  },
+  "treasury": {
+    "BANK_PREFIX": "521",
+    "CASH_PREFIX": "57",
+    "note": "Les comptes de banque/caisse précis (521xxx/57xxxx) sont choisis côté Treasury."
+  }
+}

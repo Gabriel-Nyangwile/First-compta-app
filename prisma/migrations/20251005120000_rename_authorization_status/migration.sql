@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AuthorizationStatus" RENAME VALUE 'AUTHORIZED' TO 'APPROVED';

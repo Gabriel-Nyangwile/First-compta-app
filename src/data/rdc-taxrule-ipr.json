@@ -1,0 +1,38 @@
+{
+  "code": "IPR_RDC_2025",
+  "label": "IPR RDC (barème annuel en CDF)",
+  "currency": "CDF",
+  "source": "https://www.bcc.cd/operations-et-marches/domaine-operationnel/operations-de-change/cours-de-change",
+  "barème_impot_annuel": [
+    {
+      "tranche_de_revenu": "Tranche 1",
+      "condition_revenu": "R <= 1944000",
+      "revenu_maximum_annuel_cdf": 1944000,
+      "taux_impot_progressif_pourcentage": 3
+    },
+    {
+      "tranche_de_revenu": "Tranche 2",
+      "condition_revenu": "R <= 21600000",
+      "revenu_maximum_annuel_cdf": 21600000,
+      "taux_impot_progressif_pourcentage": 15
+    },
+    {
+      "tranche_de_revenu": "Tranche 3",
+      "condition_revenu": "R <= 43200000",
+      "revenu_maximum_annuel_cdf": 43200000,
+      "taux_impot_progressif_pourcentage": 30
+    },
+    {
+      "tranche_de_revenu": "Tranche 4",
+      "condition_revenu": "R > 43200000",
+      "revenu_minimum_annuel_cdf": 4320001,
+      "taux_impot_progressif_pourcentage": 40
+    }
+  ],
+  "regles_limitation_et_minimum": {
+    "plafonnement_impot_pourcentage_max": 30,
+    "base_plafonnement": "Revenu Imposable (R)",
+    "impot_minimum_apres_charges_cdf": 2500,
+    "note_impot_minimum": "L'impôt individuel, après déduction des charges de famille, ne peut être inférieur à ce montant."
+  }
+}

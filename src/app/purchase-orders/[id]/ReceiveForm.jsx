@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { authorizedFetch } from "@/lib/apiClient";
 
 export default function ReceiveForm({ poId, remaining }) {
   const [lines, setLines] = useState(remaining.remainingLines.map(l => ({
@@ -42,7 +43,7 @@ export default function ReceiveForm({ poId, remaining }) {
         setLoading(false);
         return;
       }
-      const res = await fetch('/api/goods-receipts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await authorizedFetch('/api/goods-receipts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur réception');
       setMessage(`Réception créée: ${data.number}`);

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatAmount, buildInvoiceLink, buildIncomingInvoiceLink } from '@/lib/utils';
 
-async function doAuthorize(formData) { 'use server'; const id = formData.get('id'); await authorizeAuthorization(id); redirect(`/authorizations/${id}`); }
+async function doApprove(formData) { 'use server'; const id = formData.get('id'); await authorizeAuthorization(id); redirect(`/authorizations/${id}`); }
 async function doCancel(formData) { 'use server'; const id = formData.get('id'); await cancelAuthorization(id); redirect(`/authorizations/${id}`); }
 async function doExecute(formData) { 'use server'; const id = formData.get('id'); const moneyAccountId = formData.get('moneyAccountId'); await executeAuthorizationViaMovement({ authorizationId: id, moneyAccountId }); redirect(`/authorizations/${id}`); }
 
@@ -57,12 +57,12 @@ export default async function AuthorizationDetailPage({ params }) {
         <div className="bg-white border rounded p-4 space-y-4">
           <h2 className="font-medium">Actions</h2>
           {auth.status === 'DRAFT' && (
-            <form action={doAuthorize} className="space-y-2">
+            <form action={doApprove} className="space-y-2">
               <input type="hidden" name="id" value={auth.id} />
-              <button className="bg-blue-600 text-white px-3 py-1 rounded text-xs">Autoriser</button>
+              <button className="bg-blue-600 text-white px-3 py-1 rounded text-xs">Approuver</button>
             </form>
           )}
-          {auth.status === 'AUTHORIZED' && (
+          {auth.status === 'APPROVED' && (
             <>
               <form action={doExecute} className="space-y-2">
                 <input type="hidden" name="id" value={auth.id} />
@@ -111,11 +111,11 @@ export default async function AuthorizationDetailPage({ params }) {
           <h2 className="font-medium">Historique statut</h2>
           <ol className="text-xs space-y-1">
             <li>Créé: {new Date(auth.issueDate).toLocaleString()}</li>
-            {auth.status !== 'DRAFT' && <li>Autorisé: {auth.status!=='DRAFT' && auth.status!=='CANCELLED' && auth.status!=='EXECUTED' ? 'Date inconnue (journalisation non implémentée)' : (auth.status==='EXECUTED' || auth.status==='CANCELLED') ? '—' : '—'}</li>}
+            {auth.status !== 'DRAFT' && <li>Approuvé: {auth.status!=='DRAFT' && auth.status!=='CANCELLED' && auth.status!=='EXECUTED' ? 'Date inconnue (journalisation non implémentée)' : (auth.status==='EXECUTED' || auth.status==='CANCELLED') ? '—' : '—'}</li>}
             {auth.executedAt && <li>Exécuté: {new Date(auth.executedAt).toLocaleString()}</li>}
             {auth.status === 'CANCELLED' && <li>Annulé (timestamp non stocké)</li>}
           </ol>
-          <p className="text-[10px] text-slate-500">Pour un suivi précis, ajouter plus tard des timestamps dédiés (authorizedAt, cancelledAt).</p>
+          <p className="text-[10px] text-slate-500">Pour un suivi précis, ajouter plus tard des timestamps dédiés (approvedAt, cancelledAt).</p>
         </div>
       </div>
     </main>

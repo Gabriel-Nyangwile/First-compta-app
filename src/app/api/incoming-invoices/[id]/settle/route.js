@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { finalizeBatchToJournal } from '@/lib/journal';
 
 /*
   POST /api/incoming-invoices/:id/settle
@@ -40,7 +41,27 @@ export async function POST(request, { params }) {
     const paymentDateObj = paymentDate ? new Date(paymentDate) : new Date();
 
     const result = await prisma.$transaction(async(tx) => {
+      // Résolution compte banque: bankAccountId peut être un Account ou un MoneyAccount
+      let resolvedAccountId = bankAccountId;
+      let moneyAccount = await tx.moneyAccount.findUnique({ where: { id: bankAccountId }, include: { ledgerAccount: true } });
+      if (moneyAccount && moneyAccount.ledgerAccount) {
+        resolvedAccountId = moneyAccount.ledgerAccount.id;
+      }
+      // Créer un moneyMovement pour traçabilité trésorerie
+      const movement = await tx.moneyMovement.create({
+        data: {
+          date: paymentDateObj,
+          amount: String(amount),
+          direction: 'OUT',
+          kind: 'SUPPLIER_PAYMENT',
+          moneyAccount: moneyAccount ? { connect: { id: moneyAccount.id } } : undefined,
+          incomingInvoice: { connect: { id: invoice.id } },
+          voucherRef: `MV-${Date.now()}`,
+          description: `Règlement facture ${invoice.entryNumber}`
+        }
+      });
       // Crédit banque (sortie) et Débit fournisseur (diminution dette)
+      const createdTxs = [];
       const debitPayable = await tx.transaction.create({
         data: {
           date: paymentDateObj,
@@ -51,7 +72,8 @@ export async function POST(request, { params }) {
           kind: 'PAYABLE',
           account: { connect: { id: invoice.supplier.accountId } },
           incomingInvoice: { connect: { id: invoice.id } },
-          supplier: { connect: { id: invoice.supplier.id } }
+          supplier: { connect: { id: invoice.supplier.id } },
+          moneyMovement: { connect: { id: movement.id } }
         }
       });
       const creditBank = await tx.transaction.create({
@@ -62,11 +84,13 @@ export async function POST(request, { params }) {
           amount: String(amount),
           direction: 'CREDIT',
           kind: 'PAYMENT',
-          account: { connect: { id: bankAccountId } },
+          account: { connect: { id: resolvedAccountId } },
           incomingInvoice: { connect: { id: invoice.id } },
-          supplier: { connect: { id: invoice.supplier.id } }
+          supplier: { connect: { id: invoice.supplier.id } },
+          moneyMovement: { connect: { id: movement.id } }
         }
-      });
+  });
+  createdTxs.push(debitPayable, creditBank);
 
       const newPaidTotal = alreadyPaid + Number(amount);
       let updatedInvoice = invoice;
@@ -76,8 +100,15 @@ export async function POST(request, { params }) {
           data: { status: 'PAID' }
         });
       }
+      await finalizeBatchToJournal(tx, {
+        sourceType: 'INCOMING_INVOICE',
+        sourceId: invoice.id,
+        date: paymentDateObj,
+        description: `Règlement facture fournisseur ${invoice.entryNumber}`,
+        transactions: createdTxs
+      });
 
-      return { debitPayable, creditBank, invoice: updatedInvoice, paidTotal: newPaidTotal };
+      return { debitPayable, creditBank, invoice: updatedInvoice, paidTotal: newPaidTotal, moneyMovement: movement };
     });
 
     return NextResponse.json(result, { status: 201 });

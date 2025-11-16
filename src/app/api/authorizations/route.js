@@ -6,7 +6,8 @@ export async function GET(req) {
   const status = searchParams.get('status') || undefined;
   const docType = searchParams.get('docType') || undefined;
   const flow = searchParams.get('flow') || undefined;
-  const rows = await listAuthorizations({ status, docType, flow, limit: 100 });
+  const normalizedStatus = status === 'AUTHORIZED' ? 'APPROVED' : status;
+  const rows = await listAuthorizations({ status: normalizedStatus, docType, flow, limit: 100 });
   return NextResponse.json(rows);
 }
 

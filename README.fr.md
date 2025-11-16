@@ -286,3 +286,68 @@ Badge placeholder (voir haut). Étapes prévues : runner tests (Vitest) + couver
 
 ---
 Heureux de vos contributions !
+
+## 14. Internationalisation (i18n) – Base
+
+Une couche i18n minimale a été ajoutée pour les info‑bulles (tooltips) du module Gestion du Personnel. Elle permet de basculer FR/EN à chaud via un sélecteur.
+
+### 14.1 Concepts
+
+- i18n (internationalisation) : rendre l'application neutre vis‑à‑vis de la langue (utiliser des clés plutôt que du texte en dur).
+- l10n (localisation) : fournir les traductions concrètes et formats régionaux.
+
+### 14.2 Implémentation Actuelle
+
+| Fichier | Rôle |
+|---------|------|
+| `src/lib/i18n.js` | Provider client + hook `useI18n()` (`t(key)`, `setLocale`) |
+| `src/locales/fr.json` | Catalogue français (clés `help.*`) |
+| `src/locales/en.json` | Catalogue anglais (miroir FR) |
+| `src/components/LocaleSwitcher.jsx` | Bascule runtime FR / EN |
+| `src/app/layout.js` | Enveloppe globale avec `I18nProvider` (locale par défaut FR) |
+| `src/app/employee/page.jsx` | Utilise `t('help.xxx')` pour les `title` |
+
+### 14.3 Exemple d'Usage
+
+```jsx
+import { useI18n } from '@/lib/i18n';
+function Champ() {
+  const { t } = useI18n();
+  return <input title={t('help.firstName')} />;
+}
+```
+
+### 14.4 Ajout d'une Nouvelle Clé
+
+1. Choisir une clé (ex: `help.department`).
+2. Ajouter la traduction FR dans `fr.json`.
+3. Ajouter la traduction EN correspondante dans `en.json`.
+4. Utiliser `t('help.department')` dans le code.
+
+Fallback : si la clé manque, `t(key)` renvoie la clé elle‑même → ajouter les deux traductions pour éviter ce comportement.
+
+### 14.5 Nouvelle Locale (ex: ES)
+
+1. Créer `src/locales/es.json` avec la même structure.
+2. Étendre `catalogs` dans `i18n.js`.
+3. Ajouter le bouton ES dans `LocaleSwitcher.jsx`.
+
+### 14.6 Bonnes Pratiques
+
+- Clés sémantiques (`help.employeeNumber`) plutôt que liées à la présentation.
+- Regrouper par domaine (ex: `invoice.*`, `auth.*`) à mesure que le périmètre grandit.
+- Éviter d'injecter directement des données sensibles dans les catalogues (formatage en code si nécessaire).
+- Basculer plus tard vers formatage `Intl` (dates, nombres, monnaie) si besoin multi-locale avancé.
+
+### 14.7 Améliorations Futures
+
+- Détection locale (profil utilisateur, `Accept-Language`).
+- Routage par préfixe (`/fr`, `/en`).
+- Pluriel / genre (intégration d'une lib ou helper interne).
+- Messages d'erreur / validations i18n.
+- Script de détection de clés orphelines.
+
+### 14.8 Notes de Migration
+
+Les anciens textes d'aide factorisés (`helpTexts.js`) ont été remplacés dans la page Employés. Étendre progressivement aux autres modules avant suppression totale des constantes legacy.
+

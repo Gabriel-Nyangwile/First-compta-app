@@ -1,44 +1,63 @@
-# Copilot Instructions for AI Coding Agents
+# Instructions Copilot (Guide Focalisé)
 
-## Project Overview
-- This is a Next.js app using the app directory structure, bootstrapped with `create-next-app`.
-- Data layer uses Prisma ORM, with schema and migrations in `prisma/`.
-- Main business logic and UI are in `src/app/` and `src/components/`.
-- CSV data is stored in `src/data/`.
+Patrons concis et actionnables pour qu’un agent IA soit immédiatement productif (comptabilité + stock + trésorerie). Éviter les refontes larges ; respecter les conventions existantes.
 
-## Key Architectural Patterns
-- **API routes**: Located in `src/app/api/`, organized by resource (e.g., `account`, `clients`, `invoice`). Each resource may have subroutes for actions (e.g., `create`, `search`).
-- **Pages and Components**: UI pages are in `src/app/`, with reusable components in `src/components/`. Pages often use server actions from `src/lib/serverActions/`.
-- **Prisma Integration**: Database schema in `prisma/schema.prisma`. Use `prisma migrate` for DB changes. Access Prisma client via `src/lib/prisma.js`.
-- **Client/Invoice Logic**: Shared logic for clients and invoices is in `src/lib/serverActions/clientAndInvoice.js`.
+## 1. Vue d’Ensemble
 
-## Developer Workflows
-- **Start dev server**: `npm run dev` (or `yarn dev`, `pnpm dev`, `bun dev`).
-- **Run migrations**: `npx prisma migrate dev` (see `prisma/migrations/`).
-- **Import accounts**: Run `node scripts/import-accounts.js` to load CSV data.
-- **PDF Generation**: Invoice PDFs are generated via API route at `src/app/api/invoice/[id]/pdf/route.js` and rendered with `src/components/InvoicePDF.jsx`.
+App Next.js (App Router) + Prisma/PostgreSQL couvrant : factures clients & fournisseurs, journal (partie double), trésorerie (mouvements, autorisations, avis bancaires), achats (PO + réception), stock & valorisation (CUMP), génération PDF unifiée. Schéma: `prisma/schema.prisma`. Logique métier: `src/lib/**`. API REST: `src/app/api/<resource>/route.js`. Server Actions uniquement pour anciens fetch/mutate composites (`src/lib/serverActions/`).
 
-## Project-Specific Conventions
-- **File Naming**: API routes use `route.js`, UI pages use `page.jsx` or `page.js`.
-- **Autocomplete**: Autocomplete components for accounts and client names are in `src/components/`.
-- **Invoice Numbering**: Next invoice number logic is in `src/app/api/invoices/next-number/route.js`.
-- **Status Types**: Invoice status types are managed via Prisma migrations.
+## 2. Essentiels Architecture / Métier
 
-## Integration Points
-- **Prisma**: All DB access via Prisma client (`src/lib/prisma.js`).
-- **CSV Import**: Accounts imported from `src/data/plan-comptable.csv` using `scripts/import-accounts.js`.
-- **PDF**: Invoice PDFs generated server-side, downloaded via UI button.
+- Prisma unique : toujours importer depuis `src/lib/prisma.js`.
+- Numérotation séquentielle : `nextSequence(prisma, name, prefix)` (zéro‑pad 6). Utilisé pour factures, PO, réceptions, voucherRef mouvements trésorerie, écritures journal (`JRN-`). Pas de compteur ad‑hoc.
+- Statut dérivé OVERDUE calculé (status PENDING + dueDate passée) — JAMAIS stocké.
+- Décimaux monétaires : convertir `Decimal` via `value?.toNumber?.() ?? 0` avant calcul / JSON.
+- TVA : récupérer comptes système via `getSystemAccounts()` (445700 collectée, 445660 déductible). Ne pas recréer.
+- Valorisation stock : maintenir coût moyen (CUMP) dans `revalueInventory.js` / `inventory.js` pour tout mouvement affectant le stock.
+- Facture fournisseur : n’autoriser la création liée à un BC que lorsque toutes les lignes sont reçues (`PurchaseOrder.status === 'RECEIVED'` ou `CLOSED`).
 
-## Examples
-- To add a new API route for a resource, create a folder in `src/app/api/[resource]/[action]/route.js`.
-- To update DB schema, edit `prisma/schema.prisma` and run migrations.
-- To add a new UI page, create a folder in `src/app/[resource]/[action]/page.jsx`.
+## 3. Pipeline PDF Unifiée
 
-## References
-- See `README.md` for basic setup and dev server instructions.
-- See `prisma/schema.prisma` and `prisma/migrations/` for DB structure.
-- See `src/lib/serverActions/` for shared business logic.
+Générateur serveur unique multi‑pages pour factures client & fournisseur. Scripts de vérif : `smoke-pdf.js`, `test-multirate-vat-pdf.js`. Support : multi-taux TVA récap, watermark BROUILLON, bloc identité société. ENV : `COMPANY_NAME`, `COMPANY_ADDRESS` (\n), `COMPANY_SIRET`, `COMPANY_VAT`, optionnel `PDF_FONT_PATH`. Toujours valider avec smoke (en-tête `%PDF-`).
+
+## 4. Scripts Clés (Cycle & Intégrité)
+
+- Initialisation / seed : `verify-prisma.js`, `import-accounts.js`, `seed-minimal.js`.
+- Backfills : `backfill-invoice-paid-outstanding.js`, `backfill-journal-entry.js`, `backfill-vat-multirate-add-only.js`, `backfill-line-links.js`.
+- Valorisation : `revalue-inventory-cump.js`.
+- Intégrité / audits : `audit-invoice-balances.js`, `ledger-balance.js`, `audit-ledger-lettering.js`, `regression-line-links.js`, `test-journal-integrity.js`, `test-inventory-flow.js`, `test-money-movement.js`, `test-ledger-lettering.js`.
+- Rebuild journal : `rebuild-journal.js` (balances uniquement) après changement schéma / règles de poste.
+
+## 5. Règles Journal / Postings
+
+- Créer toutes les `Transaction` puis appeler `finalizeBatchToJournal` (même transaction Prisma) pour produire une `JournalEntry` équilibrée (`JRN-######`).
+- Invariant : Σ débit = Σ crédit ; échec = ligne manquante (TVA / client / fournisseur / stock).
+- Nouveaux postings : étendre les enums, ne pas recycler un kind existant.
+
+## 6. Checklist Implémentation Fonction
+
+1. Étendre schéma si nécessaire → `npx prisma migrate dev`.
+2. Ajouter / modifier route API (`src/app/api/<ressource>/route.js`) avec seuls verbes requis.
+3. Utiliser `nextSequence` pour toute nouvelle référence externe / voucher.
+4. Convertir Decimals, calculer OVERDUE transitoire, normaliser dates (heure 00:00).
+5. Si impact stock / trésorerie : mouvements + valorisation + postings journal cohérents.
+6. Ajouter/adapter un script smoke ou test reflétant la nouvelle règle métier (ex : `npm run test:ledger-lettering` après toute évolution touchant le lettrage).
+
+## 7. Conventions & Pièges
+
+- Préfixes scripts : backfill-, audit-, smoke-, test- (viser idempotence).
+- Ne PAS recréer l’ancien chemin navbar `src/components/NavbarDropdown.jsx`; utiliser `src/components/navbar/`.
+- Pas de refactor de style massif ; diffs centrés métier.
+- Toujours étendre enums (ex: `MoneyMovementKind`) plutôt que renommer.
+
+## 8. Fichiers Référence Rapide
+
+`prisma/schema.prisma` (modèles & enums) • `src/lib/sequence.js` (numérotation) • `src/lib/systemAccounts.js` (comptes TVA) • `src/lib/revalueInventory.js` & `src/lib/inventory.js` (CUMP) • `src/lib/journal.js` (finalisation) • `src/lib/serverActions/clientAndInvoice.js` (legacy) • `scripts/*` (ops & intégrité).
+
+## 9. Porte de Sécurité (Safe Gate)
+
+Après modification impactante : `verify-prisma.js` → migration → `smoke-health.js` → script test représentatif (`test-inventory-flow.js`, `test-journal-integrity.js`, `test-ledger-lettering.js`) → audits (`audit-invoice-balances.js`, `ledger-balance.js`, `audit-ledger-lettering.js`) si impact financier ou lettrage.
 
 ---
 
-**Feedback requested:** Please review and suggest improvements or clarify any missing/unclear sections for your workflow.
+Besoin d’un approfondissement (mapping stock, TVA multi-taux interne, rebuild journal) ? Précisez et ce guide sera étendu.

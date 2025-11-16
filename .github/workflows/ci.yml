@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -46,6 +46,12 @@ jobs:
 
       - name: Run migrations
         run: npx prisma migrate deploy
+
+      - name: Seed minimal data
+        run: node scripts/seed-minimal.js
+
+      - name: Seed payroll config
+        run: node scripts/seed-payroll-config.js
 
       - name: Import plan comptable
         run: node scripts/import-accounts.js
@@ -68,6 +74,12 @@ jobs:
 
       - name: Regression tests
         run: npm run test:regression
+
+      - name: Payroll bonus test
+        run: npm run test:payroll-bonus
+
+      - name: Payroll cost centers test
+        run: npm run test:payroll-cost-centers
 
       - name: Upload regression artifact (log)
         if: always()

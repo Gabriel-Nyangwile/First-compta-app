@@ -1,0 +1,26 @@
+{
+  "help": {
+    "firstName": "Enter the first name as on official documents",
+    "lastName": "Enter the family name",
+    "email": "Valid email address (e.g. name@domain.tld)",
+    "phone": "Phone number (local or international format, e.g. +33...)",
+    "address": "Full postal address",
+    "gender": "Gender (Male / Female)",
+    "maritalStatus": "Marital status (Single / Married)",
+    "childrenUnder18": "Number of children under 18 (integer, minimum 0)",
+    "socialSecurityNumber": "Social Security number (15 digits)",
+    "birthDate": "Date of birth",
+    "hireDate": "Hire date",
+    "endDate": "Contract end date (if applicable)",
+    "employeeNumber": "Leave blank for automatic generation (e.g. A-000123)",
+    "employeeNumberEdit": "Unique employee number",
+    "contractType": "Contract type (CDI / CDD / CI)",
+    "status": "Employee status (e.g. ACTIVE)",
+    "positionId": "Position held (determines category from pay scale)",
+    "category": "Category from position pay scale (read only)"
+  },
+  "locale": {
+    "switchToFr": "FR",
+    "switchToEn": "EN"
+  }
+}

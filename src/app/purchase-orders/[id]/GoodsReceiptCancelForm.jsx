@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { authorizedFetch } from "@/lib/apiClient";
 
 export default function GoodsReceiptCancelForm({ receipt }) {
   const [expanded, setExpanded] = useState(false);
@@ -31,7 +32,7 @@ export default function GoodsReceiptCancelForm({ receipt }) {
         payload.lines = Array.from(selected);
       }
       if (reason.trim()) payload.reason = reason.trim();
-      const res = await fetch(`/api/goods-receipts/${receipt.id}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await authorizedFetch(`/api/goods-receipts/${receipt.id}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur annulation');
       setMessage(data.message || 'Annulé');

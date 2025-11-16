@@ -1,6 +1,9 @@
 import { absoluteUrl } from '@/lib/url';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import Script from 'next/script';
+import AuthorizedFetchBridge from '@/components/AuthorizedFetchBridge';
+
+const CLIENT_ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'GLN-2709';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,10 +38,18 @@ async function fetchProducts() {
 export default async function CreatePurchaseOrderPage() {
   const [suppliers, products] = await Promise.all([fetchSuppliers(), fetchProducts()]);
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-6 space-y-6 max-w-5xl">
+      <AuthorizedFetchBridge />
+      <div className="flex items-center justify-between">
+        <Link href="/purchase-orders" className="text-sm text-blue-600 underline hover:text-blue-800 transition-colors">
+          &larr; Retour aux bons de commande
+        </Link>
+        <Link href="/sales-orders" className="text-sm text-blue-600 underline hover:text-blue-800 transition-colors">
+          Voir commandes clients
+        </Link>
+      </div>
       <h1 className="text-xl font-semibold">Créer un bon de commande</h1>
       <POForm suppliers={suppliers} products={products} />
-      {/* Modal rendu hors du <form> principal pour éviter form imbriqué */}
       <ProductModal />
       <div><Link href="/purchase-orders" className="text-sm text-blue-600 underline">← Retour liste</Link></div>
     </div>
@@ -65,47 +76,49 @@ function LineRow({ index, products }) {
 
 function POForm({ suppliers, products }) {
   return (
-  <form className="space-y-4" data-po-form noValidate>
-      <div className="grid md:grid-cols-3 gap-4">
-        <label className="text-xs space-y-1">
-          <span className="font-medium">Fournisseur</span>
-          <select name="supplierId" className="border px-2 py-1 rounded text-sm" required>
-            <option value="">Choisir…</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </label>
-        <label className="text-xs space-y-1">
-          <span className="font-medium">Date attendue</span>
-          <input type="date" name="expectedDate" className="border px-2 py-1 rounded text-sm" />
-        </label>
-        <label className="text-xs space-y-1">
-          <span className="font-medium">Devise</span>
-          <input type="text" name="currency" defaultValue="EUR" className="border px-2 py-1 rounded text-sm" />
-        </label>
+    <form className="space-y-6" data-po-form noValidate>
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="space-y-2">
+          <label className="text-xs space-y-1 block">
+            <span className="font-medium">Fournisseur</span>
+            <select name="supplierId" className="border px-2 py-1 rounded text-sm w-full" required>
+              <option value="">Choisir…</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </label>
+          <label className="text-xs space-y-1 block">
+            <span className="font-medium">Date attendue</span>
+            <input type="date" name="expectedDate" className="border px-2 py-1 rounded text-sm w-full" />
+          </label>
+          <label className="text-xs space-y-1 block">
+            <span className="font-medium">Devise</span>
+            <input type="text" name="currency" defaultValue="EUR" className="border px-2 py-1 rounded text-sm w-full" />
+          </label>
+        </div>
+        <div className="md:col-span-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold tracking-wide uppercase text-gray-600">Lignes</h2>
+            <div className="flex gap-2 flex-wrap">
+              <button type="button" data-add-line className="px-2 py-1 text-xs bg-blue-600 text-white rounded">+ Ligne</button>
+              <button type="button" data-open-product-modal className="px-2 py-1 text-xs bg-indigo-600 text-white rounded">+ Produit</button>
+              <button type="button" data-refresh-products className="px-2 py-1 text-xs bg-slate-500 text-white rounded">Rafraîchir</button>
+            </div>
+          </div>
+          <div className="space-y-3" data-lines-container>
+            <LineRow index={0} products={products} />
+          </div>
+          <div className="text-[10px] text-gray-500">Remplir au moins une ligne (quantité & prix requis). Une ligne vide à la fin sera ajoutée automatiquement.</div>
+        </div>
       </div>
       <label className="text-xs space-y-1 block">
         <span className="font-medium">Notes</span>
-        <textarea name="notes" rows={2} className="border w-full rounded px-2 py-1 text-sm" />
+        <textarea name="notes" rows={3} className="border px-2 py-1 rounded text-sm w-full" placeholder="Instructions, commentaires..."></textarea>
       </label>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="font-medium text-sm">Lignes</h2>
-          <div className="flex gap-2">
-            <button type="button" data-add-line className="px-3 py-1 bg-blue-600 text-white text-xs rounded">Ajouter ligne</button>
-            <button type="button" data-open-product-modal className="px-3 py-1 bg-emerald-600 text-white text-xs rounded">Nouveau produit</button>
-            <button type="button" data-refresh-products className="px-3 py-1 bg-slate-500 text-white text-xs rounded" title="Rafraîchir la liste produits">↻</button>
-          </div>
-        </div>
-        <div className="space-y-2" data-lines-container>
-          <LineRow index={0} products={products} />
-        </div>
-        <div className="text-[10px] text-gray-500">Remplir au moins une ligne (quantité & prix requis).</div>
-      </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-2">
         <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded text-sm">Créer</button>
         <a href="/purchase-orders" className="px-4 py-2 bg-gray-300 rounded text-sm">Annuler</a>
       </div>
-      <div id="toast-container" className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+      <div id="toast-container" className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none" />
       <ClientEnhancements />
     </form>
   );
@@ -116,8 +129,22 @@ function POForm({ suppliers, products }) {
 // Client-side enhancements component (islands approach)
 function ClientEnhancements() {
   return (
-    <script dangerouslySetInnerHTML={{ __html: `
+    <Script id="po-form-enhancements" strategy="afterInteractive">{`
       (function(){
+        try {
+        const ADMIN_TOKEN = ${JSON.stringify(CLIENT_ADMIN_TOKEN)};
+        const fallbackAuthorizedFetch = (input, init = {}) => {
+          const baseHeaders = (init && init.headers) ? init.headers : {};
+          const headers = Object.assign({}, baseHeaders, { "x-admin-token": ADMIN_TOKEN });
+          return fetch(input, Object.assign({}, init || {}, { headers }));
+        };
+        const protectedFetch = (input, init = {}) => {
+          const fn = window.authorizedFetch;
+          if (typeof fn === 'function') {
+            return fn(input, init);
+          }
+          return fallbackAuthorizedFetch(input, init);
+        };
         const form = document.querySelector('[data-po-form]');
         if(!form) return;
         const container = form.querySelector('[data-lines-container]');
@@ -296,7 +323,7 @@ function ClientEnhancements() {
           const btn = productForm.querySelector('button[type="submit"]');
           btn.disabled = true; btn.textContent='Création…';
           try {
-            const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const res = await protectedFetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const data = await res.json();
             if(!res.ok){
               showToast(data.error || 'Erreur création produit','error');
@@ -403,7 +430,7 @@ function ClientEnhancements() {
             };
             // Debug console pour diagnostic
             console.debug('[PO SUBMIT] Payload', payload);
-            const resp = await fetch('/api/purchase-orders', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            const resp = await protectedFetch('/api/purchase-orders', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
             if(!resp.ok){
               let msg = 'Erreur création PO';
               try { const d = await resp.json(); if(d?.error) msg = d.error; } catch {}
@@ -421,8 +448,11 @@ function ClientEnhancements() {
             if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = submitBtn.dataset.originalText || 'Créer'; }
           }
         });
+        } catch(err){
+          console.error('[PO] Init error', err);
+        }
       })();
-    ` }} />
+    `}</Script>
   );
 }
 

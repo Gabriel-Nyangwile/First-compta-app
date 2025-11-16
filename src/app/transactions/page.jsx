@@ -103,6 +103,29 @@ export default function TransactionsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Grouping by date with per-kind subtotals
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const t of transactions) {
+      const d = new Date(t.date); const key = d.toISOString().slice(0,10);
+      if (!map.has(key)) map.set(key, { date: key, rows: [], debit:0, credit:0, kinds:{} });
+      const g = map.get(key);
+      g.rows.push(t);
+      const amt = Number(t.amount);
+      if (t.direction === 'DEBIT') g.debit += amt; else g.credit += amt;
+      if (!g.kinds[t.kind]) g.kinds[t.kind] = { debit:0, credit:0 };
+      if (t.direction === 'DEBIT') g.kinds[t.kind].debit += amt; else g.kinds[t.kind].credit += amt;
+    }
+    // Preserve original order (transactions sorted desc by date) -> iterate in that order adding groups
+    const orderedKeys = [];
+    for (const t of transactions) {
+      const key = new Date(t.date).toISOString().slice(0,10); if (!orderedKeys.includes(key)) orderedKeys.push(key);
+    }
+    return orderedKeys.map(k => map.get(k));
+  }, [transactions]);
+
+  const [groupView, setGroupView] = useState(true);
+
   return (
     <main className="min-h-screen pt-24 px-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
@@ -169,6 +192,10 @@ export default function TransactionsPage() {
                   <input type="checkbox" checked={showLineDescription} onChange={e=>setShowLineDescription(e.target.checked)} />
                   <span>Col. description</span>
                 </label>
+                <label className="flex items-center gap-2 text-xs bg-white border rounded px-2 py-1 shadow-sm">
+                  <input type="checkbox" checked={groupView} onChange={e=>setGroupView(e.target.checked)} />
+                  <span>Groupé par date</span>
+                </label>
                 <button onClick={exportCsv} disabled={!transactions.length} className="bg-green-600 disabled:opacity-40 text-white px-4 py-2 rounded text-sm">Export CSV</button>
                 <select value={pageSize} onChange={e=>{ setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded px-2 py-1 text-sm">
                   {[20,50,100].map(s => <option key={s} value={s}>{s}/page</option>)}
@@ -176,45 +203,103 @@ export default function TransactionsPage() {
               </div>
             </div>
             <div className="bg-white rounded shadow border overflow-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-100 border-b">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Compte</th>
-                    <th className="px-3 py-2 text-left">Libellé</th>
-                    {showLineDescription && <th className="px-3 py-2 text-left">Article (description ligne)</th>}
-                    <th className="px-3 py-2 text-left">Pièces justificatives</th>
-                    <th className="px-3 py-2 text-right">Débit</th>
-                    <th className="px-3 py-2 text-right">Crédit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && (
-                    <tr><td colSpan={showLineDescription ? 8 : 7} className="px-3 py-4 text-center text-gray-500">Chargement…</td></tr>
-                  )}
-                  {!loading && !transactions.length && (
-                    <tr><td colSpan={showLineDescription ? 8 : 7} className="px-3 py-4 text-center text-gray-400">Aucune écriture</td></tr>
-                  )}
-                  {!loading && transactions.map(t => {
-                    const isDebit = t.direction === 'DEBIT';
-                    return (
-                      <tr key={t.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 whitespace-nowrap">{new Date(t.date).toLocaleDateString()}</td>
-                        <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{t.account?.number}</td>
-                        <td className="px-3 py-2">{t.account?.label || t.description || ''}</td>
-                        {showLineDescription && (
-                          <td className="px-3 py-2 text-xs text-gray-700 max-w-xs whitespace-pre-wrap">
-                            {(['SALE','PURCHASE'].includes(t.kind) ? (t.lineDescription || '-') : '-')}
-                          </td>
-                        )}
-                        <td className="px-3 py-2">{t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || ''}</td>
-                        <td className={`px-3 py-2 text-right ${isDebit ? 'text-blue-700 font-medium':''}`}>{isDebit ? <Amount value={t.amount} /> : ''}</td>
-                        <td className={`px-3 py-2 text-right ${!isDebit ? 'text-orange-700 font-medium':''}`}>{!isDebit ? <Amount value={t.amount} /> : ''}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {!groupView && (
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-100 border-b">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Date</th>
+                      <th className="px-3 py-2 text-left">Compte</th>
+                      <th className="px-3 py-2 text-left">Libellé</th>
+                      {showLineDescription && <th className="px-3 py-2 text-left">Article (description ligne)</th>}
+                      <th className="px-3 py-2 text-left">Pièce</th>
+                      <th className="px-3 py-2 text-right">Débit</th>
+                      <th className="px-3 py-2 text-right">Crédit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && (<tr><td colSpan={showLineDescription ? 8:7} className="px-3 py-4 text-center">Chargement…</td></tr>)}
+                    {!loading && !transactions.length && (<tr><td colSpan={showLineDescription ? 8:7} className="px-3 py-4 text-center text-gray-400">Aucune écriture</td></tr>)}
+                    {!loading && transactions.map(t => {
+                      const isDebit = t.direction === 'DEBIT';
+                      return (
+                        <tr key={t.id} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2 whitespace-nowrap">{new Date(t.date).toLocaleDateString()}</td>
+                          <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{t.account?.number}</td>
+                          <td className="px-3 py-2">{t.account?.label || t.description || ''}</td>
+                          {showLineDescription && <td className="px-3 py-2 text-xs max-w-xs whitespace-pre-wrap">{(['SALE','PURCHASE'].includes(t.kind)?(t.lineDescription||'-'):'-')}</td>}
+                          <td className="px-3 py-2">{t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || ''}</td>
+                          <td className={`px-3 py-2 text-right ${isDebit ? 'text-blue-700 font-medium':''}`}>{isDebit ? <Amount value={t.amount} />:''}</td>
+                          <td className={`px-3 py-2 text-right ${!isDebit ? 'text-orange-700 font-medium':''}`}>{!isDebit ? <Amount value={t.amount} />:''}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {groupView && (
+                <div className="divide-y">
+                  {loading && <div className="p-4 text-center text-gray-500">Chargement…</div>}
+                  {!loading && !grouped.length && <div className="p-4 text-center text-gray-400">Aucune écriture</div>}
+                  {!loading && grouped.map(group => (
+                    <div key={group.date} className="p-0">
+                      <div className={`px-3 py-2 flex items-center gap-4 text-sm font-semibold ${ (group.debit-group.credit)!==0 ? 'bg-red-200' : 'bg-gray-100' }`}>
+                        <span>{new Date(group.date).toLocaleDateString()}</span>
+                        <span className="ml-auto flex items-center gap-3">
+                          <span>Débits: <Amount value={group.debit} /></span>
+                          <span>Crédits: <Amount value={group.credit} /></span>
+                          <span>Delta: <span className={(group.debit-group.credit)!==0?'text-red-700':'text-green-700'}>{(group.debit-group.credit).toFixed(2)}</span></span>
+                          {(group.debit-group.credit)!==0 && <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded">ALERTE</span>}
+                        </span>
+                      </div>
+                      <table className="min-w-full text-xs">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="px-2 py-1 text-left w-20">Compte</th>
+                            <th className="px-2 py-1 text-left">Libellé</th>
+                            {showLineDescription && <th className="px-2 py-1 text-left">Article</th>}
+                            <th className="px-2 py-1 text-left">Pièce</th>
+                            <th className="px-2 py-1 text-left">Kind</th>
+                            <th className="px-2 py-1 text-right">Débit</th>
+                            <th className="px-2 py-1 text-right">Crédit</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.rows.map(r => {
+                            const isDebit = r.direction === 'DEBIT';
+                            return (
+                              <tr key={r.id} className="border-b hover:bg-gray-50">
+                                <td className="px-2 py-1 font-mono text-[10px] whitespace-nowrap">{r.account?.number}</td>
+                                <td className="px-2 py-1">{r.account?.label || r.description || ''}</td>
+                                {showLineDescription && <td className="px-2 py-1 max-w-xs whitespace-pre-wrap">{(['SALE','PURCHASE'].includes(r.kind)?(r.lineDescription||'-'):'-')}</td>}
+                                <td className="px-2 py-1">{r.invoice?.invoiceNumber || r.incomingInvoice?.entryNumber || ''}</td>
+                                <td className="px-2 py-1 text-[10px]">{r.kind}</td>
+                                <td className={`px-2 py-1 text-right ${isDebit?'text-blue-700 font-medium':''}`}>{isDebit ? <Amount value={r.amount} />:''}</td>
+                                <td className={`px-2 py-1 text-right ${!isDebit?'text-orange-700 font-medium':''}`}>{!isDebit ? <Amount value={r.amount} />:''}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-gray-50">
+                            <td colSpan={showLineDescription?5:4} className="px-2 py-1 text-right font-semibold">Sous-total</td>
+                            <td className="px-2 py-1 text-right font-semibold"><Amount value={group.debit} /></td>
+                            <td className="px-2 py-1 text-right font-semibold"><Amount value={group.credit} /></td>
+                          </tr>
+                          <tr>
+                            <td colSpan={showLineDescription?7:6} className="px-2 py-1">
+                              <div className="flex flex-wrap gap-3 text-[10px]">
+                                {Object.entries(group.kinds).map(([k,v]) => (
+                                  <span key={k} className="bg-gray-200 rounded px-2 py-0.5">{k}: D {v.debit.toFixed(2)} / C {v.credit.toFixed(2)}</span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-4 text-sm">
               <button disabled={page<=1} onClick={()=>setPage(p=>p-1)} className="px-3 py-1 border rounded disabled:opacity-40">Précédent</button>

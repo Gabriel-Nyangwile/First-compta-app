@@ -1,3 +1,43 @@
+// =============================
+//  Paiements & Rapprochements
+// =============================
+
+enum PaymentMode {
+  VIREMENT
+  CHEQUE
+  ESPECES
+  CB
+  AUTRE
+}
+
+model Payment {
+  id          String    @id @default(uuid())
+  date        DateTime  @default(now())
+  amount      Decimal   @db.Decimal(14, 2)
+  mode        PaymentMode
+  reference   String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  // Relations multi-factures
+  invoiceLinks PaymentInvoiceLink[]
+}
+
+model PaymentInvoiceLink {
+  id          String   @id @default(uuid())
+  paymentId   String
+  invoiceId   String?
+  incomingInvoiceId String?
+  amount      Decimal @db.Decimal(14, 2)
+  payment     Payment @relation(fields: [paymentId], references: [id])
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  incomingInvoice IncomingInvoice? @relation(fields: [incomingInvoiceId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([incomingInvoiceId])
+}
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -20,6 +60,25 @@ model Sequence {
 
 // prisma/schema.prisma
 
+// =============================
+//  Lettrage (Lettering)
+// =============================
+
+model Lettering {
+  id        String   @id @default(uuid())
+  matched   Boolean  @default(false)
+  anomaly   Boolean  @default(false)
+  invoiceId String?  // Facture client liée
+  supplierId String? // Fournisseur lié
+  amount    Decimal  @db.Decimal(14, 2)
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // Index pour recherche rapide
+  @@index([invoiceId])
+  @@index([supplierId])
+}
+
 // Les entités sont définies avec le mot-clé "model"
 // Chaque entité aura un champ "id" unique et généré automatiquement
 // Le mot-clé "@@map" permet d'utiliser des noms de tables différents dans la base de données si nécessaire
@@ -30,33 +89,40 @@ enum UserRole {
 }
 
 model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  password          String? // Hash du mot de passe (null si provider OAuth)
-  username          String?
-  role              UserRole  @default(USER)
-  provider          String? // ex: 'google', 'github', 'credentials'
-  providerAccountId String? // id du compte provider
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  invoices          Invoice[]
-  clients           Client[]
+  id                        String            @id @default(uuid())
+  email                     String            @unique
+  password                  String? // Hash du mot de passe (null si provider OAuth)
+  username                  String?
+  role                      UserRole          @default(USER)
+  provider                  String? // ex: 'google', 'github', 'credentials'
+  providerAccountId         String? // id du compte provider
+  isActive                  Boolean           @default(true)
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  invoices                  Invoice[]
+  clients                   Client[]
+  GoodsReceipt              GoodsReceipt[]
+  returnOrders              ReturnOrder[]
+  requestedStockWithdrawals StockWithdrawal[] @relation("StockWithdrawalRequestedBy")
+  inventoryCounts           InventoryCount[]  @relation("InventoryCountCreatedBy")
 }
 
 model Account {
-  id                   String                @id @default(uuid())
-  number               String                @unique
-  label                String
-  description          String?
-  transactions         Transaction[]
+  id                     String                @id @default(uuid())
+  number                 String                @unique
+  label                  String
+  description            String?
+  transactions           Transaction[]
   // Relation bidirectionnelle
-  invoiceLines         InvoiceLine[]
-  clients              Client[]              @relation("AccountToClients")
-  suppliers            Supplier[]            @relation("AccountToSuppliers")
+  invoiceLines           InvoiceLine[]
+  clients                Client[]              @relation("AccountToClients")
+  suppliers              Supplier[]            @relation("AccountToSuppliers")
   // Lignes des factures fournisseurs reçues
-  incomingInvoiceLines IncomingInvoiceLine[]
-  moneyAccounts        MoneyAccount[]
+  incomingInvoiceLines   IncomingInvoiceLine[]
+  moneyAccounts          MoneyAccount[]
+  inventoryProducts      Product[]             @relation("ProductInventoryAccount")
+  stockVariationProducts Product[]             @relation("ProductStockVariationAccount")
+  salesOrderLines        SalesOrderLine[]
 }
 
 enum ClientCategory {
@@ -81,6 +147,7 @@ model Client {
   user         User?          @relation(fields: [userId], references: [id])
   // Relation inverse vers Transaction (pour l'écriture client)
   transactions Transaction[]
+  salesOrders  SalesOrder[]
 }
 
 model Supplier {
@@ -102,6 +169,8 @@ model Supplier {
   // Phase 3 back-relations
   purchaseOrders   PurchaseOrder[]
   goodsReceipts    GoodsReceipt[]
+  returnOrders     ReturnOrder[]
+  moneyMovements   MoneyMovement[]
 }
 
 enum PaymentStatus {
@@ -126,6 +195,25 @@ enum TransactionKind {
   PAYABLE // Dette fournisseur (401)
   PURCHASE // Charge (6xx)
   VAT_DEDUCTIBLE // TVA déductible (44566)
+  ADJUSTMENT // Ajustement / OD (compte d'attente 471 ou écriture corrective)
+  PURCHASE_RETURN // Retour fournisseur (réduction achats / stocks)
+  INVENTORY_ASSET // Variation de stock : débit compte 31x
+  STOCK_VARIATION // Variation de stock : crédit compte 603/730
+  SALARY_EXPENSE // Charge salaire brut (6611/6612)
+  EMPLOYER_SOCIAL_EXPENSE // Charges sociales employeur (6641/6642)
+  EMPLOYEE_SOCIAL_WITHHOLDING // Retenue CNSS part salarié (4313)
+  EMPLOYER_SOCIAL_WITHHOLDING // Provision CNSS part employeur (4313)
+  INCOME_TAX_WITHHOLDING // Retenue IPR (4421)
+  OTHER_PAYROLL_LIABILITY // Autres retenues (ONEM/INPP etc. 4331/4332)
+  WAGES_PAYABLE // Salaire net à payer (4220)
+  BENEFIT_IN_KIND_EXPENSE // Avantages en nature (6617)
+  SALARY_BONUS_EXPENSE // Primes & gratifications (6612)
+}
+
+enum TransactionLetterStatus {
+  UNMATCHED
+  PARTIAL
+  MATCHED
 }
 
 // =============================
@@ -143,7 +231,11 @@ enum JournalSourceType {
   MONEY_MOVEMENT
   AUTHORIZATION
   BANK_ADVICE
+  MANUAL
   OTHER
+  RETURN_ORDER
+  GOODS_RECEIPT
+  PAYROLL
 }
 
 model JournalEntry {
@@ -159,6 +251,7 @@ model JournalEntry {
   updatedAt   DateTime          @updatedAt
   // Relations
   lines       Transaction[]
+  inventoryCountLines InventoryCountLine[] @relation("InventoryCountJournal")
 
   @@index([sourceType, sourceId])
   @@index([date])
@@ -214,7 +307,7 @@ enum FlowDirection {
 
 enum AuthorizationStatus {
   DRAFT
-  AUTHORIZED
+  APPROVED
   EXECUTED
   CANCELLED
 }
@@ -267,28 +360,33 @@ model Invoice {
   moneyMovements         MoneyMovement[]
   treasuryAuthorizations TreasuryAuthorization[]
   bankAdvices            BankAdvice[]
+  paymentLinks           PaymentInvoiceLink[]
 }
 
 model InvoiceLine {
-  id             String          @id @default(uuid())
-  description    String
-  unitOfMeasure  String
-  quantity       Decimal         @db.Decimal(10, 2)
-  unitPrice      Decimal         @db.Decimal(10, 2)
-  lineTotal      Decimal         @db.Decimal(10, 2)
+  id               String          @id @default(uuid())
+  description      String
+  unitOfMeasure    String
+  quantity         Decimal         @db.Decimal(10, 2)
+  unitPrice        Decimal         @db.Decimal(10, 2)
+  lineTotal        Decimal         @db.Decimal(10, 2)
   // Taux de TVA spécifique à la ligne (si différent du taux global de la facture)
-  vatRate        Decimal?        @db.Decimal(4, 2)
-  accountId      String
-  account        Account         @relation(fields: [accountId], references: [id])
-  invoiceId      String
-  invoice        Invoice         @relation(fields: [invoiceId], references: [id])
+  vatRate          Decimal?        @db.Decimal(4, 2)
+  accountId        String
+  account          Account         @relation(fields: [accountId], references: [id])
+  invoiceId        String
+  invoice          Invoice         @relation(fields: [invoiceId], references: [id])
   // Nouvelles écritures liées à cette ligne (SALE)
-  transactions   Transaction[]
+  transactions     Transaction[]
   // Phase 2: lien optionnel vers un produit stocké
-  productId      String?
-  product        Product?        @relation(fields: [productId], references: [id])
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id])
   // Relation inverse mouvements de stock (sorties vente)
-  stockMovements StockMovement[]
+  stockMovements   StockMovement[]
+  salesOrderLineId String?
+  salesOrderLine   SalesOrderLine? @relation("SalesOrderLineInvoiceLines", fields: [salesOrderLineId], references: [id])
+
+  @@index([salesOrderLineId])
 }
 
 // =============================
@@ -301,6 +399,102 @@ enum StockMovementType {
   ADJUST
 }
 
+enum StockMovementStage {
+  STAGED
+  AVAILABLE
+}
+
+enum ProductStockNature {
+  PURCHASED
+  PRODUCED
+}
+
+enum StockWithdrawalType {
+  PRODUCTION
+  SALE
+  SAMPLE
+  OTHER
+}
+
+enum StockWithdrawalStatus {
+  DRAFT
+  CONFIRMED
+  POSTED
+  CANCELLED
+}
+
+enum InventoryCountStatus {
+  DRAFT
+  COMPLETED
+  POSTED
+  CANCELLED
+}
+
+enum InventoryCountLineStatus {
+  PENDING
+  COUNTED
+  POSTED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  FULFILLED
+}
+
+model SalesOrder {
+  id                String           @id @default(uuid())
+  number            String           @unique
+  status            SalesOrderStatus @default(DRAFT)
+  clientId          String?
+  client            Client?          @relation(fields: [clientId], references: [id])
+  issueDate         DateTime         @default(now())
+  expectedShipDate  DateTime?
+  confirmedAt       DateTime?
+  fulfilledAt       DateTime?
+  currency          String           @default("EUR")
+  notes             String?
+  customerReference String?
+  totalQuantity     Decimal          @default(0) @db.Decimal(14, 3)
+  totalAmountHt     Decimal          @default(0) @db.Decimal(16, 2)
+  totalAmountTtc    Decimal          @default(0) @db.Decimal(16, 2)
+  totalVatAmount    Decimal          @default(0) @db.Decimal(16, 2)
+  lines             SalesOrderLine[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model SalesOrderLine {
+  id                   String                @id @default(uuid())
+  salesOrderId         String
+  salesOrder           SalesOrder            @relation(fields: [salesOrderId], references: [id])
+  productId            String
+  product              Product               @relation(fields: [productId], references: [id])
+  accountId            String?
+  account              Account?              @relation(fields: [accountId], references: [id])
+  description          String?
+  unit                 String?
+  quantityOrdered      Decimal               @db.Decimal(14, 3)
+  quantityAllocated    Decimal               @default(0) @db.Decimal(14, 3)
+  quantityShipped      Decimal               @default(0) @db.Decimal(14, 3)
+  quantityInvoiced     Decimal               @default(0) @db.Decimal(14, 3)
+  unitPrice            Decimal               @db.Decimal(14, 4)
+  vatRate              Decimal?              @db.Decimal(4, 2)
+  lineTotalHt          Decimal               @db.Decimal(16, 2)
+  lineTotalTtc         Decimal               @db.Decimal(16, 2)
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  stockWithdrawalLines StockWithdrawalLine[]
+  invoiceLines         InvoiceLine[]         @relation("SalesOrderLineInvoiceLines")
+
+  @@index([salesOrderId])
+  @@index([productId])
+}
+
 // =============================
 //  Phase 3 Achats & Réception
 // =============================
@@ -308,6 +502,7 @@ enum StockMovementType {
 enum PurchaseOrderStatus {
   DRAFT
   APPROVED
+  STAGED
   PARTIAL
   RECEIVED
   CLOSED
@@ -316,7 +511,31 @@ enum PurchaseOrderStatus {
 
 enum GoodsReceiptStatus {
   OPEN
+  QC_PENDING
+  PUTAWAY_PENDING
+  PUTAWAY_DONE
   CLOSED
+}
+
+enum GoodsReceiptLineStatus {
+  RECEIVED
+  QC_PENDING
+  QC_REJECTED
+  PUTAWAY_PENDING
+  PUTAWAY_DONE
+}
+
+enum QualityStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ReturnOrderStatus {
+  DRAFT
+  SENT
+  CLOSED
+  CANCELLED
 }
 
 model PurchaseOrder {
@@ -331,6 +550,7 @@ model PurchaseOrder {
   notes            String?
   lines            PurchaseOrderLine[]
   goodsReceipts    GoodsReceipt[]
+  returnOrders     ReturnOrder[]
   statusLogs       PurchaseOrderStatusLog[]
   // Back relation vers factures fournisseurs reçues liées
   incomingInvoices IncomingInvoice[]
@@ -342,76 +562,125 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderLine {
-  id                String             @id @default(uuid())
-  purchaseOrderId   String
-  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
-  productId         String
-  product           Product            @relation(fields: [productId], references: [id])
-  orderedQty        Decimal            @db.Decimal(14, 3)
-  receivedQty       Decimal            @default(0) @db.Decimal(14, 3)
-  unitPrice         Decimal            @db.Decimal(14, 4)
-  vatRate           Decimal?           @db.Decimal(4, 2)
-  goodsReceiptLines GoodsReceiptLine[]
-  version           Int                @default(0)
-  createdAt         DateTime           @default(now())
+  id                   String                @id @default(uuid())
+  purchaseOrderId      String
+  purchaseOrder        PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
+  productId            String
+  product              Product               @relation(fields: [productId], references: [id])
+  orderedQty           Decimal               @db.Decimal(14, 3)
+  receivedQty          Decimal               @default(0) @db.Decimal(14, 3)
+  returnedQty          Decimal               @default(0) @db.Decimal(14, 3)
+  billedQty            Decimal               @default(0) @db.Decimal(14, 3)
+  unitPrice            Decimal               @db.Decimal(14, 4)
+  expectedUnitPrice    Decimal?              @db.Decimal(14, 4)
+  vatRate              Decimal?              @db.Decimal(4, 2)
+  expectedVatRate      Decimal?              @db.Decimal(4, 2)
+  goodsReceiptLines    GoodsReceiptLine[]
+  version              Int                   @default(0)
+  createdAt            DateTime              @default(now())
+  incomingInvoiceLines IncomingInvoiceLine[]
+  returnOrderLines     ReturnOrderLine[]
 
   @@index([purchaseOrderId])
   @@index([productId])
 }
 
 model GoodsReceipt {
-  id              String             @id @default(uuid())
-  number          String             @unique
-  supplierId      String?
-  supplier        Supplier?          @relation(fields: [supplierId], references: [id])
-  receiptDate     DateTime           @default(now())
-  status          GoodsReceiptStatus @default(OPEN)
-  notes           String?
-  lines           GoodsReceiptLine[]
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
-  createdAt       DateTime           @default(now())
+  id                 String             @id @default(uuid())
+  number             String             @unique
+  supplierId         String?
+  supplier           Supplier?          @relation(fields: [supplierId], references: [id])
+  receiptDate        DateTime           @default(now())
+  status             GoodsReceiptStatus @default(OPEN)
+  qcCompletedAt      DateTime?
+  putAwayCompletedAt DateTime?
+  closedAt           DateTime?
+  notes              String?
+  lines              GoodsReceiptLine[]
+  purchaseOrderId    String?
+  purchaseOrder      PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  returnOrders       ReturnOrder[]
+  createdById        String?
+  createdBy          User?              @relation(fields: [createdById], references: [id])
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @default(now()) @updatedAt
 
   @@index([supplierId])
   @@index([status])
+  @@index([createdById])
 }
 
 model GoodsReceiptLine {
-  id                  String             @id @default(uuid())
-  goodsReceiptId      String
-  goodsReceipt        GoodsReceipt       @relation(fields: [goodsReceiptId], references: [id])
-  purchaseOrderLineId String?
-  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
-  productId           String
-  product             Product            @relation(fields: [productId], references: [id])
-  qtyReceived         Decimal            @db.Decimal(14, 3)
-  unitCost            Decimal            @db.Decimal(14, 4)
-  stockMovements      StockMovement[]
-  createdAt           DateTime           @default(now())
+  id                   String                 @id @default(uuid())
+  goodsReceiptId       String
+  goodsReceipt         GoodsReceipt           @relation(fields: [goodsReceiptId], references: [id])
+  purchaseOrderLineId  String?
+  purchaseOrderLine    PurchaseOrderLine?     @relation(fields: [purchaseOrderLineId], references: [id])
+  productId            String
+  product              Product                @relation(fields: [productId], references: [id])
+  status               GoodsReceiptLineStatus @default(RECEIVED)
+  qcStatus             QualityStatus          @default(PENDING)
+  qcCheckedAt          DateTime?
+  qcNote               String?
+  qtyReceived          Decimal                @db.Decimal(14, 3)
+  qtyPutAway           Decimal                @default(0) @db.Decimal(14, 3)
+  unitCost             Decimal                @db.Decimal(14, 4)
+  putAwayAt            DateTime?
+  storageLocationId    String?
+  storageLocation      StorageLocation?       @relation(fields: [storageLocationId], references: [id])
+  stockMovements       StockMovement[]
+  returnOrderLines     ReturnOrderLine[]
+  createdAt            DateTime               @default(now())
+  incomingInvoiceLines IncomingInvoiceLine[]
 
   @@index([goodsReceiptId])
   @@index([productId])
+  @@index([storageLocationId])
+}
+
+model StorageLocation {
+  id                String             @id @default(uuid())
+  code              String             @unique
+  label             String?
+  description       String?
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  goodsReceiptLines GoodsReceiptLine[]
 }
 
 model Product {
-  id                 String              @id @default(uuid())
-  sku                String              @unique
-  name               String
-  description        String?
-  unit               String              @default("PCS")
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id                      String                @id @default(uuid())
+  sku                     String                @unique
+  name                    String
+  description             String?
+  unit                    String                @default("PCS")
+  isActive                Boolean               @default(true)
+  minStockAlert           Decimal?              @db.Decimal(14, 3)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  stockNature             ProductStockNature    @default(PURCHASED)
+  inventoryAccountId      String?
+  inventoryAccount        Account?              @relation("ProductInventoryAccount", fields: [inventoryAccountId], references: [id])
+  stockVariationAccountId String?
+  stockVariationAccount   Account?              @relation("ProductStockVariationAccount", fields: [stockVariationAccountId], references: [id])
   // Relations
-  invoiceLines       InvoiceLine[]
+  invoiceLines            InvoiceLine[]
   // Phase 3 back-relations
-  purchaseOrderLines PurchaseOrderLine[]
-  goodsReceiptLines  GoodsReceiptLine[]
-  inventory          ProductInventory?
+  purchaseOrderLines      PurchaseOrderLine[]
+  goodsReceiptLines       GoodsReceiptLine[]
+  inventory               ProductInventory?
   // Mouvements de stock liés (entrées/sorties)
-  stockMovements     StockMovement[]
+  stockMovements          StockMovement[]
+  incomingInvoiceLines    IncomingInvoiceLine[]
+  returnOrderLines        ReturnOrderLine[]
+  stockWithdrawalLines    StockWithdrawalLine[]
+  salesOrderLines         SalesOrderLine[]
+  inventoryCountLines     InventoryCountLine[] @relation("InventoryCountProduct")
 
   @@index([name])
+  @@index([inventoryAccountId])
+  @@index([stockVariationAccountId])
 }
 
 // Agrégat courant de stock (pour valorisation moyenne pondérée - CUMP)
@@ -419,67 +688,175 @@ model ProductInventory {
   productId String   @id
   product   Product  @relation(fields: [productId], references: [id])
   qtyOnHand Decimal  @default(0) @db.Decimal(18, 3)
-  avgCost   Decimal? @db.Decimal(14, 4) // coût moyen courant; null si aucune entrée
+  qtyStaged Decimal  @default(0) @db.Decimal(18, 3)
+  avgCost   Decimal? @db.Decimal(14, 4) // cout moyen courant; null si aucune entree
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model StockMovement {
-  id                 String            @id @default(uuid())
-  date               DateTime          @default(now())
-  productId          String
-  product            Product           @relation(fields: [productId], references: [id])
-  movementType       StockMovementType
-  quantity           Decimal           @db.Decimal(14, 3)
-  unitCost           Decimal?          @db.Decimal(14, 4)
-  totalCost          Decimal?          @db.Decimal(16, 2)
-  // Provenance Facture (sortie vente) — optionnel
-  invoiceLineId      String?
-  invoiceLine        InvoiceLine?      @relation(fields: [invoiceLineId], references: [id])
-  // Provenance Réception (entrée)
-  // Référence justificative unique (générée via Sequence). Étape 1: optionnelle pour backfill.
-  voucherRef         String?           @unique
-  goodsReceiptLineId String?
-  goodsReceiptLine   GoodsReceiptLine? @relation(fields: [goodsReceiptLineId], references: [id])
-  // Futur: stockWithdrawalLineId, inventoryAdjustmentId
-  createdAt          DateTime          @default(now())
+  id                    String               @id @default(uuid())
+  date                  DateTime             @default(now())
+  productId             String
+  product               Product              @relation(fields: [productId], references: [id])
+  movementType          StockMovementType
+  stage                 StockMovementStage   @default(AVAILABLE)
+  quantity              Decimal              @db.Decimal(14, 3)
+  unitCost              Decimal?             @db.Decimal(14, 4)
+  totalCost             Decimal?             @db.Decimal(16, 2)
+  // Provenance facture (sortie vente) - optionnel
+  invoiceLineId         String?
+  invoiceLine           InvoiceLine?         @relation(fields: [invoiceLineId], references: [id])
+  // Provenance reception (entree)
+  // Reference justificative unique (generee via Sequence). Optionnel pour backfill.
+  voucherRef            String?              @unique
+  goodsReceiptLineId    String?
+  goodsReceiptLine      GoodsReceiptLine?    @relation(fields: [goodsReceiptLineId], references: [id])
+  returnOrderLineId     String?
+  returnOrderLine       ReturnOrderLine?     @relation(fields: [returnOrderLineId], references: [id])
+  stockWithdrawalLineId String?
+  stockWithdrawalLine   StockWithdrawalLine? @relation(fields: [stockWithdrawalLineId], references: [id])
+  inventoryCountLineId  String? @unique
+  inventoryCountLine    InventoryCountLine?  @relation("InventoryCountMovement", fields: [inventoryCountLineId], references: [id])
+  // Futur: inventoryAdjustmentId
+  createdAt             DateTime             @default(now())
 
   @@index([productId, date])
   @@index([movementType])
+  @@index([stage])
+  @@index([returnOrderLineId])
+  @@index([stockWithdrawalLineId])
+  @@index([inventoryCountLineId])
 }
 
+model StockWithdrawal {
+  id                    String                @id @default(uuid())
+  number                String                @unique
+  type                  StockWithdrawalType
+  status                StockWithdrawalStatus @default(DRAFT)
+  requestedById         String?
+  requestedBy           User?                 @relation("StockWithdrawalRequestedBy", fields: [requestedById], references: [id])
+  requestedAt           DateTime              @default(now())
+  confirmedAt           DateTime?
+  postedAt              DateTime?
+  notes                 String?
+  manufacturingOrderRef String?
+  salesOrderRef         String?
+  lines                 StockWithdrawalLine[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([requestedById])
+}
+
+model StockWithdrawalLine {
+  id                String          @id @default(uuid())
+  stockWithdrawalId String
+  stockWithdrawal   StockWithdrawal @relation(fields: [stockWithdrawalId], references: [id])
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id])
+  quantity          Decimal         @db.Decimal(14, 3)
+  unitCost          Decimal?        @db.Decimal(14, 4)
+  totalCost         Decimal?        @db.Decimal(16, 2)
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  movements         StockMovement[]
+  salesOrderLineId  String?
+  salesOrderLine    SalesOrderLine? @relation(fields: [salesOrderLineId], references: [id])
+
+  @@index([stockWithdrawalId])
+  @@index([productId])
+  @@index([salesOrderLineId])
+}
+
+model InventoryCount {
+  id          String               @id @default(uuid())
+  number      String               @unique
+  status      InventoryCountStatus @default(DRAFT)
+  countedAt   DateTime?
+  postedAt    DateTime?
+  notes       String?
+  createdById String?
+  createdBy   User?                @relation("InventoryCountCreatedBy", fields: [createdById], references: [id])
+  lines       InventoryCountLine[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model InventoryCountLine {
+  id               String                  @id @default(uuid())
+  inventoryCountId String
+  inventoryCount   InventoryCount          @relation(fields: [inventoryCountId], references: [id])
+  productId        String
+  product          Product                 @relation("InventoryCountProduct", fields: [productId], references: [id])
+  status           InventoryCountLineStatus @default(PENDING)
+  snapshotQty      Decimal                 @db.Decimal(18, 3)
+  snapshotAvgCost  Decimal?                @db.Decimal(14, 4)
+  countedQty       Decimal?                @db.Decimal(18, 3)
+  deltaQty         Decimal?                @db.Decimal(18, 3)
+  deltaValue       Decimal?                @db.Decimal(16, 2)
+  journalEntryId   String?                 @unique
+  journalEntry     JournalEntry?           @relation("InventoryCountJournal", fields: [journalEntryId], references: [id])
+  movement         StockMovement?          @relation("InventoryCountMovement")
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([inventoryCountId])
+  @@index([productId])
+  @@index([status])
+}
 model Transaction {
-  id                    String               @id @default(uuid())
-  date                  DateTime             @default(now())
-  nature                String               @default("payment") // 'payment' ou 'receipt'
+  id                    String                  @id @default(uuid())
+  date                  DateTime                @default(now())
+  nature                String                  @default("payment") // 'payment' ou 'receipt'
   description           String?
-  amount                Decimal              @db.Decimal(10, 2)
+  amount                Decimal                 @db.Decimal(10, 2)
   direction             TransactionDirection
   kind                  TransactionKind
   accountId             String
-  account               Account              @relation(fields: [accountId], references: [id])
+  account               Account                 @relation(fields: [accountId], references: [id])
+  // Ventilation analytique (centres de coûts)
+  costCenterId          String?
+  costCenter            CostCenter?             @relation(fields: [costCenterId], references: [id])
   invoiceId             String?
-  invoice               Invoice?             @relation(fields: [invoiceId], references: [id])
+  invoice               Invoice?                @relation(fields: [invoiceId], references: [id])
   // Nouvelle traçabilité ligne de facture client
   invoiceLineId         String?
-  invoiceLine           InvoiceLine?         @relation(fields: [invoiceLineId], references: [id])
+  invoiceLine           InvoiceLine?            @relation(fields: [invoiceLineId], references: [id])
   clientId              String?
-  client                Client?              @relation(fields: [clientId], references: [id])
+  client                Client?                 @relation(fields: [clientId], references: [id])
   supplierId            String?
-  supplier              Supplier?            @relation(fields: [supplierId], references: [id])
+  supplier              Supplier?               @relation(fields: [supplierId], references: [id])
   incomingInvoiceId     String?
-  incomingInvoice       IncomingInvoice?     @relation(fields: [incomingInvoiceId], references: [id])
+  incomingInvoice       IncomingInvoice?        @relation(fields: [incomingInvoiceId], references: [id])
   // Nouvelle traçabilité ligne de facture fournisseur reçue
   incomingInvoiceLineId String?
-  incomingInvoiceLine   IncomingInvoiceLine? @relation(fields: [incomingInvoiceLineId], references: [id])
+  incomingInvoiceLine   IncomingInvoiceLine?    @relation(fields: [incomingInvoiceLineId], references: [id])
   // Lien facultatif vers mouvement de trésorerie
   moneyMovementId       String?
-  moneyMovement         MoneyMovement?       @relation(fields: [moneyMovementId], references: [id])
+  moneyMovement         MoneyMovement?          @relation(fields: [moneyMovementId], references: [id])
   // Phase 1: JournalEntry (nullable le temps du backfill)
   journalEntryId        String?
-  journalEntry          JournalEntry?        @relation(fields: [journalEntryId], references: [id])
+  journalEntry          JournalEntry?           @relation(fields: [journalEntryId], references: [id])
+  returnOrderId         String?
+  returnOrder           ReturnOrder?            @relation("ReturnOrderTransactions", fields: [returnOrderId], references: [id])
+  // Lettrage client/fournisseur
+  letterRef             String?
+  letterStatus          TransactionLetterStatus @default(UNMATCHED)
+  letteredAmount        Decimal                 @default(0) @db.Decimal(10, 2)
+  letteredAt            DateTime?
 
   @@index([journalEntryId])
+  @@index([returnOrderId])
+  @@index([letterRef])
+  @@index([letterStatus])
+  @@index([costCenterId])
 }
 
 // =============================
@@ -524,23 +901,85 @@ model IncomingInvoice {
   // Optionnel: empêcher doublon du même numéro fournisseur pour un même supplier
   // @@unique([supplierId, supplierInvoiceNumber])  // (commenté car supplierId nullable)
   @@index([purchaseOrderId])
+    paymentLinks           PaymentInvoiceLink[]
 }
 
 model IncomingInvoiceLine {
-  id                String          @id @default(uuid())
-  description       String
-  unitOfMeasure     String
-  quantity          Decimal         @db.Decimal(10, 2)
-  unitPrice         Decimal         @db.Decimal(10, 2)
-  lineTotal         Decimal         @db.Decimal(10, 2)
-  // Taux de TVA spécifique à la ligne (si multi-taux sur facture fournisseur)
-  vatRate           Decimal?        @db.Decimal(4, 2)
-  accountId         String
-  account           Account         @relation(fields: [accountId], references: [id])
-  incomingInvoiceId String
-  incomingInvoice   IncomingInvoice @relation(fields: [incomingInvoiceId], references: [id])
-  // Nouvelles écritures liées à cette ligne (PURCHASE)
-  transactions      Transaction[]
+  id                  String             @id @default(uuid())
+  description         String
+  unitOfMeasure       String
+  quantity            Decimal            @db.Decimal(10, 2)
+  unitPrice           Decimal            @db.Decimal(10, 2)
+  lineTotal           Decimal            @db.Decimal(10, 2)
+  // Taux de TVA specifique a la ligne (si multi-taux sur facture fournisseur)
+  vatRate             Decimal?           @db.Decimal(4, 2)
+  accountId           String
+  account             Account            @relation(fields: [accountId], references: [id])
+  incomingInvoiceId   String
+  incomingInvoice     IncomingInvoice    @relation(fields: [incomingInvoiceId], references: [id])
+  productId           String?
+  product             Product?           @relation(fields: [productId], references: [id])
+  goodsReceiptLineId  String?
+  goodsReceiptLine    GoodsReceiptLine?  @relation(fields: [goodsReceiptLineId], references: [id])
+  purchaseOrderLineId String?
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  // Nouvelles ecritures liees a cette ligne (PURCHASE)
+  transactions        Transaction[]
+
+  @@index([goodsReceiptLineId])
+  @@index([purchaseOrderLineId])
+  @@index([productId])
+  
+}
+
+model ReturnOrder {
+  id              String            @id @default(uuid())
+  number          String            @unique
+  status          ReturnOrderStatus @default(DRAFT)
+  supplierId      String
+  supplier        Supplier          @relation(fields: [supplierId], references: [id])
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  goodsReceiptId  String?
+  goodsReceipt    GoodsReceipt?     @relation(fields: [goodsReceiptId], references: [id])
+  reason          String?
+  issuedAt        DateTime          @default(now())
+  sentAt          DateTime?
+  closedAt        DateTime?
+  notes           String?
+  createdById     String?
+  createdBy       User?             @relation(fields: [createdById], references: [id])
+  lines           ReturnOrderLine[]
+  transactions    Transaction[]     @relation("ReturnOrderTransactions")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([supplierId])
+  @@index([purchaseOrderId])
+  @@index([goodsReceiptId])
+  @@index([status])
+}
+
+model ReturnOrderLine {
+  id                  String             @id @default(uuid())
+  returnOrderId       String
+  returnOrder         ReturnOrder        @relation(fields: [returnOrderId], references: [id])
+  productId           String
+  product             Product            @relation(fields: [productId], references: [id])
+  goodsReceiptLineId  String?
+  goodsReceiptLine    GoodsReceiptLine?  @relation(fields: [goodsReceiptLineId], references: [id])
+  purchaseOrderLineId String?
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  quantity            Decimal            @db.Decimal(14, 3)
+  unitCost            Decimal            @db.Decimal(14, 4)
+  reason              String?
+  stockMovements      StockMovement[]
+  createdAt           DateTime           @default(now())
+
+  @@index([returnOrderId])
+  @@index([goodsReceiptLineId])
+  @@index([purchaseOrderLineId])
+  @@index([productId])
 }
 
 // =============================
@@ -580,6 +1019,8 @@ model MoneyMovement {
   invoice           Invoice?               @relation(fields: [invoiceId], references: [id])
   incomingInvoiceId String?
   incomingInvoice   IncomingInvoice?       @relation(fields: [incomingInvoiceId], references: [id])
+  supplierId        String?
+  supplier          Supplier?              @relation(fields: [supplierId], references: [id])
   description       String?
   // Référence justificative unique (générée via Sequence) (désormais obligatoire après backfill)
   voucherRef        String                 @unique
@@ -594,6 +1035,7 @@ model MoneyMovement {
   @@index([moneyAccountId, date])
   @@index([invoiceId])
   @@index([incomingInvoiceId])
+  @@index([supplierId])
   @@index([authorizationId])
   @@index([bankAdviceId])
 }
@@ -674,3 +1116,261 @@ model BankAdvice {
   @@index([adviceType, adviceDate])
   @@index([authorizationId])
 }
+
+  // =============================
+  //  Gestion du Personnel
+  // =============================
+
+  enum Gender {
+    MALE
+    FEMALE
+  }
+
+  enum MaritalStatus {
+    SINGLE
+    MARRIED
+  }
+
+  // Type de contrat (enum simplifiée pour identification sociale)
+  enum ContractType {
+    CDI
+    CDD
+    CI
+  }
+
+  enum EmployeeStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+    EXITED
+  }
+
+  model Employee {
+    id            String    @id @default(uuid())
+    firstName     String
+    lastName      String
+    email         String?   @unique
+    phone         String?
+    address       String?
+    birthDate     DateTime?
+    hireDate      DateTime?
+    endDate       DateTime?
+    employeeNumber String?  @unique // matricule
+    gender        Gender?
+    maritalStatus MaritalStatus?
+    childrenUnder18 Int? @default(0)
+    socialSecurityNumber String?
+    contractType ContractType?
+    // Snapshot de la catégorie barémique au moment de l'affectation du poste (A1, A2, ...)
+    category     String?
+    status        EmployeeStatus @default(ACTIVE)
+    positionId    String?
+    position      Position? @relation(fields: [positionId], references: [id])
+    history       EmployeeHistory[]
+    payslips      Payslip[]
+    costAllocations EmployeeCostAllocation[]
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+  }
+
+  model Position {
+    id          String     @id @default(uuid())
+    title       String
+    description String?
+    baremeId    String?
+    bareme      Bareme?    @relation(fields: [baremeId], references: [id])
+    employees   Employee[]
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
+  }
+
+
+  model EmployeeHistory {
+    id          String    @id @default(uuid())
+    employeeId  String
+    employee    Employee  @relation(fields: [employeeId], references: [id])
+    changeDate  DateTime  @default(now())
+    changeType  String
+    details     String?
+  }
+
+  // Barème salarial de référence (catégorie, tension, salaire légal)
+  model Bareme {
+    id          String     @id @default(uuid())
+    category    String
+    categoryDescription String?
+    tension     String?
+    legalSalary Decimal    @db.Decimal(10, 2)
+    positions   Position[]
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
+  }
+
+  // =============================
+  //  Paie (Schema de base)
+  // =============================
+
+  enum PayrollPeriodStatus {
+    OPEN
+    LOCKED
+    POSTED
+  }
+
+  enum PayslipLineKind {
+    BASE
+    PRIME
+    RETENUE
+    COTISATION_SALARIALE
+    COTISATION_PATRONALE
+    IMPOT
+    AJUSTEMENT
+  }
+
+  enum ContributionBaseKind {
+    BASE_SALAIRE
+    BRUT
+    IMPOSABLE
+  }
+
+  enum TaxRoundingMode {
+    NONE
+    BANKERS
+    UP
+    DOWN
+  }
+
+  model PayrollPeriod {
+    id       String               @id @default(uuid())
+    ref      String               @unique
+    month    Int
+    year     Int
+    status   PayrollPeriodStatus  @default(OPEN)
+    openedAt DateTime             @default(now())
+    lockedAt DateTime?
+    postedAt DateTime?
+    payslips Payslip[]
+
+    @@index([year, month])
+  }
+
+  model Payslip {
+    id         String          @id @default(uuid())
+    ref        String          @unique
+    employeeId String
+    employee   Employee        @relation(fields: [employeeId], references: [id])
+    periodId   String
+    period     PayrollPeriod   @relation(fields: [periodId], references: [id])
+    lines      PayslipLine[]
+    grossAmount Decimal        @default(0) @db.Decimal(16, 2)
+    netAmount   Decimal        @default(0) @db.Decimal(16, 2)
+    locked      Boolean        @default(false)
+    costCenterAllocations PayslipCostAllocation[]
+
+    createdAt  DateTime        @default(now())
+    updatedAt  DateTime        @updatedAt
+
+    @@index([employeeId])
+    @@index([periodId])
+  }
+
+  model PayslipLine {
+    id         String          @id @default(uuid())
+    payslipId  String
+    payslip    Payslip         @relation(fields: [payslipId], references: [id])
+    kind       PayslipLineKind
+    code       String
+    label      String
+    amount     Decimal         @db.Decimal(16, 2)
+    baseAmount Decimal?        @db.Decimal(16, 2)
+    order      Int             @default(0)
+    meta       Json?
+  }
+
+  model ContributionScheme {
+    id            String               @id @default(uuid())
+    code          String               @unique
+    label         String
+    employeeRate  Decimal              @db.Decimal(8, 6) // 0-1
+    employerRate  Decimal              @db.Decimal(8, 6) // 0-1
+    ceiling       Decimal?             @db.Decimal(16, 2)
+    baseKind      ContributionBaseKind
+    active        Boolean              @default(true)
+    // extensions
+    meta          Json?
+    createdAt     DateTime             @default(now())
+    updatedAt     DateTime             @updatedAt
+  }
+
+  model TaxRule {
+    id           String           @id @default(uuid())
+    code         String           @unique
+    label        String
+    brackets     Json             // [{max:null|number, rate, deduction?}]
+    roundingMode TaxRoundingMode  @default(BANKERS)
+    active       Boolean          @default(true)
+    meta         Json?
+    createdAt    DateTime         @default(now())
+    updatedAt    DateTime         @updatedAt
+  }
+
+  model CostCenter {
+    id       String  @id @default(uuid())
+    code     String  @unique
+    label    String
+    active   Boolean @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    // relations
+    payslipAllocations PayslipCostAllocation[]
+    employeeAllocations EmployeeCostAllocation[]
+    transactions       Transaction[]
+  }
+
+  model EmployeeCostAllocation {
+    id           String   @id @default(uuid())
+    employeeId   String
+    employee     Employee @relation(fields: [employeeId], references: [id])
+    costCenterId String
+    costCenter   CostCenter @relation(fields: [costCenterId], references: [id])
+    percent      Decimal  @db.Decimal(8, 6) // 0-1
+
+    @@index([employeeId])
+    @@index([costCenterId])
+  }
+
+  model PayslipCostAllocation {
+    id           String     @id @default(uuid())
+    payslipId    String
+    payslip      Payslip    @relation(fields: [payslipId], references: [id])
+    costCenterId String
+    costCenter   CostCenter @relation(fields: [costCenterId], references: [id])
+    percent      Decimal    @db.Decimal(8, 6)
+    amount       Decimal    @db.Decimal(16, 2)
+
+    @@index([payslipId])
+    @@index([costCenterId])
+  }
+
+  model PayrollAccountMapping {
+    id            String  @id @default(uuid())
+    code          String  @unique
+    accountId     String?
+    accountNumber String?
+    label         String
+    active        Boolean @default(true)
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+  }
+
+  model FxRate {
+    id            String   @id @default(uuid())
+    date          DateTime
+    baseCurrency  String
+    quoteCurrency String
+    rate          Decimal  @db.Decimal(18, 8)
+    source        String?
+    createdAt     DateTime @default(now())
+
+    @@unique([date, baseCurrency, quoteCurrency])
+  }
+

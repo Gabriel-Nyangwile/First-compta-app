@@ -53,22 +53,28 @@ export async function GET(req, { params }) {
   if (invoice.supplier?.address) { y -= 12; page.drawText(invoice.supplier.address, { x: 40, y, size: 10, font }); }
 
   y -= 25;
+  // On conserve quantité / prix bruts (numériques) pour calcul précis multi-taux.
+  // Chaque ligne peut porter son propre taux (l.vatRate) sinon fallback global invoice.vat.
   const rows = invoice.lines.map(l => ({
     accountNumber: l.account?.number || '',
     description: l.description,
     quantity: Number(l.quantity).toFixed(2),
     unitPrice: Number(l.unitPrice).toFixed(2) + ' €',
-    total: Number(l.lineTotal).toFixed(2) + ' €'
+    total: Number(l.lineTotal).toFixed(2) + ' €',
+    rawQuantity: Number(l.quantity),
+    rawUnitPrice: Number(l.unitPrice),
+    vatRate: (l.vatRate !== undefined && l.vatRate !== null) ? Number(l.vatRate) : undefined
   }));
   const tableRes = drawLinesTable(rows, { pdfDoc, page, font, startY: y, onNewPage: (p, pageIndex) => {
     drawPageHeader(p, { font, title: 'FACTURE FOURNISSEUR (suite)', subTitle: invoice.entryNumber });
     drawCompanyIdentity(p, { font, company });
   }});
   let { lastPage, y: afterLinesY, pages } = tableRes;
+  // Recalcule breakdown en respectant réellement le vatRate de chaque ligne.
   const breakdown = computeVatBreakdown(rows.map(r => ({
-    quantity: Number(r.quantity),
-    unitPrice: Number(r.unitPrice.replace(' €','')),
-    vatRate: undefined // incoming invoice pour l'instant: utilisera vat global si pas stocké ligne
+    quantity: r.rawQuantity,
+    unitPrice: r.rawUnitPrice,
+    vatRate: r.vatRate // peut être undefined => fallback defaultRate plus bas
   })), { defaultRate: Number(invoice.vat || 0) });
   drawRecapBreakdown({ page: lastPage, font, startY: afterLinesY, breakdown });
 

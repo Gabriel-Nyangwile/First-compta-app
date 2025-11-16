@@ -1,12 +1,14 @@
-'use client'; // <-- Ceci est crucial, indique que c'est un Client Component
+"use client"; // <-- Ceci est crucial, indique que c'est un Client Component
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { updateInvoiceStatus } from '@/lib/serverActions/clientAndInvoice';
-import Amount from './Amount';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { updateInvoiceStatus } from "@/lib/serverActions/clientAndInvoice";
+import Amount from "./Amount";
 
 export default function InvoiceListItem({ invoice }) {
   const router = useRouter();
+  const [toast, setToast] = useState("");
   // Fonctions utilitaires locales pour le rendu
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
@@ -14,34 +16,99 @@ export default function InvoiceListItem({ invoice }) {
 
   const getStatusClasses = (status) => {
     switch (status) {
-      case 'PAID': return 'bg-green-100 text-green-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'OVERDUE': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "PAID":
+        return "bg-green-100 text-green-800";
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800";
+      case "OVERDUE":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
+  const [loadingCancel, setLoadingCancel] = useState(false);
+  async function handleCancel(e) {
+    e.preventDefault();
+    if (loadingCancel) return;
+    if (!window.confirm("Annuler cette facture ? Cette opération est irréversible.")) return;
+    setLoadingCancel(true);
+    try {
+      const res = await fetch("/api/invoices", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: invoice.id, status: "CANCELLED" }),
+      });
+      if (res.ok) {
+        setToast("Facture annulée avec succès.");
+  setTimeout(() => setToast(""), 3500);
+        router.refresh?.();
+        router.replace?.(window.location.pathname);
+      } else {
+        const payload = await res.json().catch(() => ({}));
+        alert(payload.error || "Erreur lors de l'annulation.");
+      }
+    } catch (err) {
+      alert("Erreur réseau ou serveur.");
+    } finally {
+      setLoadingCancel(false);
+    }
+  }
+
   return (
-    <li className="p-4 bg-white rounded-md shadow-sm border border-gray-100 flex justify-between items-start hover:bg-gray-50 transition duration-150 ease-in-out">
+    <li className="p-4 bg-white rounded-md shadow-sm border border-gray-100 flex justify-between items-start hover:bg-gray-50 transition duration-150 ease-in-out relative">
+      {toast && (
+        <div className="absolute top-2 right-2 z-10 bg-green-600 text-white px-3 py-1 rounded shadow text-xs animate-fade-in">
+          {toast}
+        </div>
+      )}
       {/* Colonne principale cliquable (sans actions secondaires) */}
       <div className="flex-grow min-w-0">
         <div
           role="link"
           tabIndex={0}
           onClick={() => router.push(`/invoices/${invoice.id}`)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/invoices/${invoice.id}`); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              router.push(`/invoices/${invoice.id}`);
+            }
+          }}
           className="block focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-sm cursor-pointer"
           aria-label={`Ouvrir facture ${invoice.invoiceNumber}`}
         >
-          <p className="text-sm font-medium text-gray-900">N°: {invoice.invoiceNumber}</p>
-          {(() => { const total=Number(invoice.totalAmount||0); const paid=Number(invoice.paidAmount||0); const remaining = Number(invoice.outstandingAmount ?? (total - paid)); const pct = total>0 ? Math.min(100, Math.round(paid/total*100)) : 0; return (
-            <div className="text-xs text-gray-600 space-y-1">
-              <p>Montant: <Amount value={total} /> • Payé: <Amount value={paid}/> • Reste: <Amount value={remaining} /></p>
-              <div className="h-1.5 bg-gray-200 rounded overflow-hidden"><div className={"h-full " + (pct===100? 'bg-green-500':'bg-indigo-500')} style={{width:`${pct}%`}}></div></div>
-            </div>
-          ); })()}
+          <p className="text-sm font-medium text-gray-900">
+            N°: {invoice.invoiceNumber}
+          </p>
+          {(() => {
+            const total = Number(invoice.totalAmount || 0);
+            const paid = Number(invoice.paidAmount || 0);
+            const remaining = Number(invoice.outstandingAmount ?? total - paid);
+            const pct =
+              total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+            return (
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>
+                  Montant: <Amount value={total} /> • Payé:{" "}
+                  <Amount value={paid} /> • Reste: <Amount value={remaining} />
+                </p>
+                <div className="h-1.5 bg-gray-200 rounded overflow-hidden">
+                  <div
+                    className={
+                      "h-full " +
+                      (pct === 100 ? "bg-green-500" : "bg-indigo-500")
+                    }
+                    style={{ width: `${pct}%` }}
+                  ></div>
+                </div>
+              </div>
+            );
+          })()}
           <p className="text-xs text-gray-600 mt-1">
-            Client: <span className="font-semibold">{invoice.client ? invoice.client.name : 'N/A'}</span>
+            Client:{" "}
+            <span className="font-semibold">
+              {invoice.client ? invoice.client.name : "N/A"}
+            </span>
           </p>
           <p className="text-xs text-gray-500 mt-1">
             Émise le: {formatDate(invoice.issueDate)}
@@ -49,19 +116,44 @@ export default function InvoiceListItem({ invoice }) {
           <p className="text-xs text-gray-500">
             Échéance: {formatDate(invoice.dueDate)}
           </p>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 
             ${getStatusClasses(invoice.status)}`}
           >
-            {invoice.status === 'PAID' ? 'Payée' : 
-             invoice.status === 'PENDING' ? 'En attente' : 
-             invoice.status === 'PARTIAL' ? 'Partielle' : 'En retard'}
+            {invoice.status === "PAID"
+              ? "Payée"
+              : invoice.status === "PENDING"
+              ? "En attente"
+              : invoice.status === "PARTIAL"
+              ? "Partielle"
+              : invoice.status === "CANCELLED"
+              ? "Annulée"
+              : "En retard"}
           </span>
-          {Array.isArray(invoice.moneyMovements) && invoice.moneyMovements.length > 0 && (() => { 
-            const last = invoice.moneyMovements[invoice.moneyMovements.length - 1]; 
-            const multi = invoice.moneyMovements.length > 1;
-            return (
-              <p className="text-[10px] text-gray-500 mt-1">Dernière pièce: <Link href={`/treasury/movements/${last.id}`} className="font-mono underline text-indigo-600" onClick={(e) => e.stopPropagation()}>{last.voucherRef}</Link>{multi && <span className="ml-1 inline-block px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">×{invoice.moneyMovements.length}</span>}</p>
-            ); })()}
+          {Array.isArray(invoice.moneyMovements) &&
+            invoice.moneyMovements.length > 0 &&
+            (() => {
+              const last =
+                invoice.moneyMovements[invoice.moneyMovements.length - 1];
+              const multi = invoice.moneyMovements.length > 1;
+              return (
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Dernière pièce:{" "}
+                  <Link
+                    href={`/treasury/movements/${last.id}`}
+                    className="font-mono underline text-indigo-600"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {last.voucherRef}
+                  </Link>
+                  {multi && (
+                    <span className="ml-1 inline-block px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">
+                      ×{invoice.moneyMovements.length}
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
         </div>
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <a
@@ -72,8 +164,11 @@ export default function InvoiceListItem({ invoice }) {
           >
             Télécharger PDF
           </a>
-          {invoice.status !== 'PAID' && (
-            <form action={updateInvoiceStatus} className="flex items-center gap-2">
+          {invoice.status !== "PAID" && (
+            <form
+              action={updateInvoiceStatus}
+              className="flex items-center gap-2"
+            >
               <input type="hidden" name="invoiceId" value={invoice.id} />
               <input type="hidden" name="newStatus" value="PAID" />
               <button
@@ -84,8 +179,33 @@ export default function InvoiceListItem({ invoice }) {
               </button>
             </form>
           )}
-          {invoice.status !== 'PAID' && Number(invoice.outstandingAmount ?? (Number(invoice.totalAmount||0) - Number(invoice.paidAmount||0))) > 0 && (
-            <a href={`/treasury?quickInvoice=${invoice.id}`} className="text-xs text-emerald-600 underline">Encaisser restant</a>
+          {invoice.status !== "PAID" &&
+            Number(
+              invoice.outstandingAmount ??
+                Number(invoice.totalAmount || 0) -
+                  Number(invoice.paidAmount || 0)
+            ) > 0 && (
+              <a
+                href={`/treasury?quickInvoice=${invoice.id}`}
+                className="text-xs text-emerald-600 underline"
+              >
+                Encaisser restant
+              </a>
+            )}
+          {invoice.status !== "CANCELLED" && (
+            <button
+              type="button"
+              className={
+                "px-2 py-1 bg-red-600 text-white rounded-md text-xs transition duration-150 ease-in-out " +
+                (loadingCancel
+                  ? "opacity-60 cursor-not-allowed"
+                  : "hover:bg-red-700")
+              }
+              onClick={handleCancel}
+              disabled={loadingCancel}
+            >
+              {loadingCancel ? "Annulation..." : "Annuler"}
+            </button>
           )}
         </div>
       </div>
