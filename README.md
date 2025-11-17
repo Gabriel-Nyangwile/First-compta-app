@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)](#coverage)
+[![Latest Release](https://img.shields.io/github/v/release/Gabriel-Nyangwile/first-compta?display_name=tag&sort=semver)](https://github.com/Gabriel-Nyangwile/first-compta/releases)
 
 Lightweight double-entry accounting kernel (invoices, ledger transactions, VAT) built with Next.js App Router + Prisma. (Version française : voir `README.fr.md`).
 

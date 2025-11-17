@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)](#couverture)
+[![Dernière version](https://img.shields.io/github/v/release/Gabriel-Nyangwile/first-compta?display_name=tag&sort=semver&label=version)](https://github.com/Gabriel-Nyangwile/first-compta/releases)
 
 > Version française – Pour la version originale en anglais, voir `README.md`.
 
