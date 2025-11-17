@@ -604,6 +604,19 @@ Cette section documente officiellement la dépréciation du chemin legacy afin d
 
 Note: The sidebar used by the app is `src/components/sidebar/AuthSidebar.jsx` (canonical). The old `src/components/sidebar/Sidebar.jsx` has been removed to avoid duplication.
 
+## 16. Payroll (Beta)
+
+- Enable: set `ENABLE_PAYROLL=1` (default enabled when unset). Set `ENABLE_PAYROLL=0` to hide the module.
+- Menu: entries live in `AuthSidebar.jsx` under the “Paie” group (feature-flagged).
+- Pages:
+  - `GET /payroll/periods` — periods list
+  - `GET /payroll/periods/[ref]` — period detail with payslips
+  - `GET /payroll/employees` — payroll employees list
+  - `GET /payroll/payslips/[id]` — payslip detail
+  - `GET /payroll/run` — generation wizard (draft)
+- PDF: `GET /api/payroll/payslips/[id]/pdf` (placeholder; integrates with unified PDF pipeline later).
+- UI: all payroll pages include a `BackButton` header for consistent navigation.
+
 
 ## Coverage
 

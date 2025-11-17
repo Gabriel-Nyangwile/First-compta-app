@@ -135,6 +135,7 @@ Content-Type: application/json
   "address": "12 Rue Exemple, 75000 Paris"
 }
 ```
+ 
 Renvoie 201 avec JSON (email normalisé, compte client créé si besoin).
 
 Erreurs possibles :
@@ -382,4 +383,17 @@ Fallback : si la clé manque, `t(key)` renvoie la clé elle‑même → ajouter 
 ### 14.8 Notes de Migration
 
 Les anciens textes d'aide factorisés (`helpTexts.js`) ont été remplacés dans la page Employés. Étendre progressivement aux autres modules avant suppression totale des constantes legacy.
+
+## 15. Paie (Bêta)
+
+- Activation : définir `ENABLE_PAYROLL=1` (activé par défaut si non défini). Mettre `ENABLE_PAYROLL=0` pour masquer le module.
+- Menu : entrées dans `AuthSidebar.jsx` sous le groupe « Paie » (protégé par le feature flag).
+- Pages :
+  - `GET /payroll/periods` — liste des périodes
+  - `GET /payroll/periods/[ref]` — détail période + bulletins
+  - `GET /payroll/employees` — liste employés (paie)
+  - `GET /payroll/payslips/[id]` — détail bulletin
+  - `GET /payroll/run` — assistant de génération (brouillon)
+- PDF : `GET /api/payroll/payslips/[id]/pdf` (placeholder; intégration avec pipeline PDF unifié ultérieurement).
+- UI : toutes les pages paie incluent un `BackButton` en en‑tête pour une navigation cohérente.
 
