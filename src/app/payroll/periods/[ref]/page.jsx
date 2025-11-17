@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function PayrollPeriodDetail({ params }) {
   if (!featureFlags.payroll) return <div className="p-6">Module paie désactivé.</div>;
-  const ref = params.ref;
+  const { ref } = await params;
   const period = await prisma.payrollPeriod.findUnique({
     where: { ref },
     include: { payslips: { select: { id: true, ref: true, grossAmount: true, netAmount: true, locked: true, employee: { select: { firstName: true, lastName: true, employeeNumber: true } } } } }
