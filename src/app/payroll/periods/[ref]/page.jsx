@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
+import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export default async function PayrollPeriodDetail({ params }) {
   if (!period) return <div className="p-6">Période introuvable.</div>;
   return (
     <div className="p-6 space-y-4">
+      <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Période {period.ref}</h1>
       <div className="text-sm text-gray-600">Statut: {period.status}</div>
       <section className="space-y-2">

@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
+import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ export default async function PayrollEmployeesPage() {
   });
   return (
     <div className="p-6 space-y-4">
+      <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Employés (Paie)</h1>
       <table className="min-w-[520px] text-sm border">
         <thead>
