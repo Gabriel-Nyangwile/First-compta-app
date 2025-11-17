@@ -29,6 +29,8 @@ async function waitHealth(baseUrl, { timeoutMs=90000, intervalMs=1500 }={}) {
   const url = `${baseUrl}/api/health`;
   while (Date.now()-start < timeoutMs) {
     try { const r = await fetch(url); if (r.ok) { const j = await r.json().catch(()=>null); if (j && j.ok) return true; } } catch {}
+    // Fallback to root liveness if /api/health is not available
+    try { const root = await fetch(baseUrl); if (root.ok) return true; } catch {}
     await delay(intervalMs);
   }
   throw new Error('Health timeout');
@@ -70,6 +72,7 @@ async function run() {
   let devProc = null;
   let healthy = false;
   try { const r = await fetch(`${opts.baseUrl}/api/health`); if (r.ok) { const j = await r.json().catch(()=>null); healthy = !!(j&&j.ok); } } catch {}
+  if (!healthy) { try { const root = await fetch(opts.baseUrl); healthy = root.ok; } catch {} }
   if (!healthy && opts.startServer) {
     console.log('Starting dev server...');
     devProc = spawn(process.platform === 'win32' ? 'npm.cmd':'npm', ['run','dev'], { stdio: 'pipe', env: process.env });

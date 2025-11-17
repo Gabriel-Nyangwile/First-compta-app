@@ -3,6 +3,11 @@
 import assert from "assert";
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 
+function authHeaders() {
+  const t = process.env.ADMIN_TOKEN;
+  return t ? { "x-admin-token": t } : {};
+}
+
 async function json(res) {
   const t = await res.text();
   try {
@@ -15,7 +20,8 @@ async function json(res) {
 async function findAccount(prefixes) {
   for (const prefix of prefixes) {
     const res = await fetch(
-      BASE + "/api/account/search?query=" + encodeURIComponent(prefix)
+      BASE + "/api/account/search?query=" + encodeURIComponent(prefix),
+      { headers: { ...authHeaders() } }
     );
     if (!res.ok) {
       const body = await res.text();
@@ -41,7 +47,7 @@ async function main() {
   // Create product
   let r = await fetch(BASE + "/api/products", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
       sku: "HTTPTEST-" + Date.now(),
       name: "Produit HTTP",
@@ -55,7 +61,7 @@ async function main() {
   // Stock adjust +10 at cost 3.5
   r = await fetch(BASE + "/api/stock-adjustments", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ productId: prod.id, qty: 10, unitCost: 3.5 }),
   });
   let adj = await json(r);
@@ -63,7 +69,7 @@ async function main() {
   console.log("Adjustment IN ok");
   // Create invoice with OUT 4 units (simulate: need an account id; we skip invoice if missing account)
   // Minimal fallback: search any account for line
-  const accRes = await fetch(BASE + "/api/account/search?query=7");
+  const accRes = await fetch(BASE + "/api/account/search?query=7", { headers: { ...authHeaders() } });
   const accounts = await accRes.json();
   const firstAcc = accounts?.[0];
   if (!firstAcc) {
@@ -90,7 +96,7 @@ async function main() {
     };
     r = await fetch(BASE + "/api/invoices", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(invBody),
     });
     const invData = await json(r);
@@ -98,7 +104,7 @@ async function main() {
     else console.log("Invoice created", invData.invoiceNumber);
   }
   // Margins endpoint
-  r = await fetch(BASE + "/api/margins");
+  r = await fetch(BASE + "/api/margins", { headers: { ...authHeaders() } });
   const margins = await json(r);
   assert(r.ok, margins.error);
   console.log(

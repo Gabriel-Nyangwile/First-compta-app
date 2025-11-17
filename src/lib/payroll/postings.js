@@ -12,6 +12,15 @@
 import prisma from '../prisma.js';
 import { finalizeBatchToJournal } from '../journal.js';
 
+async function getNatExpCostCenters(tx) {
+  const centers = await tx.costCenter.findMany({
+    where: { code: { in: ['NAT', 'EXP'] } },
+    select: { id: true, code: true },
+  });
+  const map = new Map(centers.map(c => [c.code, c.id]));
+  return { NAT: map.get('NAT') || null, EXP: map.get('EXP') || null };
+}
+
 function toNumber(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
@@ -65,12 +74,23 @@ async function fetchPayrollAccounts(tx) {
 
 // Internal posting logic executed within an existing prisma.$transaction block.
 export async function postPayrollPeriodTx(tx, periodId) {
-  const period = await tx.payrollPeriod.findUnique({ where: { id: periodId }, include: { payslips: { include: { lines: true } } } });
+  const period = await tx.payrollPeriod.findUnique({
+    where: { id: periodId },
+    include: {
+      payslips: {
+        include: {
+          lines: true,
+          employee: { select: { id: true, isExpat: true } },
+        },
+      },
+    },
+  });
   if (!period) throw new Error('Payroll period not found');
   if (period.status !== 'LOCKED') throw new Error('Period must be LOCKED before posting');
   if (!period.payslips.length) throw new Error('No payslips to post');
 
     const accounts = await fetchPayrollAccounts(tx);
+    const natExp = await getNatExpCostCenters(tx);
 
     // Preload cost allocations for employees in this period
     const employeeIds = Array.from(new Set(period.payslips.map(p => p.employeeId))).filter(Boolean);
@@ -117,7 +137,9 @@ export async function postPayrollPeriodTx(tx, periodId) {
                   acc += part;
                 }
               } else {
-                baseAlloc.set(null, (baseAlloc.get(null) || 0) + amt);
+                const fallbackCc = ps.employee?.isExpat ? (natExp.EXP || null) : (natExp.NAT || null);
+                const key = fallbackCc || null;
+                baseAlloc.set(key, (baseAlloc.get(key) || 0) + amt);
               }
             }
             break;
@@ -135,7 +157,9 @@ export async function postPayrollPeriodTx(tx, periodId) {
                   acc += part;
                 }
               } else {
-                bonusAlloc.set(null, (bonusAlloc.get(null) || 0) + amt);
+                const fallbackCc = ps.employee?.isExpat ? (natExp.EXP || null) : (natExp.NAT || null);
+                const key = fallbackCc || null;
+                bonusAlloc.set(key, (bonusAlloc.get(key) || 0) + amt);
               }
             }
             break;

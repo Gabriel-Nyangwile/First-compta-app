@@ -1,5 +1,29 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:system",
     "python-envs.pythonProjects": [],
-    "CodeGPT.apiKey": "DeepSeek"
+    "CodeGPT.apiKey": "DeepSeek",
+    // Reduce file watchers to prevent EMFILE on Windows
+    "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/.git/**": true,
+        "**/.next/**": true,
+        "**/.turbo/**": true,
+        "**/backups/**": true,
+        "**/public/**": true,
+        "**/prisma/migrations/**": true,
+        "**/*.log": true,
+        "**/target-*.json": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/.git": true,
+        "**/.next": true,
+        "**/.turbo": true,
+        "**/backups": true,
+        "**/public": true,
+        "**/prisma/migrations": true
+    },
+    // Lower VS Code watcher settings (requires reload)
+    "files.maxMemoryForLargeFilesMB": 8192,
+    "files.simpleDialog.enable": true
 }

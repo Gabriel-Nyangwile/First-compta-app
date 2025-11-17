@@ -1163,6 +1163,7 @@ model BankAdvice {
     contractType ContractType?
     // Snapshot de la catégorie barémique au moment de l'affectation du poste (A1, A2, ...)
     category     String?
+    isExpat      Boolean   @default(false)
     status        EmployeeStatus @default(ACTIVE)
     positionId    String?
     position      Position? @relation(fields: [positionId], references: [id])

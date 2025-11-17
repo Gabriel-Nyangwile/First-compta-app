@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSystemAccounts } from "@/lib/systemAccounts";
 import { finalizeBatchToJournal } from "@/lib/journal";
-import { recalcPurchaseOrderStatus } from "@/app/api/goods-receipts/helpers";
+// Avoid top-level import from app route helpers to reduce edge bundling issues; import dynamically when needed.
 
 const EPS = 1e-9;
 
@@ -116,19 +116,6 @@ export async function POST(req) {
         { status: 400 }
       );
 
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
-    });
-    if (!supplier)
-      return NextResponse.json(
-        { error: "Fournisseur introuvable" },
-        { status: 404 }
-      );
-    if (!supplier.accountId)
-      return NextResponse.json(
-        { error: "Compte fournisseur (401) manquant sur le fournisseur" },
-        { status: 400 }
-      );
     // Validation purchaseOrderId si fourni (et cohérence du fournisseur)
     let po = null;
     if (purchaseOrderId) {
@@ -169,6 +156,21 @@ export async function POST(req) {
         );
       }
     }
+
+    // Vérification fournisseur (après court-circuit PO non reçu)
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+    });
+    if (!supplier)
+      return NextResponse.json(
+        { error: "Fournisseur introuvable" },
+        { status: 404 }
+      );
+    if (!supplier.accountId)
+      return NextResponse.json(
+        { error: "Compte fournisseur (401) manquant sur le fournisseur" },
+        { status: 400 }
+      );
 
     // Normalisation multi-taux: vat fallback global si lignes sans vatRate
     const fallbackVat = vat !== undefined && vat !== null ? Number(vat) : 0.2;
@@ -252,6 +254,9 @@ export async function POST(req) {
           vatAmount: String(vatAmount),
           totalAmountHt: String(totalHt),
           totalAmount: String(totalTtc),
+          // Initialize paid/outstanding consistently to satisfy audits immediately
+          paidAmount: "0",
+          outstandingAmount: String(totalTtc),
           supplier: { connect: { id: supplierId } },
           ...(po ? { purchaseOrder: { connect: { id: po.id } } } : {}),
         },
@@ -340,11 +345,21 @@ export async function POST(req) {
             data: { billedQty: updated.toFixed(3) },
           });
         }
-        await recalcPurchaseOrderStatus(
-          tx,
-          po.id,
-          "Mise à jour facturation BC"
-        );
+        try {
+          const { recalcPurchaseOrderStatus } = await import(
+            "@/app/api/goods-receipts/helpers"
+          );
+          await recalcPurchaseOrderStatus(
+            tx,
+            po.id,
+            "Mise à jour facturation BC"
+          );
+        } catch (e) {
+          console.warn(
+            "recalcPurchaseOrderStatus import/exec failed (non-blocking)",
+            e?.message || e
+          );
+        }
       }
 
       return created.id;

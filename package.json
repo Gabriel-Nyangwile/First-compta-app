@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env CHOKIDAR_USEPOLLING=1 WATCHPACK_POLLING=true WATCHPACK_POLL_INTERVAL=1500 NEXT_DISABLE_FILE_WATCHING=false next dev",
     "dev:ready": "prisma generate && prisma migrate dev && next dev",
     "dev:diagnostic": "node scripts/dev-diagnostic.js",
     "build": "next build --turbopack",
     "start": "next start",
     "test": "npm run test:inventory-flow && npm run test:ledger-lettering && npm run test:payroll-bonus",
-    "test:full": "npm run test:smoke && npm run test:inventory-flow && npm run test:ledger-lettering && npm run test:money-movement && npm run test:pdf && npm run test:client-invoice-pdf && npm run test:incoming-invoice-pdf && npm run test:pdf:both && npm run audit:invoice-balances && npm run ledger:balance && npm run audit:stock && npm run audit:stock-withdrawals && npm run test:http:inventory && npm run test:po-flow && npm run test:po-cancel && npm run test:po-all && npm run test:return-order && npm run test:regression && npm run test:payroll-bonus",
+    "test:full": "npm run test:smoke && npm run test:inventory-flow && npm run test:ledger-lettering && npm run test:money-movement && npm run test:pdf && npm run test:client-invoice-pdf && npm run test:incoming-invoice-pdf && npm run test:pdf:both && npm run audit:invoice-balances:fix && npm run audit:invoice-balances && npm run ledger:balance && npm run audit:stock && npm run audit:stock-withdrawals && npm run test:http:inventory && npm run test:po-flow && npm run test:po-cancel && npm run test:return-order && npm run test:regression && npm run test:payroll-bonus",
     "lint": "eslint src scripts eslint.config.mjs",
     "test:smoke": "node scripts/smoke-health.js",
     "test:regression": "node scripts/regression-line-links.js",
@@ -68,6 +68,7 @@
     "use-debounce": "^10.0.6"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@eslint/eslintrc": "^3",
     "@eslint/js": "^9.36.0",
     "@tailwindcss/postcss": "^4.1.13",

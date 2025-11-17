@@ -149,6 +149,7 @@ async function jsonFetch(url, opts = {}) {
       headers: {
         "Content-Type": "application/json",
         ...(opts.headers || {}),
+        ...(process.env.ADMIN_TOKEN ? { 'x-admin-token': process.env.ADMIN_TOKEN } : {}),
       },
     });
   } catch (networkErr) {
@@ -196,12 +197,31 @@ async function ensureSupplier() {
 }
 
 async function createProduct(label) {
+  // Ensure minimal ledger accounts
+  const findAccount = async (prefix) => {
+    try { const list = await jsonFetch(baseUrl + "/api/accounts?prefix=" + prefix); if (Array.isArray(list) && list.length) return list[0]; } catch {}
+    try { const list = await jsonFetch(baseUrl + "/api/account/search?query=" + prefix); if (Array.isArray(list) && list.length) return list[0]; } catch {}
+    return null;
+  };
+  let inventory = await findAccount("31");
+  if (!inventory) {
+    try { inventory = await jsonFetch(baseUrl + "/api/accounts", { method:'POST', body: JSON.stringify({ number:'310000', label:'Stock marchandises (auto)' }) }); } catch {}
+  }
+  if (!inventory) throw new Error("Aucun compte 31* disponible");
+  let variation = await findAccount("603");
+  if (!variation) {
+    try { variation = await jsonFetch(baseUrl + "/api/accounts", { method:'POST', body: JSON.stringify({ number:'603000', label:'Variation de stock (auto)' }) }); } catch {}
+  }
+  if (!variation) throw new Error("Aucun compte 603* disponible");
   const product = await jsonFetch(baseUrl + "/api/products", {
     method: "POST",
     body: JSON.stringify({
       sku: "RET-" + randSuffix(),
       name: label,
       unit: "u",
+      stockNature: "PURCHASED",
+      inventoryAccountId: inventory.id,
+      stockVariationAccountId: variation.id,
     }),
   });
   console.log("[OK] Product created:", product.sku);

@@ -57,6 +57,11 @@ async function waitForServer(baseUrl, { timeoutMs = 90000, intervalMs = 1500 } =
         } catch { /* JSON parse ignore */ }
       }
     } catch { /* swallow */ }
+    // Fallback: root liveness
+    try {
+      const root = await fetch(baseUrl, { cache: 'no-store' });
+      if (root.ok) return true;
+    } catch { /* ignore */ }
     await delay(intervalMs);
   }
   throw new Error(`Server not healthy at ${healthUrl} after ${(timeoutMs/1000)}s`);
@@ -89,7 +94,7 @@ async function run() {
   const pdfUrl = `${opts.baseUrl}/api/incoming-invoices/${id}/pdf`;
 
   let devProc = null;
-  // Detect server availability using explicit health endpoint
+  // Detect server availability using explicit health endpoint, fallback to root
   let serverUp = false;
   try {
     const h = await fetch(`${opts.baseUrl}/api/health`, { cache: 'no-store' });
@@ -98,6 +103,9 @@ async function run() {
       serverUp = !!(j && j.ok);
     }
   } catch { serverUp = false; }
+  if (!serverUp) {
+    try { const root = await fetch(opts.baseUrl, { cache: 'no-store' }); serverUp = root.ok; } catch { /* ignore */ }
+  }
   if (!serverUp && opts.startServer) {
     console.log('Starting dev server...');
     devProc = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run','dev'], { stdio: 'pipe', env: process.env });

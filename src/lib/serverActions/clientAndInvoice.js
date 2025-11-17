@@ -199,10 +199,13 @@ export async function fetchClientsAndInvoices(filters = {}) {
 // Nouvelle méthode pour mettre à jour le statut d'une facture
 export async function updateInvoiceStatus(formData) {
   const invoiceId = formData.get('invoiceId');
-  const newStatus = formData.get('newStatus');//'PAID', 'PENDING', 'OVERDUE'
+  const newStatus = formData.get('newStatus');//'PAID', 'PENDING', 'PARTIAL' (OVERDUE is derived only)
 
   // Vérification si le statut est valide (contre les entrées inattendues)
-  const validStatuses = ['PENDING', 'PAID', 'OVERDUE'];
+  const validStatuses = ['PENDING', 'PAID', 'PARTIAL'];
+  if (newStatus === 'OVERDUE') {
+    return { error: "Le statut OVERDUE est calculé à la volée (dueDate dépassée) et ne doit pas être stocké. Utilisez 'PENDING' si nécessaire." };
+  }
   if (!validStatuses.includes(newStatus)) {
     return { error: `Statut invalide : ${newStatus}` };
   }

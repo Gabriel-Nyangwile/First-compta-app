@@ -44,8 +44,10 @@ async function waitReady(maxTries=24, delayMs=500) {
   throw new Error('Serveur indisponible pour tests annulation (timeout readiness).');
 }
 
+function authHeaders(){ const t = process.env.ADMIN_TOKEN; return t ? { 'x-admin-token': t } : {}; }
+
 async function jf(url, opts={}) {
-  const res = await fetch(url, { ...opts, headers: { 'Content-Type':'application/json', ...(opts.headers||{}) } });
+  const res = await fetch(url, { ...opts, headers: { 'Content-Type':'application/json', ...authHeaders(), ...(opts.headers||{}) } });
   let data=null; try { data = await res.json(); } catch {}
   if (!res.ok) { const err = new Error(data?.error || res.status+ ' '+res.statusText); err.status=res.status; err.data=data; throw err; }
   return data;
@@ -59,8 +61,30 @@ async function ensureSupplier() {
   return jf(BASE+'/api/suppliers', { method:'POST', body: JSON.stringify({ name: 'Fournisseur-'+rand() }) });
 }
 
+async function findAccountByPrefix(prefix) {
+  try { const list = await jf(BASE + '/api/accounts?prefix=' + encodeURIComponent(prefix)); if (Array.isArray(list) && list.length) return list[0]; } catch {}
+  try { const list = await jf(BASE + '/api/account/search?query=' + encodeURIComponent(prefix)); if (Array.isArray(list) && list.length) return list[0]; } catch {}
+  return null;
+}
+
+async function pickProductAccounts(stockNature = 'PURCHASED') {
+  let inventory = await findAccountByPrefix('31');
+  if (!inventory) {
+    try { const res = await jf(BASE + '/api/accounts', { method:'POST', body: JSON.stringify({ number:'310000', label:'Stock marchandises (auto)' }) }); inventory = res; } catch {}
+  }
+  if (!inventory) throw new Error('Aucun compte 31* disponible et création fallback échouée.');
+  const variationPrefix = stockNature === 'PRODUCED' ? '701' : '603';
+  let variation = await findAccountByPrefix(variationPrefix);
+  if (!variation) {
+    try { const res = await jf(BASE + '/api/accounts', { method:'POST', body: JSON.stringify({ number: variationPrefix + '000', label: variationPrefix==='701'?'Ventes produits (auto)':'Variation de stock (auto)' }) }); variation = res; } catch {}
+  }
+  if (!variation) throw new Error(`Aucun compte ${variationPrefix}* disponible et création fallback échouée.`);
+  return { inventoryAccountId: inventory.id, stockVariationAccountId: variation.id };
+}
+
 async function createProduct(label) {
-  return jf(BASE+'/api/products', { method:'POST', body: JSON.stringify({ sku:'SKU-'+rand(), name:label, unit:'u' }) });
+  const ledger = await pickProductAccounts('PURCHASED');
+  return jf(BASE+'/api/products', { method:'POST', body: JSON.stringify({ sku:'SKU-'+rand(), name:label, unit:'u', stockNature:'PURCHASED', inventoryAccountId: ledger.inventoryAccountId, stockVariationAccountId: ledger.stockVariationAccountId }) });
 }
 
 async function createPO(supplierId, prodA, prodB) {
@@ -77,6 +101,20 @@ async function receiptPartial(po, product) {
   const line = refreshed.lines.find(l=>l.productId===product.id);
   const body = { purchaseOrderId: po.id, lines:[ { productId: product.id, qtyReceived: 2, unitCost: 10, purchaseOrderLineId: line.id } ] };
   return jf(BASE+'/api/goods-receipts', { method:'POST', body: JSON.stringify(body) });
+}
+
+async function acceptAllLines(receipt) {
+  for (const line of receipt.lines) {
+    await jf(BASE + `/api/goods-receipts/${receipt.id}`, { method:'PUT', body: JSON.stringify({ action:'QC_ACCEPT', lineId: line.id }) });
+  }
+}
+
+async function putAwayAllLines(receipt) {
+  for (const line of receipt.lines) {
+    const qty = Number(line.qtyReceived);
+    if (qty <= 0) continue;
+    await jf(BASE + `/api/goods-receipts/${receipt.id}`, { method:'PUT', body: JSON.stringify({ action:'PUTAWAY', lineId: line.id, qty, storageLocationCode:'RACK-A1' }) });
+  }
 }
 
 (async function main(){
@@ -109,7 +147,12 @@ async function receiptPartial(po, product) {
     const po3 = await createPO(supplier.id, pA, pB);
     await approve(po3);
     await receiptPartial(po3, pA);
-    const afterReceipt = await fetchPO(po3.id);
+    let afterReceipt = await fetchPO(po3.id);
+    if (afterReceipt.status !== 'STAGED') throw new Error('Statut attendu STAGED avant QC/putaway');
+    const lastReceipt = afterReceipt.goodsReceipts.at(-1);
+    await acceptAllLines(lastReceipt);
+    await putAwayAllLines(lastReceipt);
+    afterReceipt = await fetchPO(po3.id);
     if (afterReceipt.status !== 'PARTIAL') throw new Error('Statut attendu PARTIAL après réception partielle');
     try { await cancel(po3); console.error('[FAIL] Annulation après réception partielle devrait échouer'); } catch(e){ if(e.status===409) console.log('[OK] Annulation refusée après réception partielle:', e.data?.error); else throw e; }
 

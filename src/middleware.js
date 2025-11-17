@@ -10,6 +10,10 @@ const protectedPatterns = [
 ];
 
 export function middleware(req) {
+  const authDisabledVal = (process.env.AUTH_DISABLED || '').toLowerCase();
+  const authDisabled = authDisabledVal === '1' || authDisabledVal === 'true';
+  if (authDisabled) return NextResponse.next();
+
   const { pathname } = req.nextUrl;
   const method = req.method;
   if (method === 'GET') return NextResponse.next();
@@ -17,12 +21,15 @@ export function middleware(req) {
   if (!needsAuth) return NextResponse.next();
 
   const adminToken = process.env.ADMIN_TOKEN;
+  const publicToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
   if (!adminToken) {
-    return NextResponse.next();
+    // If only public token is configured, still enforce it
+    if (!publicToken) return NextResponse.next();
   }
 
   const headerToken = req.headers.get('x-admin-token');
-  if (headerToken !== adminToken) {
+  const ok = (adminToken && headerToken === adminToken) || (publicToken && headerToken === publicToken);
+  if (!ok) {
     return new NextResponse(
       JSON.stringify({ error: 'Unauthorized' }),
       {

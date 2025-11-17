@@ -212,6 +212,36 @@ localStorage + événements DOM (`user:login`, `user:logout`). Pas encore de per
 | Compte client manquant | Import omis ou race | Re-créer via POST client |
 | Client Prisma obsolète | Schema modifié sans generate | `npx prisma generate` |
 
+### 11.1 Erreur EMFILE: too many open files (Windows)
+
+Pour éviter la saturation des watchers Windows (EMFILE), le projet inclut une configuration de mitigation prête à l’emploi.
+
+- `/.vscode/settings.json` – exclusions de surveillance élargies:
+  - ignore `node_modules`, `.git`, `.next`, `.turbo`, `backups`, `public`, `prisma/migrations`, `*.log`, `target-*.json`.
+- `next.config.mjs` – options Webpack dev réduisant les watchers:
+  - `watchOptions.ignored` avec les mêmes dossiers, `poll: 1500`, `aggregateTimeout: 300`.
+  - Cache webpack dev désactivé pour éviter les locks.
+- `package.json` – script `dev` basculé en mode polling (moins de descripteurs fichiers):
+  - variables `CHOKIDAR_USEPOLLING=1`, `WATCHPACK_POLLING=true`, `WATCHPACK_POLL_INTERVAL=1500` via `cross-env`.
+
+Étapes recommandées après mise à jour:
+
+```powershell
+# Fermer les Node qui pourraient verrouiller des fichiers
+Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# Réinstaller si nécessaire (ajout de cross-env)
+npm install
+
+# Redémarrer le serveur dev en mode polling
+npm run dev
+```
+
+Notes:
+
+- Si vous constatez une baisse de réactivité en dev, vous pouvez revenir au watcher natif en restaurant `"dev": "next dev"` dans `package.json`.
+- Les exclusions de recherche VS Code (`search.exclude`) reflètent les mêmes dossiers pour accélérer les recherches.
+
 ## 12. Ressources
 
 - `docs/accounting.md`

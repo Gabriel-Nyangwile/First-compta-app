@@ -17,6 +17,7 @@
 // Node 18+ fournit fetch globalement; aucune dépendance cross-fetch nécessaire.
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
+console.log("[INFO] BASE:", BASE);
 
 async function waitForServer(maxTries = 18, delayMs = 500) {
   const debug = process.env.DEBUG_PO_FLOW === "1";
@@ -78,12 +79,17 @@ async function waitForServer(maxTries = 18, delayMs = 500) {
   );
 }
 
+function authHeaders() {
+  const t = process.env.ADMIN_TOKEN;
+  return t ? { "x-admin-token": t } : {};
+}
+
 async function jsonFetch(url, opts = {}) {
   let res;
   try {
     res = await fetch(url, {
       ...opts,
-      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+      headers: { "Content-Type": "application/json", ...authHeaders(), ...(opts.headers || {}) },
     });
   } catch (networkErr) {
     const err = new Error("fetch failed: " + networkErr.message);
@@ -129,13 +135,79 @@ async function ensureSupplier() {
   return created;
 }
 
+async function findAccountByPrefix(prefix) {
+  // Try preferred endpoint
+  try {
+    const list = await jsonFetch(
+      BASE + "/api/accounts?prefix=" + encodeURIComponent(prefix)
+    );
+    if (Array.isArray(list) && list.length) return list[0];
+  } catch (_) {
+    // ignore and try fallback
+  }
+  // Fallback endpoint
+  try {
+    const list = await jsonFetch(
+      BASE + "/api/account/search?query=" + encodeURIComponent(prefix)
+    );
+    if (Array.isArray(list) && list.length) return list[0];
+  } catch (_) {
+    // ignore
+  }
+  return null;
+}
+
+async function pickProductAccounts(stockNature = "PURCHASED") {
+  // Try to find, otherwise create minimal fallback accounts via API
+  let inventory = await findAccountByPrefix("31");
+  if (!inventory) {
+    try {
+      const payload = {
+        number: "310000",
+        label: "Stock marchandises (auto)"
+      };
+      const res = await fetch(BASE + "/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) inventory = await res.json();
+    } catch (_) { /* ignore */ }
+  }
+  if (!inventory) throw new Error("Aucun compte 31* disponible et création fallback échouée.");
+
+  const variationPrefix = stockNature === "PRODUCED" ? "701" : "603";
+  let variation = await findAccountByPrefix(variationPrefix);
+  if (!variation) {
+    try {
+      const payload = {
+        number: variationPrefix + "000",
+        label: (variationPrefix === "701" ? "Ventes produits (auto)" : "Variation de stock (auto)")
+      };
+      const res = await fetch(BASE + "/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) variation = await res.json();
+    } catch (_) { /* ignore */ }
+  }
+  if (!variation) throw new Error(`Aucun compte ${variationPrefix}* disponible et création fallback échouée.`);
+
+  return { inventoryAccountId: inventory.id, stockVariationAccountId: variation.id };
+}
+
 async function createProduct(label) {
+  const ledger = await pickProductAccounts("PURCHASED");
   const prod = await jsonFetch(BASE + "/api/products", {
     method: "POST",
     body: JSON.stringify({
       sku: "SKU-" + randSuffix(),
       name: label,
       unit: "u",
+      stockNature: "PURCHASED",
+      inventoryAccountId: ledger.inventoryAccountId,
+      stockVariationAccountId: ledger.stockVariationAccountId,
     }),
   });
   console.log("[OK] Product created:", prod.sku);
@@ -175,21 +247,32 @@ async function attemptInvoiceShouldFail(po, supplierId, context = "bloqué") {
     ],
     purchaseOrderId: po.id,
   };
-  try {
-    await jsonFetch(BASE + "/api/incoming-invoices", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-    console.error(
-      "[FAIL] Invoice creation succeeded but should have failed for DRAFT PO"
-    );
-  } catch (e) {
-    if ([400, 409].includes(e.status)) {
-      const reason = e.data?.error || e.message;
-      console.log(`[OK] Invoice blocked (${context}):`, reason);
+  const maxRetries = 3;
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    try {
+      await jsonFetch(BASE + "/api/incoming-invoices", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      console.error(
+        "[FAIL] Invoice creation succeeded but should have failed for DRAFT/UNRECEIVED PO"
+      );
       return;
+    } catch (e) {
+      if ([400, 409].includes(e.status)) {
+        const reason = e.data?.error || e.message;
+        console.log(`[OK] Invoice blocked (${context}):`, reason);
+        return;
+      }
+      if (e.status === 500 && attempt < maxRetries) {
+        // transient server error; wait and retry
+        await new Promise((res) => setTimeout(res, 400 * (attempt + 1)));
+        attempt++;
+        continue;
+      }
+      throw e;
     }
-    throw e;
   }
 }
 
@@ -218,7 +301,7 @@ async function createInvoice(po, supplierId, accountId) {
   if (!accountId) {
     // naive fetch accounts (not filtered server-side here for brevity)
     try {
-      const accRes = await fetch(BASE + "/api/accounts?q=6");
+      const accRes = await fetch(BASE + "/api/accounts?q=6", { headers: { ...authHeaders() } });
       if (accRes.ok) {
         const list = await accRes.json();
         if (Array.isArray(list) && list.length)

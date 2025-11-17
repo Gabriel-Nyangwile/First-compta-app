@@ -66,12 +66,18 @@ async function waitForHealth(baseUrl, { timeoutMs = 90000, intervalMs = 1500 } =
   const start = Date.now();
   const health = `${baseUrl}/api/health`;
   while (Date.now() - start < timeoutMs) {
+    // Prefer explicit health endpoint
     try {
       const r = await fetch(health, { cache: 'no-store' });
       if (r.ok) {
         const j = await r.json().catch(()=>null);
         if (j && j.ok) return true;
       }
+    } catch { /* ignore */ }
+    // Fallback to root 200 as liveness signal
+    try {
+      const root = await fetch(baseUrl, { cache: 'no-store' });
+      if (root.ok) return true;
     } catch { /* ignore */ }
     await delay(intervalMs);
   }
@@ -103,12 +109,15 @@ async function run() {
   const id = await ensureSampleClientInvoice();
   const pdfUrl = `${opts.baseUrl}/api/invoice/${id}/pdf`;
 
-  // server detection
+  // server detection (health endpoint preferred, root fallback)
   let serverUp = false;
   try {
     const h = await fetch(`${opts.baseUrl}/api/health`, { cache: 'no-store' });
     if (h.ok) { const j = await h.json().catch(()=>null); serverUp = !!(j && j.ok); }
   } catch { serverUp = false; }
+  if (!serverUp) {
+    try { const root = await fetch(opts.baseUrl, { cache: 'no-store' }); serverUp = root.ok; } catch { /* ignore */ }
+  }
 
   let devProc = null;
   if (!serverUp && opts.startServer) {
