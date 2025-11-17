@@ -226,6 +226,7 @@ Currently: localStorage user object + custom DOM events (`user:login`, `user:log
 - [docs/accounting.md](./docs/accounting.md) – deep-dive rules & examples
 - [Prisma Docs](https://www.prisma.io/docs)
 - [Next.js Docs](https://nextjs.org/docs)
+- [CHANGELOG.md](./CHANGELOG.md) – releases and version history
 
 ---
 Maintainers: update the Roadmap section as features graduate to production.
