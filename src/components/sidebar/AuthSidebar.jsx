@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { featureFlags } from "@/lib/features";
 
 // Private route prefixes (adjust as needed)
 const PRIVATE_PREFIXES = [
@@ -19,6 +20,7 @@ const PRIVATE_PREFIXES = [
   "/authorizations",
   "/bank-advices",
   "/products",
+  "/payroll",
 ];
 
 const GROUPS = [
@@ -379,6 +381,22 @@ export default function AuthSidebar() {
   const itemBase =
     "flex items-center text-sm rounded px-2 py-1.5 hover:bg-blue-700/60";
 
+  // Groupes dynamiques avec feature flags (Paie)
+  const allGroups = featureFlags.payroll
+    ? [
+        ...GROUPS,
+        {
+          key: "paie",
+          label: "Paie",
+          items: [
+            { href: "/payroll/periods", label: "Périodes" },
+            { href: "/payroll/run", label: "Calcul / Exécution" },
+            { href: "/payroll/employees", label: "Gestion du personnel" },
+          ],
+        },
+      ]
+    : GROUPS;
+
   function renderGroup(g) {
     if (!expanded) return null;
     return (
@@ -469,7 +487,7 @@ export default function AuthSidebar() {
             title="Ouvrir le menu"
           />
           <div className="flex flex-col items-center gap-3 ml-1 py-3 px-1 bg-blue-950/70 backdrop-blur-sm border-r border-blue-900 rounded-tr-lg rounded-br-lg shadow-inner">
-            {GROUPS.map((g) => (
+            {allGroups.map((g) => (
               <button
                 key={g.key}
                 onClick={() => {
@@ -560,7 +578,7 @@ export default function AuthSidebar() {
             </div>
           </div>
           <div className="flex-1 px-1 space-y-2 overflow-y-auto transition-opacity duration-300 opacity-100">
-            {GROUPS.map(renderGroup)}
+            {allGroups.map(renderGroup)}
           </div>
           <div className="flex flex-col gap-2 px-2 mb-2 pt-2 border-t border-blue-800/40">
             <div className="text-[11px] text-blue-300/60 truncate px-1">
