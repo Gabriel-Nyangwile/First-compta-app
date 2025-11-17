@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { featureFlags } from "@/lib/features";
 
 function Badge({ count, color = "blue" }) {
   if (!count) return null;
@@ -128,6 +129,18 @@ export default function Sidebar() {
       ],
     },
   ];
+
+  // Intégration Paie (gated par feature flag)
+  if (featureFlags.payroll) {
+    navGroups.push({
+      title: "Paie",
+      items: [
+        { href: "/payroll/periods", label: "Périodes" },
+        { href: "/payroll/run", label: "Calcul / Exécution" },
+        { href: "/payroll/employees", label: "Gestion du personnel" },
+      ],
+    });
+  }
 
   const logout = () => {
     localStorage.removeItem("user");
