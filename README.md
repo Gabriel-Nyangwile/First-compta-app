@@ -602,6 +602,8 @@ Aucune autre modification fonctionnelle n'a été introduite lors de cette étap
 ---
 Cette section documente officiellement la dépréciation du chemin legacy afin de prévenir les régressions futures.
 
+Note: The sidebar used by the app is `src/components/sidebar/AuthSidebar.jsx` (canonical). The old `src/components/sidebar/Sidebar.jsx` has been removed to avoid duplication.
+
 
 ## Coverage
 
