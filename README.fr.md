@@ -247,6 +247,7 @@ Notes:
 - `docs/accounting.md`
 - Prisma Docs
 - Next.js Docs
+- [CHANGELOG.md](./CHANGELOG.md) – notes de version et historique
 
 ---
 Mainteneurs : mettre à jour la Feuille de route quand des fonctionnalités passent en prod.
