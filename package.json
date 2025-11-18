@@ -51,7 +51,8 @@
     "seed:payroll:config": "node scripts/seed-payroll-config.js",
     "test:payroll-bonus": "node scripts/test-payroll-bonus.js",
     "test:payroll-aen": "node scripts/test-payroll-aen.js",
-    "test:payroll-cost-centers": "node scripts/test-payroll-cost-centers.js"
+    "test:payroll-cost-centers": "node scripts/test-payroll-cost-centers.js",
+    "test:payroll:currency": "node scripts/test-payroll-currency-pipeline.js"
   },
   "type": "module",
   "dependencies": {

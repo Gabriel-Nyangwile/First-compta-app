@@ -1,0 +1,78 @@
+{
+  "pays_juridiction": "RDC (Exemple, adaptable OHADA)",
+  "date_derniere_maj": "2025-11-18",
+  "PARAMETRES_PAIE_GLOBAL": {
+    "FISCAL": {
+      "IPR": {
+        "cle": "IPR",
+        "formule_base_imposable": "SALAIRE_BRUT_GLOBAL - CNSS_QPO - (SALAIRE_BRUT_GLOBAL * FRAIS_PRO_FORFAITAIRE)",
+        "frais_professionnels_forfaitaire": 0.25,
+        "plafond_final_pourcentage": 30.0,
+        "impot_minimum_mensuel_cdf": 2500,
+        "bareme": [
+          { "revenu_max_annuel": 1944000, "taux": 3 },
+          { "revenu_max_annuel": 21600000, "taux": 15 },
+          { "revenu_max_annuel": 43200000, "taux": 30 },
+          { "revenu_min_annuel": 43200001, "taux": 40 }
+        ]
+      }
+    },
+    "SOCIAL": {
+      "CNSS": {
+        "plafond_mensuel_cdf": 1500000,
+        "cotisations": [
+          { "cle": "CNSS_QPO", "description": "Cotisation Salariale CNSS (Pensions)", "taux_pourcentage": 5.0, "type_part": "Ouvrière" },
+          { "cle": "CNSS_QPP_PENSIONS", "description": "Cotisation Patronale CNSS (Pensions)", "taux_pourcentage": 5.0, "type_part": "Patronale" },
+          { "cle": "CNSS_QPP_FAMILIALES", "description": "Cotisation Patronale CNSS (Allocations Familiales)", "taux_pourcentage": 6.5, "type_part": "Patronale" },
+          { "cle": "CNSS_QPP_RISQUES_PRO", "description": "Cotisation Patronale CNSS (Risques Professionnels)", "taux_pourcentage": 1.5, "type_part": "Patronale" }
+        ]
+      },
+      "AUTRES_ORGANISMES": [
+        { "cle": "INPP_QPP", "description": "Cotisation INPP (Patronale)", "formule_taux": "SI(Effectif <= 50, 3.0, 1.0)", "unite": "%" },
+        { "cle": "ONEM_QPP", "description": "Cotisation ONEM (Patronale)", "taux_pourcentage": 0.5, "unite": "%" }
+      ],
+      "ALLOCATIONS_FAMILIALES": {
+        "cle": "ALLOCATIONS_FAMILIALES",
+        "formule_montant": "8100 * MIN(NbEnfantsACharge, 6)",
+        "montant_unitaire_cdf": 8100,
+        "max_enfants": 6
+      }
+    },
+    "PRIME_ANCIENNETE": {
+      "cle": "PRIME_ANCIENNETE",
+      "formule_taux": "SI(AncienneteAnnees < 5, 0.0, SI(AncienneteAnnees < 10, 0.05, 0.15))",
+      "base_calcul_prime": "Salaire de Base",
+      "formule_calcul_anciennete_annees": "DIFFERENCE_ANNEES(DateEmbauche, DateCalcul) - DUREE_SUSPENSIONS_EXCLUES"
+    },
+    "AVANTAGES_ET_REMBOURSEMENTS": {
+      "INDEMNITE_LOGEMENT": {
+        "cle": "INDEMNITE_LOGEMENT",
+        "description": "Règle d'exonération de l'indemnité de logement.",
+        "taux_exonere_max_pourcentage": 30,
+        "base_plafonnement": "Salaire de Base",
+        "formule_calcul_imposable": "MAX(MontantLogementVerse - (SalaireDeBase * 0.30), 0)",
+        "statut": "Exonérée jusqu'au plafond, imposable au-delà."
+      },
+      "INDEMNITE_TRANSPORT": {
+        "cle": "INDEMNITE_TRANSPORT",
+        "description": "Indemnité de transport du domicile au lieu de travail.",
+        "statut_fiscal": "Généralement non imposable et non soumis à cotisations sociales, si montant raisonnable.",
+        "note": "Plafond spécifique à vérifier si l'administration en fixe un."
+      }
+    },
+    "CONGES": {
+      "INDEMNITE_CONGE": {
+        "cle": "INDEMNITE_CONGE",
+        "formule_calcul": "SalaireDeBase * DUREE_CONGE_JOURS * TAUX_PECULE",
+        "taux_pecule_pourcentage": 100,
+        "base_calcul": "Salaire de Base ou Salaire Moyen"
+      },
+      "REGLE_CONGE_ANCIENNETE": {
+        "cle": "CONGES_SUPPLEMENTAIRES_ANCIENNETE",
+        "jours_par_tranche": 1,
+        "tranche_annees": 5,
+        "note": "Jours ouvrables supplémentaires par tranche de 5 ans d'ancienneté."
+      }
+    }
+  }
+}
