@@ -1,5 +1,6 @@
 {
   "pays_juridiction": "RDC (Exemple, adaptable OHADA)",
+  "canonical_ipr_source": true,
   "date_derniere_maj": "2025-11-18",
   "PARAMETRES_PAIE_GLOBAL": {
     "FISCAL": {

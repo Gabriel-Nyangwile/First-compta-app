@@ -1,39 +1,44 @@
 # Feuille de Route Paie & Comptabilité (OHADA)
 
-## 1. Objectifs
+ 
+\n## 1. Objectifs
 Mettre en place un module Paie intégré au noyau comptable existant (journal en partie double, séquences, PDF, contrôles d'intégrité) permettant :
-- Gestion des périodes de paie (mensuelle initialement).
-- Génération de bulletins (payslips) avec lignes détaillées : salaire de base, primes, retenues, cotisations, impôts.
-- Calcul automatisé des charges salariales et patronales selon règles fournies (barèmes, taux, plafonds, tranches).
-- Production d'écritures comptables OHADA cohérentes et lettrables (Σ Débit = Σ Crédit) via `finalizeBatchToJournal`.
-- Affectation analytique (centre de coût) pour ventilation des charges.
-- Traçabilité, auditabilité et verrouillage après clôture de période.
-- Génération PDF cohérente avec pipeline existante (watermark BROUILLON avant clôture).
+\n- Gestion des périodes de paie (mensuelle initialement).
+\n- Génération de bulletins (payslips) avec lignes détaillées : salaire de base, primes, retenues, cotisations, impôts.
+\n- Calcul automatisé des charges salariales et patronales selon règles fournies (barèmes, taux, plafonds, tranches).
+\n- Production d'écritures comptables OHADA cohérentes et lettrables (Σ Débit = Σ Crédit) via `finalizeBatchToJournal`.
+\n- Affectation analytique (centre de coût) pour ventilation des charges.
+\n- Traçabilité, auditabilité et verrouillage après clôture de période.
+\n- Génération PDF cohérente avec pipeline existante (watermark BROUILLON avant clôture).
 
-## 2. Périmètre Initial vs Extensions
+ 
+\n## 2. Périmètre Initial vs Extensions
 Périmètre v1:
-- Périodes de paie, bulletins, lignes, barèmes de retenue simple, cotisations à taux fixe.
-- Comptabilisation standard : salaires, cotisations salariales & patronales, IR / retenue à la source, net à payer, banque lors du paiement.
-- Centres de coût et répartition par pourcentage sur salaire de base + charges patronales.
+\n- Périodes de paie, bulletins, lignes, barèmes de retenue simple, cotisations à taux fixe.
+\n- Comptabilisation standard : salaires, cotisations salariales & patronales, IR / retenue à la source, net à payer, banque lors du paiement.
+\n- Centres de coût et répartition par pourcentage sur salaire de base + charges patronales.
 
 Extensions futures (v2+):
-- Congés payés (provision + consommation), indemnités de fin de contrat.
-- Avances & prêts salariés, régularisation rétroactive.
-- Multi‑pays / multi‑devises.
-- Intégration DSN / déclarations sociales locales.
+\n- Congés payés (provision + consommation), indemnités de fin de contrat.
+\n- Avances & prêts salariés, régularisation rétroactive.
+\n- Multi‑pays / multi‑devises.
+\n- Intégration DSN / déclarations sociales locales.
 
-## 3. Concepts Domaine
-- PayrollPeriod: Fenêtre temporelle (mois, année), statut (OPEN, LOCKED, POSTED).
-- Payslip: Bulletin individuel pour un employé et une période.
-- PayslipLine: Ligne typée (BASE, PRIME, RETENUE, COTISATION_SALARIALE, COTISATION_PATRONALE, IMPOT, AJUSTEMENT).
-- PayrollItem / Rule: Définition paramétrable (code, libellé, formule / taux / barème).
-- ContributionScheme: Schéma de cotisation (employé %, employeur %, plafond, assiette).
-- TaxRule: Barème progressif (tranches, taux, décote éventuelle) ou forfait.
-- CostCenter: Centre analytique (code, libellé).
-- EmployeeCostAllocation: Pourcentage(s) de ventilation par centre de coût.
+ 
+\n## 3. Concepts Domaine
+\n- PayrollPeriod: Fenêtre temporelle (mois, année), statut (OPEN, LOCKED, POSTED).
+\n- Payslip: Bulletin individuel pour un employé et une période.
+\n- PayslipLine: Ligne typée (BASE, PRIME, RETENUE, COTISATION_SALARIALE, COTISATION_PATRONALE, IMPOT, AJUSTEMENT).
+\n- PayrollItem / Rule: Définition paramétrable (code, libellé, formule / taux / barème).
+\n- ContributionScheme: Schéma de cotisation (employé %, employeur %, plafond, assiette).
+\n- TaxRule: Barème progressif (tranches, taux, décote éventuelle) ou forfait.
+\n- CostCenter: Centre analytique (code, libellé).
+\n- EmployeeCostAllocation: Pourcentage(s) de ventilation par centre de coût.
 
-## 4. Modèle de Données (proposition Prisma)
+ 
+\n## 4. Modèle de Données (proposition Prisma)
 Ajouter au `prisma/schema.prisma` (simplifié, enums à préciser) :
+ 
 ```prisma
 model PayrollPeriod {
   id            String   @id @default(cuid())
@@ -125,18 +130,22 @@ enum PayslipLineKind { BASE PRIME RETENUE COTISATION_SALARIALE COTISATION_PATRON
 enum ContributionBaseKind { BASE_SALAIRE BRUT IMPOSABLE }
 enum TaxRoundingMode { NONE BANKERS UP DOWN }
 ```
+ 
 Notes:
-- Snapshot allocations pour traçabilité.
-- Ne pas stocker OVERDUE; statut dérivé par date de période vs verrouillage.
+\n- Snapshot allocations pour traçabilité.
+\n- Ne pas stocker OVERDUE; statut dérivé par date de période vs verrouillage.
 
+ 
 ## 5. Séquences & Identifiants
 Utiliser `nextSequence(prisma, name, prefix)` :
 - PayrollPeriod: `PP-######`
 - Payslip: `PSL-######`
 - Batch de paie (journal global mensuel): `PAY-######` (si on regroupe les écritures de paie d'un mois avant paiement banque).
 
+ 
 ## 6. Moteur de Calcul
 Pipeline (pure functions, déterministe, pas d’E/S direct):
+ 
 1. Collecte des données d'entrée (salaire de base, primes déclarées, allocations, schémas de cotisation actifs, règles fiscales).
 2. Construction de l'assiette BRUT = base + primes (avant retenues).
 3. Application des ContributionScheme (assiette = baseKind -> map vers BASE_SALAIRE ou BRUT). Plafond: `min(assiette, ceiling)`.
@@ -151,6 +160,7 @@ Règles:
 - Meta JSON sur lignes pour tracer calcul (assiette, taux, tranche).
 - Idempotence: recalcul écrase lignes générées sauf ajustements manuels (kind AJUSTEMENT) marqués `meta.manual=true`.
 
+ 
 ## 7. Mapping Comptable OHADA (Postings)
 Paramétrable via table de configuration (ex: `PayrollAccountMapping`) ou extension de `systemAccounts`. Valeurs par défaut indicatives (à CONFIRMER avec votre plan OHADA exact):
 
@@ -323,7 +333,7 @@ Spécifiques RDC supplémentaires:
 - FX: taux de change CDF↔EUR à la date de fin de période (source à préciser), conversion avant calcul IPR, reconversion vers EUR pour la comptabilisation.
 
 Fichiers de configuration ajoutés (RDC):
-- `src/data/rdc-taxrule-ipr.json` – barème IPR fourni (annuel en CDF) + règles de minimum/plafond
+- (REMPLACÉ) `src/data/payroll/rdc-params.json` – source canonique unique (section FISCAL.IPR)
 - `src/data/rdc-contribution-schemes.json` – CNSS (5%/5% base RI), ONEM (0,5% employeur), INPP (3% pour 1–50 employés)
 - `src/data/rdc-payroll-accounts.json` – mapping codes -> numéros OHADA exacts (banques 521xxx, caisse 57xxxx via Treasury)
 

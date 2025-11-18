@@ -9,7 +9,7 @@ const dataDir = path.join(root, 'src', 'data');
 
 const planFile = path.join(dataDir, 'plan-comptable.csv');
 const accountsFile = path.join(dataDir, 'rdc-payroll-accounts.json');
-const taxFile = path.join(dataDir, 'rdc-taxrule-ipr.json');
+const payrollParamsFile = path.join(dataDir, 'payroll', 'rdc-params.json');
 const schemesFile = path.join(dataDir, 'rdc-contribution-schemes.json');
 
 function readJson(p) {
@@ -39,12 +39,13 @@ async function main() {
   let exit = 0;
   if (!fs.existsSync(planFile)) { fail(`Missing ${planFile}`); process.exit(2); }
   if (!fs.existsSync(accountsFile)) { fail(`Missing ${accountsFile}`); process.exit(2); }
-  if (!fs.existsSync(taxFile)) { fail(`Missing ${taxFile}`); process.exit(2); }
+  if (!fs.existsSync(payrollParamsFile)) { fail(`Missing ${payrollParamsFile}`); process.exit(2); }
   if (!fs.existsSync(schemesFile)) { fail(`Missing ${schemesFile}`); process.exit(2); }
 
   const plan = await readPlanCsv(planFile);
   const accounts = readJson(accountsFile);
-  const tax = readJson(taxFile);
+  const params = readJson(payrollParamsFile);
+  const ipr = params?.PARAMETRES_PAIE_GLOBAL?.FISCAL?.IPR;
   const schemes = readJson(schemesFile);
 
   // Validate account numbers exist in plan comptable
@@ -60,18 +61,16 @@ async function main() {
   if (accounts.treasury?.CASH_PREFIX !== '57') { fail('CASH_PREFIX must be 57'); exit = 1; }
   else ok('CASH_PREFIX 57 confirmed');
 
-  // Tax rule sanity
-  if (!Array.isArray(tax['barème_impot_annuel']) || tax['barème_impot_annuel'].length < 1) {
-    fail('Tax rule barème_impot_annuel is missing'); exit = 1;
+  // Unified IPR sanity
+  if (!ipr || !Array.isArray(ipr.bareme) || ipr.bareme.length < 1) {
+    fail('Unified IPR bareme missing'); exit = 1;
   } else {
-    ok(`Tax rule ${tax.code} • ${tax['barème_impot_annuel'].length} tranches`);
+    ok(`Unified IPR • ${ipr.bareme.length} tranches`);
   }
-  const minRule = tax['regles_limitation_et_minimum'];
-  if (!minRule || typeof minRule['plafonnement_impot_pourcentage_max'] !== 'number') {
-    fail('Tax min/limit rules missing or invalid'); exit = 1;
-  } else {
-    ok(`Tax limit max ${minRule['plafonnement_impot_pourcentage_max']}% and minimum ${minRule['impot_minimum_apres_charges_cdf']} CDF`);
-  }
+  if (typeof ipr.plafond_final_pourcentage !== 'number') { fail('IPR plafond_final_pourcentage missing'); exit = 1; }
+  else ok(`IPR plafond final ${ipr.plafond_final_pourcentage}%`);
+  if (typeof ipr.impot_minimum_mensuel_cdf !== 'number') { fail('IPR impot_minimum_mensuel_cdf missing'); exit = 1; }
+  else ok(`IPR minimum mensuel ${ipr.impot_minimum_mensuel_cdf} CDF`);
 
   // Contribution schemes sanity
   const cnss = schemes.schemes.find(s => s.code === 'CNSS');

@@ -8,7 +8,8 @@ const root = path.resolve(process.cwd());
 const dataDir = path.join(root, 'src', 'data');
 
 const accountsFile = path.join(dataDir, 'rdc-payroll-accounts.json');
-const taxFile = path.join(dataDir, 'rdc-taxrule-ipr.json');
+// Unified payroll params (includes IPR section)
+const payrollParamsFile = path.join(dataDir, 'payroll', 'rdc-params.json');
 const schemesFile = path.join(dataDir, 'rdc-contribution-schemes.json');
 
 function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
@@ -42,11 +43,46 @@ async function upsertPayrollAccountMapping(accountsJson) {
   }
 }
 
-async function upsertTaxRule(taxJson) {
+async function upsertTaxRuleFromParams(paramsJson) {
+  const ipr = paramsJson?.PARAMETRES_PAIE_GLOBAL?.FISCAL?.IPR;
+  if (!ipr) {
+    console.warn('No IPR section found in unified payroll params');
+    return;
+  }
+  // Synthesize legacy shape
+  const bracketsSrc = ipr.bareme || [];
+  const taxJson = {
+    code: 'IPR_RDC_2025',
+    label: 'IPR RDC (barème annuel en CDF)',
+    currency: 'CDF',
+    source: 'unified:payroll/rdc-params.json',
+    'barème_impot_annuel': bracketsSrc.map(b => {
+      if (b.revenu_max_annuel != null) {
+        return {
+          revenu_maximum_annuel_cdf: b.revenu_max_annuel,
+          taux_impot_progressif_pourcentage: b.taux
+        };
+      }
+      if (b.revenu_min_annuel != null) {
+        return {
+          revenu_minimum_annuel_cdf: b.revenu_min_annuel,
+          taux_impot_progressif_pourcentage: b.taux
+        };
+      }
+      return {};
+    }),
+    'regles_limitation_et_minimum': {
+      plafonnement_impot_pourcentage_max: ipr.plafond_final_pourcentage,
+      impot_minimum_apres_charges_cdf: ipr.impot_minimum_mensuel_cdf,
+      note_impot_minimum: 'Valeur mensuelle minimum (unifiée)'
+    }
+  };
+
+  // Reuse existing logic below
   // Transform the provided French JSON into generic brackets
-  const bracketsSrc = taxJson['barème_impot_annuel'] || taxJson['bareme_impot_annuel'] || [];
+  const bracketsLegacy = taxJson['barème_impot_annuel'] || taxJson['bareme_impot_annuel'] || [];
   const brackets = [];
-  for (const b of bracketsSrc) {
+  for (const b of bracketsLegacy) {
     if (b.revenu_maximum_annuel_cdf != null) {
       brackets.push({ max: b.revenu_maximum_annuel_cdf, rate: b.taux_impot_progressif_pourcentage / 100 });
     } else if (b.revenu_minimum_annuel_cdf != null) {
@@ -58,6 +94,7 @@ async function upsertTaxRule(taxJson) {
     currency: taxJson.currency || 'CDF',
     minRule: taxJson['regles_limitation_et_minimum'] || {},
     source: taxJson.source || null,
+    unified: true
   };
   const code = taxJson.code || 'IPR_RDC_2025';
   const label = taxJson.label || 'IPR RDC (barème annuel en CDF)';
@@ -100,16 +137,16 @@ async function upsertContributionSchemes(schemesJson) {
 }
 
 async function main() {
-  if (!fs.existsSync(accountsFile) || !fs.existsSync(taxFile) || !fs.existsSync(schemesFile)) {
+  if (!fs.existsSync(accountsFile) || !fs.existsSync(payrollParamsFile) || !fs.existsSync(schemesFile)) {
     console.error('Missing one or more config files in src/data');
     process.exit(2);
   }
   const accounts = readJson(accountsFile);
-  const tax = readJson(taxFile);
+  const payrollParams = readJson(payrollParamsFile);
   const schemes = readJson(schemesFile);
 
   await upsertPayrollAccountMapping(accounts);
-  await upsertTaxRule(tax);
+  await upsertTaxRuleFromParams(payrollParams);
   await upsertContributionSchemes(schemes);
 }
 
