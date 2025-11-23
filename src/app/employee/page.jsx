@@ -135,7 +135,7 @@ export default function EmployeePage() {
           {MARITAL.map(o => <option key={o.value + o.label} value={o.value}>{o.label}</option>)}
         </select>
   <input type="number" min="0" name="childrenUnder18" value={form.childrenUnder18} onChange={handleChange} placeholder="Enfants < 18 ans" title={t('help.childrenUnder18')} className="border p-2 rounded" />
-  <input name="socialSecurityNumber" value={form.socialSecurityNumber} onChange={handleChange} placeholder="N° Sécurité sociale" title={t('help.socialSecurityNumber')} inputMode="numeric" pattern="\d{15}" className="border p-2 rounded" />
+  <input name="socialSecurityNumber" value={form.socialSecurityNumber} onChange={handleChange} placeholder="N° Sécurité sociale" title={t('help.socialSecurityNumber')} inputMode="text" pattern="[0-9A-Za-z ]{12,}" spellCheck={false} className="border p-2 rounded" />
   <input type="date" name="birthDate" value={form.birthDate} onChange={handleChange} className="border p-2 rounded" title={t('help.birthDate')} />
   <input type="date" name="hireDate" value={form.hireDate} onChange={handleChange} className="border p-2 rounded" title={t('help.hireDate')} />
   <input type="date" name="endDate" value={form.endDate} onChange={handleChange} className="border p-2 rounded" title={t('help.endDate')} />
@@ -211,7 +211,7 @@ export default function EmployeePage() {
             {MARITAL.map(o => <option key={o.value + o.label} value={o.value}>{o.label}</option>)}
           </select>
           <input type="number" min="0" name="childrenUnder18" value={editForm.childrenUnder18 ?? ''} onChange={handleEditChange} placeholder="Enfants < 18 ans" title={t('help.childrenUnder18')} className="border p-2 rounded" />
-          <input name="socialSecurityNumber" value={editForm.socialSecurityNumber || ''} onChange={handleEditChange} placeholder="N° Sécurité sociale" title={t('help.socialSecurityNumber')} inputMode="numeric" pattern="\d{15}" className="border p-2 rounded" />
+          <input name="socialSecurityNumber" value={editForm.socialSecurityNumber || ''} onChange={handleEditChange} placeholder="N° Sécurité sociale" title={t('help.socialSecurityNumber')} inputMode="text" pattern="[0-9A-Za-z ]{12,}" spellCheck={false} className="border p-2 rounded" />
           <input type="date" name="birthDate" value={editForm.birthDate || ''} onChange={handleEditChange} className="border p-2 rounded" title={t('help.birthDate')} />
           <input type="date" name="hireDate" value={editForm.hireDate || ''} onChange={handleEditChange} className="border p-2 rounded" title={t('help.hireDate')} />
           <input type="date" name="endDate" value={editForm.endDate || ''} onChange={handleEditChange} className="border p-2 rounded" title={t('help.endDate')} />

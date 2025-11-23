@@ -1170,6 +1170,9 @@ model BankAdvice {
     history       EmployeeHistory[]
     payslips      Payslip[]
     costAllocations EmployeeCostAllocation[]
+    // Phase A back-relations
+    attendances   EmployeeAttendance[]
+    variables     PayrollVariable[]
     createdAt     DateTime  @default(now())
     updatedAt     DateTime  @updatedAt
   }
@@ -1250,6 +1253,9 @@ model BankAdvice {
     lockedAt DateTime?
     postedAt DateTime?
     payslips Payslip[]
+    // Phase A back-relations
+    attendances EmployeeAttendance[]
+    variables   PayrollVariable[]
 
     @@index([year, month])
   }
@@ -1325,6 +1331,8 @@ model BankAdvice {
     payslipAllocations PayslipCostAllocation[]
     employeeAllocations EmployeeCostAllocation[]
     transactions       Transaction[]
+    // Phase A back-relations
+    payrollVariables   PayrollVariable[]
   }
 
   model EmployeeCostAllocation {
@@ -1373,5 +1381,51 @@ model BankAdvice {
     createdAt     DateTime @default(now())
 
     @@unique([date, baseCurrency, quoteCurrency])
+  }
+
+  // =============================
+  //  Paie - Phase A (Présence & Variables)
+  // =============================
+
+  enum PayrollVariableKind {
+    BONUS
+    ALLOWANCE
+    DEDUCTION
+  }
+
+  model EmployeeAttendance {
+    id           String        @id @default(uuid())
+    periodId     String
+    period       PayrollPeriod @relation(fields: [periodId], references: [id])
+    employeeId   String
+    employee     Employee      @relation(fields: [employeeId], references: [id])
+    daysWorked   Decimal       @db.Decimal(8, 3)
+    workingDays  Decimal?      @db.Decimal(8, 3)
+    overtimeHours Decimal?     @db.Decimal(8, 2)
+    notes        String?
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+
+    @@unique([periodId, employeeId])
+    @@index([periodId])
+    @@index([employeeId])
+  }
+
+  model PayrollVariable {
+    id           String              @id @default(uuid())
+    periodId     String
+    period       PayrollPeriod       @relation(fields: [periodId], references: [id])
+    employeeId   String
+    employee     Employee            @relation(fields: [employeeId], references: [id])
+    kind         PayrollVariableKind
+    label        String
+    amount       Decimal             @db.Decimal(16, 2)
+    costCenterId String?
+    costCenter   CostCenter?         @relation(fields: [costCenterId], references: [id])
+    createdAt    DateTime            @default(now())
+
+    @@index([periodId])
+    @@index([employeeId])
+    @@index([costCenterId])
   }
 

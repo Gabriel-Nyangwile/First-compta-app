@@ -27,6 +27,8 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     // Allowlist updatable fields
     const data = {};
+    const allowedStatus = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'EXITED'];
+    const allowedContractType = ['CDI','CDD','CI'];
     if (typeof body.firstName === 'string') data.firstName = body.firstName;
     if (typeof body.lastName === 'string') data.lastName = body.lastName;
     if (typeof body.email !== 'undefined') data.email = body.email || null;
@@ -64,7 +66,7 @@ export async function PUT(request, { params }) {
       }
     }
     if (typeof body.socialSecurityNumber !== 'undefined') {
-      const v = (body.socialSecurityNumber ?? '').toString().trim();
+      const v = (body.socialSecurityNumber ?? '').toString().replace(/\s+/g, '').trim();
       data.socialSecurityNumber = v.length > 0 ? v : null;
     }
     if (typeof body.employeeNumber !== 'undefined') {
@@ -72,15 +74,14 @@ export async function PUT(request, { params }) {
       data.employeeNumber = num.length > 0 ? num : null;
     }
     if (typeof body.status !== 'undefined') {
-      const allowed = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'EXITED'];
       if (body.status === null) {
         // status is non-nullable in schema; reject explicit null
         return NextResponse.json({ error: 'Le statut ne peut pas être nul' }, { status: 400 });
       }
-      if (typeof body.status === 'string' && allowed.includes(body.status)) {
+      if (typeof body.status === 'string' && allowedStatus.includes(body.status)) {
         data.status = body.status;
       } else {
-        return NextResponse.json({ error: `Statut invalide. Valeurs permises: ${allowed.join(', ')}` }, { status: 400 });
+        return NextResponse.json({ error: `Statut invalide. Valeurs permises: ${allowedStatus.join(', ')}` }, { status: 400 });
       }
     }
     if (typeof body.positionId !== 'undefined') {
@@ -120,19 +121,34 @@ export async function PUT(request, { params }) {
       }
     }
     if (typeof body.contractType !== 'undefined') {
-      const allowed = ['CDI','CDD','CI'];
       if (body.contractType === null || body.contractType === '') {
         data.contractType = null;
-      } else if (typeof body.contractType === 'string' && allowed.includes(body.contractType)) {
+      } else if (typeof body.contractType === 'string' && allowedContractType.includes(body.contractType)) {
         data.contractType = body.contractType;
       } else {
-        return NextResponse.json({ error: `Type de contrat invalide. Valeurs permises: ${allowed.join(', ')}` }, { status: 400 });
+        return NextResponse.json({ error: `Type de contrat invalide. Valeurs permises: ${allowedContractType.join(', ')}` }, { status: 400 });
       }
     }
     // Contract model supprimé: ignorer contractId s'il est envoyé
-    if (typeof body.birthDate !== 'undefined') data.birthDate = body.birthDate ? new Date(body.birthDate) : null;
-    if (typeof body.hireDate !== 'undefined') data.hireDate = body.hireDate ? new Date(body.hireDate) : null;
-    if (typeof body.endDate !== 'undefined') data.endDate = body.endDate ? new Date(body.endDate) : null;
+    const parseDate = (val, label) => {
+      if (typeof val === 'undefined') return undefined;
+      if (val === null || val === '') return null;
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) throw new Error(`Date invalide: ${label}`);
+      return d;
+    };
+    const birth = parseDate(body.birthDate, 'birthDate');
+    const hire = parseDate(body.hireDate, 'hireDate');
+    const end = parseDate(body.endDate, 'endDate');
+    if (hire && end && end < hire) {
+      return NextResponse.json({ error: 'endDate doit être postérieure à hireDate' }, { status: 400 });
+    }
+    if (birth && hire && birth > hire) {
+      return NextResponse.json({ error: 'birthDate doit être antérieure à hireDate' }, { status: 400 });
+    }
+    if (typeof birth !== 'undefined') data.birthDate = birth;
+    if (typeof hire !== 'undefined') data.hireDate = hire;
+    if (typeof end !== 'undefined') data.endDate = end;
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: 'Aucun champ valide à mettre à jour' }, { status: 400 });
@@ -144,6 +160,9 @@ export async function PUT(request, { params }) {
     });
     return NextResponse.json(toPlain({ employee }));
   } catch (error) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ error: 'Contrainte d’unicité violée (email ou matricule)' }, { status: 409 });
+    }
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }

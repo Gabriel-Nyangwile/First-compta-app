@@ -36,6 +36,9 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const data = await request.json();
+    if (!data?.firstName || !data?.lastName) {
+      return NextResponse.json({ error: 'firstName et lastName sont requis' }, { status: 400 });
+    }
     // Only allow fields defined in schema
     const {
       firstName,
@@ -60,6 +63,7 @@ export async function POST(request) {
     const allowedGender = ['MALE','FEMALE'];
     const allowedMarital = ['SINGLE','MARRIED'];
     const allowedContractType = ['CDI','CDD','CI'];
+    const allowedStatus = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'EXITED'];
 
     // Normalize optional foreign keys to avoid FK violations when UI sends '' / 'null'
     const normalizeId = (val) => {
@@ -98,6 +102,31 @@ export async function POST(request) {
       finalEmployeeNumber = await nextSequence(prisma, `employeeNumber:${group}`, `${group}-`);
     }
 
+    // Normalize social security number: strip spaces
+    let ssnNormalized;
+    if (typeof socialSecurityNumber !== 'undefined') {
+      const raw = (socialSecurityNumber ?? '').toString();
+      const compact = raw.replace(/\s+/g, '').trim();
+      ssnNormalized = compact.length > 0 ? compact : undefined;
+    }
+    // Dates
+    const parseDate = (val, label) => {
+      if (!val) return undefined;
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) throw new Error(`Date invalide: ${label}`);
+      return d;
+    };
+    const birth = parseDate(birthDate, 'birthDate');
+    const hire = parseDate(hireDate, 'hireDate');
+    const end = parseDate(endDate, 'endDate');
+    if (hire && end && end < hire) {
+      return NextResponse.json({ error: 'endDate doit être postérieure à hireDate' }, { status: 400 });
+    }
+    if (birth && hire && birth > hire) {
+      return NextResponse.json({ error: 'birthDate doit être antérieure à hireDate' }, { status: 400 });
+    }
+    const normalizedStatus = (typeof status === 'string' && allowedStatus.includes(status)) ? status : undefined;
+
     const employee = await prisma.employee.create({
       data: {
         firstName,
@@ -105,17 +134,17 @@ export async function POST(request) {
         email,
         phone,
         address,
-        birthDate: birthDate ? new Date(birthDate) : undefined,
-        hireDate: hireDate ? new Date(hireDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
+        birthDate: birth,
+        hireDate: hire,
+        endDate: end,
         employeeNumber: finalEmployeeNumber,
         gender: (typeof gender === 'string' && allowedGender.includes(gender)) ? gender : undefined,
         maritalStatus: (typeof maritalStatus === 'string' && allowedMarital.includes(maritalStatus)) ? maritalStatus : undefined,
         childrenUnder18: (typeof childrenUnder18 === 'number' && childrenUnder18 >= 0)
           ? Math.floor(childrenUnder18)
           : (typeof childrenUnder18 === 'string' && !isNaN(parseInt(childrenUnder18)) ? Math.max(0, parseInt(childrenUnder18)) : undefined),
-        socialSecurityNumber: typeof socialSecurityNumber === 'string' && socialSecurityNumber.trim().length > 0 ? socialSecurityNumber.trim() : undefined,
-        status: typeof status === 'string' ? status : undefined,
+        socialSecurityNumber: ssnNormalized,
+        status: normalizedStatus,
         positionId: normalizedPositionId,
         contractType: (typeof contractType === 'string' && allowedContractType.includes(contractType)) ? contractType : undefined,
         category: snapshotCategory,
@@ -123,6 +152,9 @@ export async function POST(request) {
     });
     return NextResponse.json(toPlain({ employee }));
   } catch (error) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ error: 'Contrainte d’unicité violée (email ou matricule)' }, { status: 409 });
+    }
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }

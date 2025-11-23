@@ -637,6 +637,22 @@ export default function NavbarDropdown({ user }) {
       <TreasuryOperationsMenu />
       <SalesMenu salesUnpaid={salesUnpaid} />
       <PurchasesMenu purchaseUnpaid={purchaseUnpaid} />
+      <div className="relative">
+        <Link
+          href={`/payroll/periods/annual/${new Date().getFullYear()}`}
+          className="px-3 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center gap-1"
+        >
+          <span>Paie Annuel</span>
+        </Link>
+      </div>
+      <div className="relative">
+        <Link
+          href="/payroll/periods/trend"
+          className="px-3 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center gap-1"
+        >
+          <span>Tendance Paie</span>
+        </Link>
+      </div>
     </div>
   );
 }

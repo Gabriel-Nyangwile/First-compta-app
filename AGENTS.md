@@ -28,6 +28,10 @@ En cas de divergence entre `AGENTS.md` et `.github/copilot-instructions.md`,
 - **Exécution** : environnement **local**
 - **Gestionnaire de paquets** : npm
 - **Emplacement** : projet racine (pas encore publié sur GitHub)
+- **Exports Personnel Sécurisés** : Les endpoints d'export (CSV/PDF/XLSX) pour `personnel/summary` et `personnel/trend` appliquent un contrôle de jeton en production (header `x-admin-token` correspondant à `ADMIN_TOKEN` ou `NEXT_PUBLIC_ADMIN_TOKEN`). En environnement non‑production, le contrôle est suspendu pour faciliter les tests.
+- **Paramètres Query RH** :
+  - `GET /api/personnel/summary?year=YYYY&month=MM` génère la synthèse sur la fin du mois spécifié.
+  - `GET /api/personnel/trend?months=N` (1–24) retourne la fenêtre glissante N mois avec `activeStart`, `activeEnd`, `avgHeadcount`, `hiresRatePct`, `exitTurnoverPct`.
 
 ---
 

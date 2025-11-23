@@ -44,16 +44,36 @@ async function main() {
 
   // Deletion order chosen to respect FK constraints.
   const steps = [];
-  steps.push(await timed('transactions.deleteMany', () => prisma.transaction.deleteMany()));
+  // Core accounting & treasury first
+  steps.push(await timed('transaction.deleteMany', () => prisma.transaction.deleteMany()));
+  steps.push(await timed('paymentInvoiceLink.deleteMany', () => prisma.paymentInvoiceLink.deleteMany()));
+  steps.push(await timed('payment.deleteMany', () => prisma.payment.deleteMany()));
+  // Stock & purchasing dependent movements (remove before lines referencing them)
+  steps.push(await timed('stockMovement.deleteMany', () => prisma.stockMovement.deleteMany()));
+  // Lines referencing invoices / purchase / receipts / returns
   steps.push(await timed('invoiceLine.deleteMany', () => prisma.invoiceLine.deleteMany()));
   steps.push(await timed('incomingInvoiceLine.deleteMany', () => prisma.incomingInvoiceLine.deleteMany()));
+  steps.push(await timed('purchaseOrderLine.deleteMany', () => prisma.purchaseOrderLine.deleteMany()));
+  steps.push(await timed('goodsReceiptLine.deleteMany', () => prisma.goodsReceiptLine.deleteMany()));
+  steps.push(await timed('returnOrderLine.deleteMany', () => prisma.returnOrderLine.deleteMany()));
+  // Higher level documents
+  steps.push(await timed('returnOrder.deleteMany', () => prisma.returnOrder.deleteMany()));
+  steps.push(await timed('goodsReceipt.deleteMany', () => prisma.goodsReceipt.deleteMany()));
+  steps.push(await timed('purchaseOrderStatusLog.deleteMany', () => prisma.purchaseOrderStatusLog.deleteMany()));
+  steps.push(await timed('purchaseOrder.deleteMany', () => prisma.purchaseOrder.deleteMany()));
+  // Treasury & advice
   steps.push(await timed('moneyMovement.deleteMany', () => prisma.moneyMovement.deleteMany()));
   steps.push(await timed('bankAdvice.deleteMany', () => prisma.bankAdvice.deleteMany()));
   steps.push(await timed('treasuryAuthorization.deleteMany', () => prisma.treasuryAuthorization.deleteMany()));
+  // Invoices (client & supplier) after lines removed
   steps.push(await timed('invoice.deleteMany', () => prisma.invoice.deleteMany()));
   steps.push(await timed('incomingInvoice.deleteMany', () => prisma.incomingInvoice.deleteMany()));
+  // Lettering referencing invoices/suppliers
+  steps.push(await timed('lettering.deleteMany', () => prisma.lettering.deleteMany()));
+  // Parties
   steps.push(await timed('client.deleteMany', () => prisma.client.deleteMany()));
   steps.push(await timed('supplier.deleteMany', () => prisma.supplier.deleteMany()));
+  // Money accounts last (may be referenced by movements already removed)
   steps.push(await timed('moneyAccount.deleteMany', () => prisma.moneyAccount.deleteMany()));
 
   if (isFull) {
