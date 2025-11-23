@@ -4,10 +4,10 @@ import { finalizeBatchToJournal, computeDebitCredit } from '../journal.js';
 
 /**
  * Règle le net à payer (421) d'une période POSTED vers un compte banque/caisse.
- * Options: { accountNumber?, dryRun? }
+ * Options: { accountNumber?, dryRun?, employeeId? } -> si employeeId présent, ne règle que le(s) bulletins de cet employé.
  */
 export async function postPayrollSettlement(periodId, opts = {}) {
-  const { accountNumber, dryRun } = opts;
+  const { accountNumber, dryRun, employeeId } = opts;
   const period = await prisma.payrollPeriod.findUnique({
     where: { id: periodId },
     include: { payslips: true },
@@ -16,7 +16,9 @@ export async function postPayrollSettlement(periodId, opts = {}) {
   if (period.status !== 'POSTED') throw new Error(`Period must be POSTED (status=${period.status})`);
   if (!period.payslips.length) throw new Error('No payslips to settle');
 
-  const netTotal = period.payslips.reduce((s, ps) => s + (ps.netAmount?.toNumber?.() ?? Number(ps.netAmount) ?? 0), 0);
+  const targetPayslips = employeeId ? period.payslips.filter(p => p.employeeId === employeeId) : period.payslips;
+  if (!targetPayslips.length) throw new Error(employeeId ? 'No payslip found for employee in this period' : 'No payslips to settle');
+  const netTotal = targetPayslips.reduce((s, ps) => s + (ps.netAmount?.toNumber?.() ?? Number(ps.netAmount) ?? 0), 0);
   if (!(netTotal > 0)) throw new Error(`Net total <= 0 (${netTotal})`);
 
   // Resolve accounts
@@ -52,16 +54,19 @@ export async function postPayrollSettlement(periodId, opts = {}) {
   }
 
   if (dryRun) {
-    return { dryRun: true, netTotal, netPayAccountId, bankAccountId };
+    return { dryRun: true, netTotal, netPayAccountId, bankAccountId, employeeId: employeeId || null };
   }
 
   const today = new Date();
   const settlementRef = await nextSequence(prisma, 'PAYROLL_SETTLEMENT', 'PAYSET-');
+  const desc = employeeId
+    ? `Règlement net paie ${period.ref} employé ${employeeId} ${settlementRef}`
+    : `Règlement net paie ${period.ref} ${settlementRef}`;
   const txn = await prisma.$transaction(async (tx) => {
     const debitBank = await tx.transaction.create({
       data: {
         date: today,
-        description: `Règlement net paie ${period.ref} ${settlementRef}`,
+        description: desc,
         amount: netTotal,
         direction: 'DEBIT',
         kind: 'PAYROLL_SETTLEMENT',
@@ -71,7 +76,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
     const creditNet = await tx.transaction.create({
       data: {
         date: today,
-        description: `Règlement net paie ${period.ref} ${settlementRef}`,
+        description: desc,
         amount: netTotal,
         direction: 'CREDIT',
         kind: 'PAYROLL_SETTLEMENT',
@@ -82,12 +87,12 @@ export async function postPayrollSettlement(periodId, opts = {}) {
       sourceType: 'PAYROLL_SETTLEMENT',
       sourceId: period.id,
       date: today,
-      description: `Règlement paie ${period.ref} ${settlementRef}`,
+      description: desc,
       voucherRef: settlementRef,
       transactions: [debitBank, creditNet],
     });
     return { journal, transactions: [debitBank, creditNet] };
   });
   const { debit, credit } = computeDebitCredit(txn.transactions);
-  return { settlementRef, journalNumber: txn.journal.number, debit, credit };
+  return { settlementRef, journalNumber: txn.journal.number, debit, credit, employeeId: employeeId || null };
 }

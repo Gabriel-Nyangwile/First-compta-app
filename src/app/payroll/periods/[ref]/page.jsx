@@ -6,6 +6,7 @@ import PostButton from '../PostButton.jsx';
 import { auditPayrollPeriod } from '@/lib/payroll/audit';
 import AuditPanel from '../AuditPanel.jsx';
 import ReverseButton from '../ReverseButton.jsx';
+import SettlementButton from '../SettlementButton.jsx';
 import { sanitizePlain } from '@/lib/sanitizePlain';
 
 export const dynamic = 'force-dynamic';
@@ -69,7 +70,22 @@ export default async function PayrollPeriodDetail({ params }) {
         {' '}| <a className="underline hover:no-underline" href="https://github.com/Gabriel-Nyangwile/first-compta/blob/master/docs/payroll-validation.md" target="_blank" rel="noopener noreferrer">Cheat Sheet</a>.
         Les taux sont des décimaux [0,1]; les tranches fiscales restent strictement ascendantes; un conflit code renvoie <code>code.exists</code>.
       </aside>
-      <div className="text-sm text-gray-600 flex items-center gap-4 flex-wrap">Statut: {period.status} {period.status === 'OPEN' && <LockButton periodId={period.id} />} {period.status === 'LOCKED' && <PostButton periodId={period.id} />} {period.status === 'POSTED' && <ReverseButton periodId={period.id} hasJournal={hasJournal} />} <a className="underline text-blue-600" href={`/payroll/periods/${period.ref}/inputs`}>Saisies</a> <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary`}>Résumé JSON</a> <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary?format=csv`}>Résumé CSV</a> <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/pdf`}>Résumé PDF</a> <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/xlsx`}>Résumé XLSX</a></div>
+      <div className="text-sm text-gray-600 flex items-center gap-4 flex-wrap">
+        Statut: {period.status}
+        {period.status === 'OPEN' && <LockButton periodId={period.id} />}
+        {period.status === 'LOCKED' && <PostButton periodId={period.id} />}
+        {period.status === 'POSTED' && (
+          <>
+            <ReverseButton periodId={period.id} hasJournal={hasJournal} />
+            <SettlementButton periodId={period.id} periodRef={period.ref} />
+          </>
+        )}
+        <a className="underline text-blue-600" href={`/payroll/periods/${period.ref}/inputs`}>Saisies</a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary`}>Résumé JSON</a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary?format=csv`}>Résumé CSV</a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/pdf`}>Résumé PDF</a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/xlsx`}>Résumé XLSX</a>
+      </div>
       {audit && (<AuditPanel audit={audit} periodId={period.id} />)}
       <section className="space-y-2">
         <h2 className="font-medium">Bulletins ({period.payslips.length})</h2>

@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import RecalcButton from '../RecalcButton.jsx';
 import ExportPayslipJson from '../ExportPayslipJson.jsx';
 import { sanitizePlain } from '@/lib/sanitizePlain';
+import PayButton from '../PayButton.jsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,15 +58,16 @@ export default async function PayslipDetailPage({ params }) {
       <div className="text-sm">Période: {ps.period.month}/{ps.period.year}</div>
       <div className="text-sm flex items-center gap-4 flex-wrap">Brut: {ps.grossAmount?.toFixed?.(2) ?? ps.grossAmount} | Net (stocké): {ps.netAmount?.toFixed?.(2) ?? ps.netAmount} <ExportPayslipJson payslip={ps} /></div>
       {!ps.locked && <RecalcButton payslipId={ps.id} />}
+      {ps.period?.status === 'POSTED' && <PayButton periodId={ps.period.id} employeeId={ps.employee.id} />}
       <div className="border rounded p-3 bg-white text-sm">
         <div className="font-medium mb-2">Ventilation principale</div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
           <div>CNSS salarié: {cnssEmployee.toFixed(2)}</div>
           <div>CNSS employeur: {cnssEmployer.toFixed(2)}</div>
           <div>IPR: {iprTax.toFixed(2)}</div>
-          <div>Base IPR (RI): {riBase==null?'—':Number(riBase).toFixed(2)}</div>
-          <div>RI CDF: {riCDF==null?'—':Number(riCDF).toFixed(2)}</div>
-          <div>FX rate: {fxRate==null?'—':fxRate}</div>
+          <div>Base IPR (RI): {riBase==null?'-':Number(riBase).toFixed(2)}</div>
+          <div>RI CDF: {riCDF==null?'-':Number(riCDF).toFixed(2)}</div>
+          <div>FX rate: {fxRate==null?'-':fxRate}</div>
           <div>ONEM: {onem.toFixed(2)}</div>
           <div>INPP: {inpp.toFixed(2)}</div>
           <div>Charges employeur totales: {employerCharges.toFixed(2)}</div>
@@ -111,7 +113,7 @@ export default async function PayslipDetailPage({ params }) {
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-gray-500">(UI provisoire — calculs et ventilation à intégrer)</p>
+      <p className="text-xs text-gray-500">(UI provisoire - calculs et ventilation à intégrer)</p>
     </div>
   );
 }
