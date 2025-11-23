@@ -405,6 +405,7 @@ Les anciens textes d'aide factorisés (`helpTexts.js`) ont été remplacés dans
 - Etape 3 (garde-fous + PDF bulletins) : mutations presence/variables/recalcul interdites hors periode OPEN; PDF bulletins branche sur utilitaires communs (identite societe, watermark BROUILLON, tri lignes, pagination).
 - Note 2025-11-23 : workflows paie/personnel committes et pousses (postings equilibrés, PDF payslip OK); prochaine etape = poursuivre la roadmap (journal paie, audits, PDF aligné).
 - Audit paie : script `npm run audit:payroll:posting -- --ref=PP-000123` ou `--all` (vérifie équilibre journal vs bulletins pour chaque période POSTED).
+- Paiement net global : endpoint `POST /api/payroll/settlement` (periodId ou ref, accountNumber?); script smoke `npm run smoke:payroll:settlement` (dry-run par défaut, `--execute` pour poster).
 
 Endpoints (feature flag `ENABLE_PAYROLL`) :
 

@@ -68,6 +68,7 @@
     "test:payroll:reverse": "node --env-file=.env.local scripts/test-payroll-reverse.js",
     "smoke:payroll:overtime-post": "node --env-file=.env.local scripts/smoke-payroll-overtime-post.js",
     "smoke:payroll:inputs": "node --env-file=.env.local scripts/smoke-payroll-inputs.js",
+    "smoke:payroll:settlement": "node --env-file=.env.local scripts/smoke-payroll-settlement.js",
     "seed:cost-centers:nat-exp": "node --env-file=.env.local scripts/seed-cost-centers-nat-exp.js",
     "seed:fx": "node --env-file=.env.local scripts/seed-fx-rates.js"
   },
