@@ -618,6 +618,58 @@ Note: The sidebar used by the app is `src/components/sidebar/AuthSidebar.jsx` (c
 - UI: all payroll pages include a `BackButton` header for consistent navigation.
 
 
+## 17. AI Assistant (Claude Sonnet)
+
+Minimal endpoint integration for contextual assistance, drafting, or explanation using Claude Sonnet 3.5.
+
+Endpoint:
+
+`POST /api/ai/complete` with body `{ "prompt": "Your question" }` (streaming SSE by default).
+
+To disable streaming and receive a single JSON response, pass `{ "prompt": "...", "stream": false }`.
+
+Response:
+
+```json
+{ "ok": true, "text": "..." }
+```
+
+Streaming Server-Sent Events sample:
+
+```text
+data: {"type":"text","chunk":"First fragment..."}
+data: {"type":"text","chunk":"Continuation..."}
+event: end
+data: {}
+```
+
+Configuration:
+
+- Add `ANTHROPIC_API_KEY=sk-...` to `.env.local` (never commit the key).
+- Dependency `@anthropic-ai/sdk` is declared in `package.json`.
+
+Internal helper `src/lib/ai/anthropicClient.js` exposes `simplePrompt(prompt)` returning `{ raw, text }`.
+
+Best Practices:
+
+- Keep prompts concise (lower cost, faster latency).
+- Use `stream: false` only for short prompts where blocking is acceptable.
+- Add a future middleware for rate-limiting & auth gating.
+- Avoid sending sensitive identifiers: hash / mask if necessary.
+- Consider caching deterministic prompts (LRU) to reduce spend.
+
+Future Enhancements:
+
+- Structured tool outputs (JSON schemas) for reconciliations.
+- Streaming responses for long reasoning chains.
+- Multi‑model fallback (retry on transient errors).
+
+Example (PowerShell):
+
+```powershell
+Invoke-WebRequest -Uri http://localhost:3000/api/ai/complete -Method POST -Body '{"prompt":"Explain the difference between debit and credit"}' -ContentType 'application/json'
+```
+
 ## Coverage
 
 Placeholder badge at top will be replaced once test coverage instrumentation (e.g. Vitest or Jest + Istanbul) is introduced. Planned steps:
@@ -627,3 +679,202 @@ Placeholder badge at top will be replaced once test coverage instrumentation (e.
 1. Replace static shield with dynamic badge (Codecov) or Shields endpoint.
 
 Until then, the static badge communicates the feature is pending.
+
+## 18. Payroll Configuration (Contribution Schemes, Tax Rules, Cost Centers)
+
+New beta endpoints add structured payroll configuration used during payslip calculations (social contributions, progressive tax brackets, costing allocations). All routes are feature-flagged by `ENABLE_PAYROLL`.
+
+| Resource | Collection | Item |
+|----------|-----------|------|
+| Contribution Scheme | `GET /api/payroll/contribution-schemes` / `POST /api/payroll/contribution-schemes` | `GET /api/payroll/contribution-schemes/:id`, `PUT /api/payroll/contribution-schemes/:id`, `DELETE /api/payroll/contribution-schemes/:id` |
+| Tax Rule | `GET /api/payroll/tax-rules` / `POST /api/payroll/tax-rules` | `GET /api/payroll/tax-rules/:id`, `PUT /api/payroll/tax-rules/:id`, `DELETE /api/payroll/tax-rules/:id` |
+| Cost Center | `GET /api/payroll/cost-centers` / `POST /api/payroll/cost-centers` | `GET /api/payroll/cost-centers/:id`, `PUT /api/payroll/cost-centers/:id`, `DELETE /api/payroll/cost-centers/:id` |
+
+### 18.1 Contribution Scheme Shape
+
+```json
+{
+  "code": "CS01",
+  "label": "Retirement Base",
+  "employeeRate": 0.07,
+  "employerRate": 0.10,
+  "ceiling": 3500.00,
+  "baseKind": "BRUT", // BASE_SALAIRE | BRUT | IMPOSABLE
+  "active": true
+}
+```
+
+Notes:
+
+- Rates are decimals (fractional, not percentages) — e.g. 7% = `0.07`.
+- If `ceiling` provided, contribution base is `min(grossBase, ceiling)`.
+- `baseKind` indicates which computed base the scheme applies to.
+
+### 18.2 Tax Rule Shape & Brackets
+
+`brackets` is a JSON array of ascending threshold objects:
+
+```json
+{
+  "code": "TAX-PROG",
+  "label": "Progressive Income",
+  "brackets": [
+    { "upTo": 1000, "rate": 0.00 },
+    { "upTo": 2500, "rate": 0.10 },
+    { "upTo": 6000, "rate": 0.20 },
+    { "upTo": 999999999, "rate": 0.30 }
+  ],
+  "roundingMode": "BANKERS", // NONE | BANKERS | UP | DOWN
+  "active": true
+}
+```
+
+Validation rules:
+
+- Must be an array; each entry requires numeric `upTo` (inclusive cap) and numeric `rate` (fraction).
+- Array should be strictly ascending by `upTo` (enforced server-side; client pre-validation added in UI).
+- Highest bracket typically uses a large sentinel upper bound.
+- Rounding applied to final tax result, not per bracket subtotal.
+
+### 18.3 Cost Center Shape
+
+```json
+{
+  "code": "CC-SALES",
+  "label": "Commercial Team",
+  "active": true
+}
+```
+
+Deletion Safety:
+
+- A cost center cannot be deleted if referenced by payroll allocations or transactions (endpoint returns `409 Conflict`).
+
+### 18.4 Common API Behaviors
+
+| Aspect | Behavior |
+|--------|----------|
+| Feature Flag | Returns 403 if payroll disabled. |
+| Errors | 400 validation, 404 not found, 409 conflict (cost center), 500 unexpected errors. |
+| Rates / Decimals | Send JSON numbers; avoid strings. |
+| Partial Update | `PUT` endpoints apply only provided fields. |
+
+### 18.5 Example Create (PowerShell)
+
+```powershell
+Invoke-WebRequest -Uri http://localhost:3000/api/payroll/contribution-schemes -Method POST -Body '{"code":"CS01","label":"Retirement","employeeRate":0.07,"employerRate":0.10,"ceiling":3500,"baseKind":"BRUT"}' -ContentType 'application/json'
+```
+
+### 18.6 Frontend UI
+
+Page: `/payroll/config` — inline tables & forms for all three resources with client-side JSON bracket validation + toast feedback. Editing is row‑inline; deletion prompts confirmation.
+
+### 18.7 Future Enhancements
+
+- Bracket ordering + continuity assertion (start at 0).
+- Effective dates / versioning.
+- Allocation reporting by cost center (per period).
+- Rate limiting & auth guard.
+
+### 18.8 Validation Rules
+
+Server-side validation consolidates all checks and returns a uniform error payload:
+
+```jsonc
+{ "ok": false, "error": "validation", "details": ["employeeRate.range", "brackets.2.order"] }
+```
+
+If a uniqueness conflict occurs on `code`, endpoints return:
+
+```jsonc
+{ "ok": false, "error": "code.exists" }
+```
+
+Cost center deletion when referenced returns HTTP 409 with a descriptive message (not a structured code):
+
+```jsonc
+{ "ok": false, "error": "Cost center referenced; deactivate instead." }
+```
+
+#### 18.8.1 Contribution Scheme Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `code.required` | `code` missing |
+| `code.format` | Invalid format (`^[A-Z0-9][A-Z0-9_-]{0,31}$`) |
+| `label.required` | `label` missing |
+| `label.length` | `label` exceeds 120 chars |
+| `employeeRate.nan` | `employeeRate` not a number |
+| `employeeRate.range` | `employeeRate` outside [0,1] |
+| `employerRate.nan` | `employerRate` not a number |
+| `employerRate.range` | `employerRate` outside [0,1] |
+| `ceiling.invalid` | `ceiling` provided but ≤ 0 or NaN |
+| `baseKind.invalid` | Not one of `BASE_SALAIRE`, `BRUT`, `IMPOSABLE` |
+| `code.exists` | Duplicate `code` (409) |
+
+#### 18.8.2 Tax Rule Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `code.required` | Missing `code` |
+| `code.format` | Fails regex `^[A-Z0-9][A-Z0-9_-]{0,31}$` |
+| `label.required` | Missing `label` |
+| `label.length` | `label` exceeds 160 chars |
+| `roundingMode.invalid` | Not one of `NONE`, `BANKERS`, `UP`, `DOWN` |
+| `brackets.json` | String `brackets` fails JSON parse |
+| `brackets.array` | Parsed `brackets` not an array |
+| `brackets.{i}.object` | Entry not an object |
+| `brackets.{i}.upTo` | `upTo` missing / ≤ 0 / NaN |
+| `brackets.{i}.rate` | `rate` missing / NaN / outside [0,1] |
+| `brackets.{i}.order` | `upTo` not strictly ascending vs previous |
+| `brackets.first.upToPositive` | First bracket `upTo` ≤ 0 |
+| `code.exists` | Duplicate `code` (409) |
+
+#### 18.8.3 Cost Center Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `code.required` | Missing `code` |
+| `code.format` | Invalid format regex |
+| `label.required` | Missing `label` |
+| `label.length` | `label` exceeds 120 chars |
+| `code.exists` | Duplicate `code` (409) |
+
+#### 18.8.4 Validation Field Semantics
+
+- `code.format` regex: leading uppercase alphanumeric, then up to 31 chars of uppercase alphanumeric, `_` or `-`. Total max length 32.
+- Rates (`employeeRate`, `employerRate`, bracket `rate`): fractional decimals in [0,1] (e.g. 7% = 0.07).
+- Brackets must be strictly ascending by `upTo`; a large sentinel (e.g. `999999999`) may cap the top bracket.
+- Continuity check currently enforces first bracket positive (`>0`); future enhancement will assert start coverage from 0.
+- Ceiling (`contributionScheme.ceiling`): optional; must be > 0 when present; `null` or omitted = no cap.
+- Rounding applies to the final aggregated tax result (not per bracket) according to `roundingMode`.
+
+#### 18.8.5 Examples
+
+Invalid contribution scheme (bad code + rate):
+
+```json
+{
+  "ok": false,
+  "error": "validation",
+  "details": ["code.format", "employeeRate.range"]
+}
+```
+
+Invalid tax rule (descending bracket + invalid rounding mode):
+
+```json
+{
+  "ok": false,
+  "error": "validation",
+  "details": ["roundingMode.invalid", "brackets.2.order"]
+}
+```
+
+Duplicate code (any entity):
+
+```json
+{ "ok": false, "error": "code.exists" }
+```
+
+

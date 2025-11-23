@@ -1,5 +1,14 @@
-import { getPayrollParams, computeCnssQpoFromGrossEur, computeIprBaseFromGrossEur, computeAllocFamEur } from '@/lib/payroll/calc-utils.js';
-import { eurToCdf, cdfToEur, getCdfPerEur } from '@/lib/payroll/currency.js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { getPayrollParams, computeCnssQpoFromGrossEur, computeIprBaseFromGrossEur, computeAllocFamEur } from '../src/lib/payroll/calc-utils.js';
+import { eurToCdf, cdfToEur, getCdfPerEur } from '../src/lib/payroll/currency.js';
+
+// Load .env.local (project root)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, '..');
+dotenv.config({ path: path.join(root, '.env.local') });
 
 console.log('--- Payroll EUR<->CDF pipeline smoke ---');
 console.log('Rate CDF_PER_EUR =', getCdfPerEur());

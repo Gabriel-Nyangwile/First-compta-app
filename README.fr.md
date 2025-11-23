@@ -397,3 +397,265 @@ Les anciens textes d'aide factorisés (`helpTexts.js`) ont été remplacés dans
 - PDF : `GET /api/payroll/payslips/[id]/pdf` (placeholder; intégration avec pipeline PDF unifié ultérieurement).
 - UI : toutes les pages paie incluent un `BackButton` en en‑tête pour une navigation cohérente.
 
+### 15.1 Configuration Paie (Schémas de Contribution, Règles Fiscales, Centres de Coût)
+
+### 15.0 Suivi feuille de route Paie / Personnel
+- Etape 1 (validation RH) : controles sur `POST/PUT /api/employee` (noms requis, bornes dates hire/end/birth, enums statut/contrat, retour 409 sur doublon email/matricule).
+- Etape 2 (ventilation analytique paie) : snapshot des `EmployeeCostAllocation` vers `PayslipCostAllocation` lors de la generation/recalcul des bulletins; postings paie utilisent desormais le snapshot (fallback employe) pour ventiler charges salaires/primes.
+- Etape 3 (garde-fous + PDF bulletins) : mutations presence/variables/recalcul interdites hors periode OPEN; PDF bulletins branche sur utilitaires communs (identite societe, watermark BROUILLON, tri lignes, pagination).
+
+Endpoints (feature flag `ENABLE_PAYROLL`) :
+
+| Ressource | Collection | Item |
+|-----------|------------|------|
+| Schéma de contribution | `GET /api/payroll/contribution-schemes` / `POST /api/payroll/contribution-schemes` | `GET /api/payroll/contribution-schemes/:id`, `PUT /api/payroll/contribution-schemes/:id`, `DELETE /api/payroll/contribution-schemes/:id` |
+| Règle fiscale | `GET /api/payroll/tax-rules` / `POST /api/payroll/tax-rules` | `GET /api/payroll/tax-rules/:id`, `PUT /api/payroll/tax-rules/:id`, `DELETE /api/payroll/tax-rules/:id` |
+| Centre de coût | `GET /api/payroll/cost-centers` / `POST /api/payroll/cost-centers` | `GET /api/payroll/cost-centers/:id`, `PUT /api/payroll/cost-centers/:id`, `DELETE /api/payroll/cost-centers/:id` |
+
+#### 15.1.1 Schéma de Contribution (exemple)
+
+```json
+{
+  "code": "CS01",
+  "label": "Retraite Base",
+  "employeeRate": 0.07,
+  "employerRate": 0.10,
+  "ceiling": 3500.00,
+  "baseKind": "BRUT",
+  "active": true
+}
+```
+
+Notes :
+
+- Taux en décimaux (0.07 = 7%).
+- `ceiling` null si pas de plafond.
+- `baseKind` détermine la base utilisée (BASE_SALAIRE | BRUT | IMPOSABLE).
+
+#### 15.1.2 Règle Fiscale (brackets)
+
+```json
+{
+  "code": "TAX-PROG",
+  "label": "Impôt Progressif",
+  "brackets": [
+    { "upTo": 1000, "rate": 0.00 },
+    { "upTo": 2500, "rate": 0.10 },
+    { "upTo": 6000, "rate": 0.20 },
+    { "upTo": 999999999, "rate": 0.30 }
+  ],
+  "roundingMode": "BANKERS",
+  "active": true
+}
+```
+
+Règles de validation :
+
+- Tableau obligatoire, chaque entrée avec `upTo` numérique et `rate` numérique.
+- Ordre strictement croissant sur `upTo`.
+- Dernière entrée peut utiliser un grand plafond sentinelle.
+- Arrondi appliqué sur le total final, pas par tranche.
+
+#### 15.1.3 Centre de Coût
+
+```json
+{ "code": "CC-SALES", "label": "Équipe Commerciale", "active": true }
+```
+
+Suppression : retourne `409 Conflict` si encore référencé (allocations / transactions paie).
+
+#### 15.1.4 Comportements Communs
+
+| Aspect | Comportement |
+|--------|--------------|
+| Feature Flag | 403 si module paie désactivé |
+| Erreurs | 400 validation, 404 non trouvé, 409 conflit (centre de coût), 500 interne |
+| Décimaux | Envoyer des nombres JSON (pas de chaînes) |
+| PUT partiel | Seuls les champs fournis sont mis à jour |
+
+#### 15.1.5 Création Exemple (PowerShell)
+
+```powershell
+Invoke-WebRequest -Uri http://localhost:3000/api/payroll/contribution-schemes -Method POST -Body '{"code":"CS01","label":"Retraite","employeeRate":0.07,"employerRate":0.10,"ceiling":3500,"baseKind":"BRUT"}' -ContentType 'application/json'
+```
+
+#### 15.1.6 UI
+
+Page : `/payroll/config` – formulaires inline + tableaux, validation JSON client pour les brackets, toasts feedback.
+
+#### 15.1.7 Extensions Futures
+
+- Vérification continuité des tranches (démarrage à 0).
+- Dates d'effet / versionnement.
+- Rapport d'allocation par centre de coût.
+- Rate limiting & garde auth.
+
+#### 15.1.8 Règles de Validation
+
+Toutes les validations serveur renvoient un format unifié :
+
+```jsonc
+{ "ok": false, "error": "validation", "details": ["employeeRate.range", "brackets.2.order"] }
+```
+
+Conflit d'unicité sur `code` :
+
+```jsonc
+{ "ok": false, "error": "code.exists" }
+```
+
+Suppression centre de coût référencé (409) :
+
+```jsonc
+{ "ok": false, "error": "Cost center referenced; deactivate instead." }
+```
+
+Les codes d'erreur (`details`) sont composés de segments séparés par des points. Pour les tableaux `brackets`, `{i}` représente l'index (0‑based).
+
+##### Schéma de Contribution – Codes
+
+| Code | Signification |
+|------|---------------|
+| `code.required` | `code` manquant |
+| `code.format` | Format invalide (`^[A-Z0-9][A-Z0-9_-]{0,31}$`) |
+| `label.required` | `label` manquant |
+| `label.length` | Longueur > 120 caractères |
+| `employeeRate.nan` | `employeeRate` n'est pas numérique |
+| `employeeRate.range` | `employeeRate` hors intervalle [0,1] |
+| `employerRate.nan` | `employerRate` n'est pas numérique |
+| `employerRate.range` | `employerRate` hors intervalle [0,1] |
+| `ceiling.invalid` | Plafond fourni mais ≤ 0 ou NaN |
+| `baseKind.invalid` | Valeur hors `BASE_SALAIRE`, `BRUT`, `IMPOSABLE` |
+| `code.exists` | `code` déjà utilisé (409) |
+
+##### Règle Fiscale – Codes
+
+| Code | Signification |
+|------|---------------|
+| `code.required` | `code` manquant |
+| `code.format` | Format regex invalide |
+| `label.required` | `label` manquant |
+| `label.length` | Longueur > 160 caractères |
+| `roundingMode.invalid` | Mode hors `NONE`, `BANKERS`, `UP`, `DOWN` |
+| `brackets.json` | Échec parse JSON de la chaîne transmise |
+| `brackets.array` | Structure non tableau |
+| `brackets.{i}.object` | Entrée non objet |
+| `brackets.{i}.upTo` | `upTo` manquant / ≤ 0 / NaN |
+| `brackets.{i}.rate` | `rate` manquant / NaN / hors [0,1] |
+| `brackets.{i}.order` | `upTo` non strictement croissant |
+| `brackets.first.upToPositive` | Première tranche `upTo` ≤ 0 |
+| `code.exists` | `code` déjà utilisé (409) |
+
+##### Centre de Coût – Codes
+
+| Code | Signification |
+|------|---------------|
+| `code.required` | `code` manquant |
+| `code.format` | Format regex invalide |
+| `label.required` | `label` manquant |
+| `label.length` | Longueur > 120 caractères |
+| `code.exists` | `code` déjà utilisé (409) |
+
+##### Sémantique des Champs
+
+- Regex `code.format` : 1er caractère alphanumérique majuscule, puis jusqu'à 31 caractères parmi majuscules, chiffres, `_` ou `-` (longueur max 32).
+- Taux (`employeeRate`, `employerRate`, `rate` de tranche) exprimés en décimaux fractionnaires (7% = `0.07`) dans [0,1].
+- Tranches (`brackets`) strictement ascendantes sur `upTo`; un plafond sentinelle large est autorisé pour la dernière.
+- La continuité (démarrage à 0) sera ajoutée ultérieurement; actuellement seule la positivité du premier `upTo` est contrôlée.
+- `ceiling` optionnel : doit être > 0 si présent; absent ou null = pas de plafond.
+- L'arrondi (`roundingMode`) s'applique sur le montant total calculé, pas sur chaque sous-tranche.
+
+##### Exemples
+
+Schéma de contribution invalide (code + taux) :
+
+```json
+{ "ok": false, "error": "validation", "details": ["code.format", "employeeRate.range"] }
+```
+
+Règle fiscale invalide (ordre) :
+
+```json
+{ "ok": false, "error": "validation", "details": ["brackets.2.order"] }
+```
+
+Code dupliqué :
+
+```json
+{ "ok": false, "error": "code.exists" }
+```
+
+
+### 15.1 Script Smoke Paie (Heures Sup + Postings)
+
+Un script de validation bout‑en‑bout existe : `scripts/smoke-payroll-overtime-post.js`.
+
+Objectif : générer une période avec variables & heures sup, verrouiller, poster les écritures comptables puis automatiquement inverser (reversal) et déverrouiller pour revenir à l'état propre `OPEN`. Aucun résidu (journal ou statut) ne reste après exécution — idéal pour tests répétés.
+
+Calcul heures sup :
+
+- Variables d'environnement optionnelles : `PAYROLL_HOURS_PER_DAY` (par défaut 8), `PAYROLL_OVERTIME_MULTIPLIER` (ex: 1.5)
+- Heures sup monétisées = (heures_supp × (base / heures_jour)) × multiplicateur
+
+Exécution :
+
+```powershell
+node scripts/smoke-payroll-overtime-post.js
+```
+
+Sortie attendue (abrégé) :
+
+- Génération bulletins (lignes BASE, PRIME pour variables positives, OT pour heures sup)
+- Verrouillage période → Postings journal équilibrés (Σ Débits = Σ Crédits)
+- Reversal immédiat des transactions postées
+- Déverrouillage période → statut `OPEN` restauré
+
+Notes :
+
+- Le script est auto‑réversant (pas de flag). Pour inspection manuelle prolongée, commenter l'appel `maybeReverseAndUnlock()` dans le script localement.
+- Toutes les lignes PRIME (variables, heures sup) agrègent vers le compte de charges « bonus » défini par la logique interne.
+
+### 16. Assistant IA (Claude Sonnet)
+
+Intégration minimale d'un endpoint IA pour assister l'utilisateur (analyse, aide contextuelle) via Claude Sonnet 3.5.
+
+Endpoint :
+
+`POST /api/ai/complete` `{ "prompt": "Votre question" }` (mode streaming par défaut)
+
+Pour une réponse non-streaming (blocante), ajouter `"stream": false`.
+
+Réponse :
+
+```json
+{ "ok": true, "text": "..." }
+```
+
+Streaming SSE (événements) :
+
+```text
+event: message
+data: {"type":"text","chunk":"Premier fragment ..."}
+
+event: message
+data: {"type":"text","chunk":"Suite ..."}
+
+event: end
+data: {}
+```
+
+Configuration :
+
+- Définir la clé: `ANTHROPIC_API_KEY=sk-...` dans `.env.local` (ne pas committer).
+- Dépendance: `@anthropic-ai/sdk` ajoutée dans `package.json`.
+
+Client interne (`src/lib/ai/anthropicClient.js`) fournit `simplePrompt(prompt)`.
+
+Bonnes pratiques :
+
+- Limiter la taille des prompts (compter tokens pour éviter coûts élevés).
+- Utiliser `stream: false` seulement pour petits prompts où la latence n'est pas critique.
+- Ajouter plus tard un cache ou un guard rate-limit.
+- Ne pas envoyer de données sensibles (hash/masquage si nécessaire).
+
+

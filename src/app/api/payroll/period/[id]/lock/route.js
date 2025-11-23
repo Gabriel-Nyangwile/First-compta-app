@@ -1,25 +1,27 @@
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { postPayrollPeriodTx } from '@/lib/payroll/postings';
+import { featureFlags } from '@/lib/features';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(_req, { params }) {
+  if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  const period = await prisma.payrollPeriod.findUnique({ where: { id }, include: { payslips: true } });
+  if (!period) return NextResponse.json({ error: 'Period not found' }, { status: 404 });
+  if (period.status !== 'OPEN') return NextResponse.json({ error: `Cannot lock status=${period.status}` }, { status: 409 });
+  if (!period.payslips.length) return NextResponse.json({ error: 'No payslips to lock' }, { status: 422 });
+  const netTotal = period.payslips.reduce((s, p) => s + (p.netAmount?.toNumber?.() ?? Number(p.netAmount) ?? 0), 0);
+  if (!(netTotal > 0)) return NextResponse.json({ error: `Aggregated net <=0 (${netTotal.toFixed(2)})` }, { status: 422 });
+  const now = new Date();
   try {
-    const id = params?.id;
-    if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
-    // Wrap in transaction: lock then post
-    const result = await prisma.$transaction(async (tx) => {
-      const period = await tx.payrollPeriod.findUnique({ where: { id } });
-      if (!period) throw new Error('period not found');
-      if (period.status !== 'OPEN') throw new Error('period must be OPEN to lock');
-      await tx.payrollPeriod.update({ where: { id }, data: { status: 'LOCKED', lockedAt: new Date() } });
-      // Create postings & journal -> updates status to POSTED
-  const posting = await postPayrollPeriodTx(tx, id);
-      // Reload period
-      const finalPeriod = await tx.payrollPeriod.findUnique({ where: { id } });
-      return { period: finalPeriod, journal: posting.journal, transactions: posting.transactions };
+    await prisma.$transaction(async (tx) => {
+      await tx.payrollPeriod.update({ where: { id }, data: { status: 'LOCKED', lockedAt: now } });
+      await tx.payslip.updateMany({ where: { periodId: id }, data: { locked: true } });
     });
-    return Response.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, periodId: id, periodRef: period.ref, lockedAt: now.toISOString(), payslipsLocked: period.payslips.length });
   } catch (e) {
-    console.error(e);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    return NextResponse.json({ error: e.message || 'Lock failed' }, { status: 500 });
   }
 }

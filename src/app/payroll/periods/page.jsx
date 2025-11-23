@@ -16,7 +16,7 @@ export default async function PayrollPeriodsPage() {
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Périodes de Paie</h1>
-      <p className="text-sm text-gray-600">Liste des dernières périodes (draft UI).</p>
+      <p className="text-sm text-gray-600">Liste des dernières périodes (draft UI). Réf validation: <a className="underline" href="https://github.com/Gabriel-Nyangwile/first-compta#188-validation-rules" target="_blank" rel="noopener noreferrer">README 18.8</a> · <a className="underline" href="https://github.com/Gabriel-Nyangwile/first-compta/blob/master/docs/payroll-validation.md" target="_blank" rel="noopener noreferrer">Cheat Sheet</a>.</p>
       <table className="min-w-[480px] text-sm border">
         <thead>
           <tr className="bg-gray-100">

@@ -10,7 +10,7 @@
 // - Uses newly added TransactionKind enums.
 
 import prisma from '../prisma.js';
-import { finalizeBatchToJournal } from '../journal.js';
+import { finalizeBatchToJournal, computeDebitCredit } from '../journal.js';
 
 async function getNatExpCostCenters(tx) {
   const centers = await tx.costCenter.findMany({
@@ -25,21 +25,31 @@ function toNumber(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
 function distributeAndRound(allocationMap, targetTotal) {
-  const entries = Array.from(allocationMap.entries()); // [ [key, amount], ... ]
+  const entries = Array.from(allocationMap.entries()); // [ [key, weight], ... ]
   const rounded = [];
+  const weightSum = entries.reduce((s, [, v]) => s + (v || 0), 0);
+  if (weightSum === 0 || targetTotal === 0) {
+    return entries.map(([k]) => [k, 0]);
+  }
   let sumRounded = 0;
   for (let i = 0; i < entries.length; i++) {
-    const [key, val] = entries[i];
-    const r = i < entries.length - 1 ? round2(val) : 0; // last adjusted later
-    if (i < entries.length - 1) {
-      rounded.push([key, r]);
-      sumRounded += r;
-    } else {
-      const last = round2(targetTotal - sumRounded);
-      rounded.push([key, last]);
-    }
+    const [key, weight] = entries[i];
+    const ratio = weight / weightSum;
+    const r = i < entries.length - 1 ? round2(targetTotal * ratio) : round2(targetTotal - sumRounded);
+    if (i < entries.length - 1) sumRounded += r;
+    rounded.push([key, r]);
   }
   return rounded; // [ [key, roundedAmount], ... ]
+}
+
+function mergeAllocations(...maps) {
+  const res = new Map();
+  for (const m of maps) {
+    for (const [k, v] of m.entries()) {
+      res.set(k, (res.get(k) || 0) + v);
+    }
+  }
+  return res;
 }
 
 async function fetchPayrollAccounts(tx) {
@@ -80,6 +90,7 @@ export async function postPayrollPeriodTx(tx, periodId) {
       payslips: {
         include: {
           lines: true,
+          costCenterAllocations: true,
           employee: { select: { id: true, isExpat: true } },
         },
       },
@@ -101,6 +112,13 @@ export async function postPayrollPeriodTx(tx, periodId) {
     for (const a of empAllocs) {
       if (!allocByEmp.has(a.employeeId)) allocByEmp.set(a.employeeId, []);
       allocByEmp.get(a.employeeId).push({ costCenterId: a.costCenterId, percent: toNumber(a.percent) });
+    }
+    // Snapshot allocations: prefer payslip snapshots if present
+    function getAllocations(ps) {
+      if (ps.costCenterAllocations?.length) {
+        return ps.costCenterAllocations.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) }));
+      }
+      return allocByEmp.get(ps.employeeId) || [];
     }
 
     // Aggregate totals
@@ -126,9 +144,9 @@ export async function postPayrollPeriodTx(tx, periodId) {
           case 'BASE':
             if (amt > 0) {
               baseSalaryTotal += amt;
-              const alloc = allocByEmp.get(ps.employeeId);
+              const alloc = getAllocations(ps);
               if (alloc && alloc.length) {
-                let remaining = amt; let acc = 0;
+                let acc = 0;
                 for (let i = 0; i < alloc.length; i++) {
                   const p = alloc[i];
                   const part = i < alloc.length - 1 ? (amt * toNumber(p.percent)) : (amt - acc);
@@ -143,12 +161,13 @@ export async function postPayrollPeriodTx(tx, periodId) {
               }
             }
             break;
-          case 'PRIME':
-            if (amt > 0) {
+          default:
+            // Treat any PRIME kind (PRIME/VAR+/OT) as bonus expense
+            if (l.kind === 'PRIME' && amt > 0) {
               bonusTotal += amt;
-              const alloc = allocByEmp.get(ps.employeeId);
+              const alloc = getAllocations(ps);
               if (alloc && alloc.length) {
-                let remaining = amt; let acc = 0;
+                let acc = 0;
                 for (let i = 0; i < alloc.length; i++) {
                   const p = alloc[i];
                   const part = i < alloc.length - 1 ? (amt * toNumber(p.percent)) : (amt - acc);
@@ -161,24 +180,27 @@ export async function postPayrollPeriodTx(tx, periodId) {
                 const key = fallbackCc || null;
                 bonusAlloc.set(key, (bonusAlloc.get(key) || 0) + amt);
               }
+              break;
             }
-            break;
-          case 'CNSS_EMP':
-            cnssEmpTotal += Math.abs(amt);
-            break;
-          case 'CNSS_ER':
-            cnssErTotal += amt; employerSocialTotal += amt; break;
-          case 'ONEM':
-            onemTotal += amt; employerSocialTotal += amt; break;
-          case 'INPP':
-            inppTotal += amt; employerSocialTotal += amt; break;
-          case 'IPR':
-            iprTotal += Math.abs(amt);
-            break;
-          case 'AEN':
-            benefitInKindTotal += (amt > 0 ? amt : 0);
-            break;
-          default:
+            switch (l.code) {
+              case 'CNSS_EMP':
+                cnssEmpTotal += Math.abs(amt);
+                break;
+              case 'CNSS_ER':
+                cnssErTotal += amt; employerSocialTotal += amt; break;
+              case 'ONEM':
+                onemTotal += amt; employerSocialTotal += amt; break;
+              case 'INPP':
+                inppTotal += amt; employerSocialTotal += amt; break;
+              case 'IPR':
+                iprTotal += Math.abs(amt);
+                break;
+              case 'AEN':
+                benefitInKindTotal += (amt > 0 ? amt : 0);
+                break;
+              default:
+                break;
+            }
             break;
         }
       }
@@ -216,7 +238,16 @@ export async function postPayrollPeriodTx(tx, periodId) {
       throw new Error('AEN present in payslips but BENEFIT_IN_KIND mapping is missing. Please add a PayrollAccountMapping with code=BENEFIT_IN_KIND.');
     }
     if (employerSocialTotal > 0) {
-      txnData.push({ ...common, amount: employerSocialTotal, direction: 'DEBIT', kind: 'EMPLOYER_SOCIAL_EXPENSE', accountId: accounts.employerSocial });
+      const socialAlloc = mergeAllocations(baseAlloc, bonusAlloc);
+      if (socialAlloc.size) {
+        const roundedES = distributeAndRound(socialAlloc, round2(employerSocialTotal));
+        for (const [ccId, amt] of roundedES) {
+          if (amt <= 0) continue;
+          txnData.push({ ...common, amount: amt, direction: 'DEBIT', kind: 'EMPLOYER_SOCIAL_EXPENSE', accountId: accounts.employerSocial, costCenterId: ccId || undefined });
+        }
+      } else {
+        txnData.push({ ...common, amount: employerSocialTotal, direction: 'DEBIT', kind: 'EMPLOYER_SOCIAL_EXPENSE', accountId: accounts.employerSocial });
+      }
     }
 
     // Credits liabilities
@@ -257,10 +288,72 @@ export async function postPayrollPeriodTx(tx, periodId) {
     // Mark period posted
     await tx.payrollPeriod.update({ where: { id: period.id }, data: { status: 'POSTED', postedAt: new Date() } });
 
-  return { journal, transactions: createdTxns };
+  const { debit, credit } = computeDebitCredit(createdTxns);
+  return { journal, transactions: createdTxns, debit, credit };
 }
 
 // Convenience wrapper for cases where we want to post outside an existing transaction.
 export async function postPayrollPeriod(periodId) {
   return prisma.$transaction(async (tx) => postPayrollPeriodTx(tx, periodId));
+}
+
+// Reverse a posted payroll journal and set period back to LOCKED
+export async function reversePayrollPeriodTx(tx, periodId, actor = null) {
+  const period = await tx.payrollPeriod.findUnique({ where: { id: periodId } });
+  if (!period) throw new Error('Payroll period not found');
+  if (period.status !== 'POSTED') throw new Error('Period must be POSTED to reverse');
+  const je = await tx.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, orderBy: { date: 'desc' } });
+  if (!je) throw new Error('No payroll journal found to reverse');
+  const origTxns = await tx.transaction.findMany({ where: { journalEntryId: je.id } });
+  if (!origTxns.length) throw new Error('Original journal has no transactions');
+
+  const today = new Date();
+  const reversed = [];
+  const desc = `Annulation paie ${period.month}/${period.year} (reversal ${je.number})`;
+  for (const t of origTxns) {
+    const amount = Number(t.amount?.toNumber?.() ?? t.amount);
+    const direction = t.direction === 'DEBIT' ? 'CREDIT' : 'DEBIT';
+    reversed.push(await tx.transaction.create({
+      data: {
+        date: today,
+        description: desc,
+        amount,
+        direction,
+        kind: t.kind,
+        accountId: t.accountId,
+        costCenterId: t.costCenterId || undefined,
+      }
+    }));
+  }
+
+  const reversalJournal = await finalizeBatchToJournal(tx, {
+    sourceType: 'PAYROLL',
+    sourceId: period.id,
+    date: today,
+    description: desc,
+    transactions: reversed,
+  });
+
+  await tx.payrollPeriod.update({ where: { id: period.id }, data: { status: 'LOCKED', postedAt: null } });
+  // Audit log
+  await tx.auditLog.create({
+    data: {
+      entityType: 'PAYROLL_PERIOD',
+      entityId: period.id,
+      action: 'REVERSE',
+      data: {
+        periodRef: period.ref,
+        originalJournal: je.number,
+        reversalJournal: reversalJournal.number,
+        reversedCount: reversed.length,
+        actor
+      }
+    }
+  });
+  const { debit, credit } = computeDebitCredit(reversed);
+  return { journal: reversalJournal, reversedCount: reversed.length, debit, credit };
+}
+
+export async function reversePayrollPeriod(periodId, actor = null) {
+  return prisma.$transaction(async (tx) => reversePayrollPeriodTx(tx, periodId, actor));
 }

@@ -3,7 +3,7 @@ import { generatePayslipsForPeriod } from '@/lib/payroll/engine';
 
 export async function POST(_req, { params }) {
   try {
-    const id = params?.id;
+    const { id } = await params;
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
     const period = await prisma.payrollPeriod.findUnique({ where: { id } });
     if (!period) return new Response(JSON.stringify({ error: 'period not found' }), { status: 404 });

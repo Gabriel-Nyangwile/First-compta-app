@@ -23,6 +23,7 @@ export async function getIprRule() {
 }
 
 function computeIprMonthlyCDF(riCDF, rule) {
+  if (!riCDF || riCDF <= 0) return 0;
   // Annual progressive then convert back to monthly.
   const annualRI = Math.max(0, riCDF * 12);
   const brackets = Array.isArray(rule?.brackets) ? rule.brackets : [];
@@ -47,7 +48,7 @@ function computeIprMonthlyCDF(riCDF, rule) {
   monthlyTax = Math.min(monthlyTax, cap);
   // Minimum absolute tax after charges (interpreted as annual threshold divided by 12)
   const minCdfAnnual = rule?.meta?.minRule?.impot_minimum_apres_charges_cdf;
-  if (typeof minCdfAnnual === 'number' && minCdfAnnual > 0) {
+  if (typeof minCdfAnnual === 'number' && minCdfAnnual > 0 && monthlyTax > 0) {
     const minMonthly = minCdfAnnual / 12;
     if (monthlyTax < minMonthly) monthlyTax = minMonthly;
   }
@@ -96,7 +97,50 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
     const aenRate = Number.isFinite(aenRateNum) && aenRateNum >= 0 ? aenRateNum : 0.05;
     aen = round2(baseSalary * aenRate);
   }
-  const gross = baseSalary + primes + aen;
+  // Attendance pro-rata (Phase A): if attendance exists and workingDays > 0, pro-rate base
+  let baseAfterAttendance = baseSalary;
+  let attendance = null;
+  if (periodContext?.id && employee?.id) {
+    attendance = await prisma.employeeAttendance.findUnique({
+      where: { periodId_employeeId: { periodId: periodContext.id, employeeId: employee.id } },
+    });
+    const dw = toNumber(attendance?.daysWorked);
+    const wd = toNumber(attendance?.workingDays);
+    if (wd > 0 && dw >= 0) {
+      baseAfterAttendance = round2(baseSalary * (dw / wd));
+    }
+  }
+
+  let variables = [];
+  if (periodContext?.id && employee?.id) {
+    variables = await prisma.payrollVariable.findMany({ where: { periodId: periodContext.id, employeeId: employee.id } });
+  }
+
+  // Sum variable impacts
+  let variablesPrimeTotal = 0;
+  let variablesDeductionTotal = 0;
+  const variableAllocations = [];
+  for (const v of variables) {
+    const amt = toNumber(v.amount);
+    if (v.kind === 'DEDUCTION') {
+      variablesDeductionTotal += Math.abs(amt);
+    } else {
+      variablesPrimeTotal += amt; // BONUS/ALLOWANCE
+      if (amt > 0 && v.costCenterId) {
+        variableAllocations.push({ costCenterId: v.costCenterId, amount: amt });
+      }
+    }
+  }
+
+  // Overtime monetization (Phase A): hourly rate from legal base over workingDays * hoursPerDay
+  const hoursPerDay = Number(process.env.PAYROLL_HOURS_PER_DAY ?? 8) || 8;
+  const otMultiplier = Number(process.env.PAYROLL_OVERTIME_MULTIPLIER ?? 1.5) || 1.5;
+  const wdForRate = toNumber(attendance?.workingDays) || 30;
+  const otHours = toNumber(attendance?.overtimeHours) || 0;
+  const baseHourly = wdForRate > 0 && hoursPerDay > 0 ? (baseSalary / (wdForRate * hoursPerDay)) : 0;
+  const overtimeAmount = round2(baseHourly * otHours * otMultiplier);
+
+  const gross = baseAfterAttendance + variablesPrimeTotal + aen + primes + overtimeAmount;
 
   // Load schemes and tax
   const { byCode } = await getActiveSchemes();
@@ -132,11 +176,14 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
 
   // Build lines
   const lines = [];
-  lines.push({ kind: 'BASE', code: 'BASE', label: 'Salaire de base', amount: round2(baseSalary), baseAmount: null, order: 10 });
+  lines.push({ kind: 'BASE', code: 'BASE', label: 'Salaire de base', amount: round2(baseAfterAttendance), baseAmount: null, order: 10, meta: attendance ? { daysWorked: toNumber(attendance.daysWorked), workingDays: toNumber(attendance.workingDays) } : undefined });
   if (primes) lines.push({ kind: 'PRIME', code: 'PRIME', label: 'Primes', amount: round2(primes), baseAmount: null, order: 20 });
   if (aen) lines.push({ kind: 'BASE', code: 'AEN', label: 'Avantages en nature', amount: round2(aen), baseAmount: null, order: 25 });
+  if (variablesPrimeTotal) lines.push({ kind: 'PRIME', code: 'VAR+', label: 'Variables positives', amount: round2(variablesPrimeTotal), baseAmount: null, order: 27 });
+  if (overtimeAmount) lines.push({ kind: 'PRIME', code: 'OT', label: 'Heures supplémentaires', amount: overtimeAmount, baseAmount: null, order: 28, meta: { otHours, hoursPerDay, otMultiplier, baseHourly: round2(baseHourly) } });
   lines.push({ kind: 'COTISATION_SALARIALE', code: 'CNSS_EMP', label: 'CNSS part salarié 5%', amount: -cnssEmp, baseAmount: round2(gross), order: 30, meta: { rate: cnssEmpRate } });
   lines.push({ kind: 'IMPOT', code: 'IPR', label: 'IPR (mensuel)', amount: -round2(ipr), baseAmount: round2(riBase), order: 40, meta: { riCDF, fxRate, iprCDF } });
+  if (variablesDeductionTotal) lines.push({ kind: 'RETENUE', code: 'VAR-', label: 'Variables négatives', amount: -round2(variablesDeductionTotal), baseAmount: null, order: 45 });
   lines.push({ kind: 'COTISATION_PATRONALE', code: 'CNSS_ER', label: 'CNSS part employeur 5%', amount: round2(cnssEr), baseAmount: round2(gross), order: 50, meta: { rate: cnssErRate } });
   lines.push({ kind: 'COTISATION_PATRONALE', code: 'ONEM', label: 'ONEM 0.5%', amount: round2(onem), baseAmount: round2(gross), order: 60, meta: { rate: onemRate } });
   lines.push({ kind: 'COTISATION_PATRONALE', code: 'INPP', label: 'INPP 3%', amount: round2(inpp), baseAmount: round2(gross), order: 70, meta: { rate: inppRate } });
@@ -146,13 +193,14 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
     netAmount: net,
     employerChargesTotal: round2(cnssEr + onem + inpp),
     lines,
+    variableAllocations,
   };
 }
 
 export async function recalculatePayslip(payslipId) {
   const p = await prisma.payslip.findUnique({
     where: { id: payslipId },
-    include: { employee: { include: { position: { include: { bareme: true } } } } },
+    include: { employee: { include: { position: { include: { bareme: true } } }, costAllocations: true } },
   });
   if (!p) throw new Error('Payslip not found');
   // Load period for FX context
@@ -165,6 +213,15 @@ export async function recalculatePayslip(payslipId) {
     for (const [i, l] of res.lines.entries()) {
       await tx.payslipLine.create({ data: { payslipId, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
     }
+    await tx.payslipCostAllocation.deleteMany({ where: { payslipId } });
+    const allocs = p.employee?.costAllocations?.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) })) || [];
+    const direct = res.variableAllocations?.map(v => ({ costCenterId: v.costCenterId, amount: v.amount })) || [];
+    if (allocs.length || direct.length) {
+      const rounded = distributeAllocations(res.grossAmount, allocs, direct);
+      for (const a of rounded) {
+        await tx.payslipCostAllocation.create({ data: { payslipId, costCenterId: a.costCenterId, percent: a.percent, amount: a.amount } });
+      }
+    }
   });
   return res;
 }
@@ -172,7 +229,7 @@ export async function recalculatePayslip(payslipId) {
 export async function generatePayslipsForPeriod(periodId) {
   const period = await prisma.payrollPeriod.findUnique({ where: { id: periodId } });
   if (!period) throw new Error('Period not found');
-  const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' }, include: { position: { include: { bareme: true } } } });
+  const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' }, include: { position: { include: { bareme: true } }, costAllocations: true } });
   const results = [];
   await prisma.$transaction(async (tx) => {
     for (const e of employees) {
@@ -189,8 +246,47 @@ export async function generatePayslipsForPeriod(periodId) {
       for (const [i, l] of calc.lines.entries()) {
         await tx.payslipLine.create({ data: { payslipId: ps.id, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
       }
+      await tx.payslipCostAllocation.deleteMany({ where: { payslipId: ps.id } });
+      const allocs = e.costAllocations?.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) })) || [];
+      const direct = calc.variableAllocations?.map(v => ({ costCenterId: v.costCenterId, amount: v.amount })) || [];
+      if (allocs.length || direct.length) {
+        const rounded = distributeAllocations(calc.grossAmount, allocs, direct);
+        for (const a of rounded) {
+          await tx.payslipCostAllocation.create({ data: { payslipId: ps.id, costCenterId: a.costCenterId, percent: a.percent, amount: a.amount } });
+        }
+      }
       results.push({ employeeId: e.id, payslipId: ps.id, ...calc });
     }
   });
   return { count: results.length, results };
+}
+
+function distributeAllocations(total, allocs, directAllocations = []) {
+  if (!total) return [];
+  const normalized = (allocs || []).filter(a => a.costCenterId && a.percent > 0);
+  const direct = (directAllocations || []).filter(d => d.costCenterId && d.amount > 0);
+  const directSum = direct.reduce((s, d) => s + d.amount, 0);
+  const distributable = Math.max(0, total - directSum);
+  const rounded = [];
+  if (normalized.length && distributable > 0) {
+    let sumRounded = 0;
+    for (let i = 0; i < normalized.length; i++) {
+      const a = normalized[i];
+      const part = i < normalized.length - 1 ? round2(distributable * a.percent) : round2(distributable - sumRounded);
+      rounded.push({ ...a, amount: part });
+      sumRounded += part;
+    }
+  }
+  // Inject direct allocations (variables avec costCenterId)
+  for (const d of direct) {
+    rounded.push({ costCenterId: d.costCenterId, amount: round2(d.amount), percent: total ? round2(d.amount / total) : d.percent });
+  }
+  // Recompute percent for all entries to reflect share of total
+  if (total > 0) {
+    return rounded.map((r, idx) => {
+      const pct = total ? round2(r.amount / total) : 0;
+      return { ...r, percent: pct };
+    });
+  }
+  return rounded;
 }
