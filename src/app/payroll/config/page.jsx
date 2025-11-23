@@ -8,7 +8,7 @@ async function fetchAll() {
   const base = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   const res = await fetch(`${base}/api/payroll/config`, { cache: 'no-store' });
   if (!res.ok) {
-    return { error: '�chec chargement configuration paie', schemes: [], rules: [], centers: [] };
+    return { error: 'échec chargement configuration paie', schemes: [], rules: [], centers: [] };
   }
   const json = await res.json();
   return {
@@ -20,12 +20,12 @@ async function fetchAll() {
 }
 
 export default async function PayrollConfigPage() {
-  if (!featureFlags.payroll) return <div className="p-6">Module paie d�sactiv�.</div>;
+  if (!featureFlags.payroll) return <div className="p-6">Module paie désactivé.</div>;
   const { schemes, rules, centers, error } = await fetchAll();
   return (
     <div className="p-6 space-y-8">
       <BackButtonLayoutHeader />
-      <h1 className="text-xl font-semibold">Param�tres Paie</h1>
+      <h1 className="text-xl font-semibold">Paramètres Paie</h1>
       <p className="text-sm text-gray-600">Contribution schemes, tax rules & cost centers.</p>
       <ClientTables schemes={schemes} rules={rules} centers={centers} loadError={error} />
     </div>
