@@ -6,10 +6,11 @@ async function main() {
   const dryRun = !process.argv.includes('--execute');
   const period = await prisma.payrollPeriod.findFirst({ where: { status: 'POSTED' }, orderBy: { postedAt: 'desc' } });
   if (!period) { console.log('[settlement-smoke] No POSTED period found'); return; }
+  const bank = process.env.PAYROLL_BANK_NUMBER || process.env.NEXT_PUBLIC_PAYROLL_BANK_NUMBER;
   const res = await fetch('http://localhost:3000/api/payroll/settlement', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ periodId: period.id, dryRun }),
+    body: JSON.stringify({ periodId: period.id, dryRun, accountNumber: bank }),
   });
   const json = await res.json();
   console.log('[settlement-smoke]', dryRun ? 'DRY-RUN' : 'EXEC', 'status', res.status, json);

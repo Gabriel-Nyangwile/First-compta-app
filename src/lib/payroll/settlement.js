@@ -40,7 +40,15 @@ export async function postPayrollSettlement(periodId, opts = {}) {
     if (!bank) bank = await prisma.account.create({ data: { number: accountNumber, label: 'Banque Paie' } });
     bankAccountId = bank.id;
   } else {
-    bankAccountId = await resolve('BANK');
+    const bankEnv = process.env.PAYROLL_BANK_NUMBER || process.env.NEXT_PUBLIC_PAYROLL_BANK_NUMBER || '521000';
+    const bankMapping = index['BANK'];
+    if (bankMapping) {
+      bankAccountId = await resolve('BANK');
+    } else {
+      let bank = await prisma.account.findFirst({ where: { number: bankEnv } });
+      if (!bank) bank = await prisma.account.create({ data: { number: bankEnv, label: 'Banque Paie (fallback)' } });
+      bankAccountId = bank.id;
+    }
   }
 
   if (dryRun) {
