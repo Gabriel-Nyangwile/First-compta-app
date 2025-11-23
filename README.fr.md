@@ -403,6 +403,7 @@ Les anciens textes d'aide factorisés (`helpTexts.js`) ont été remplacés dans
 - Etape 1 (validation RH) : controles sur `POST/PUT /api/employee` (noms requis, bornes dates hire/end/birth, enums statut/contrat, retour 409 sur doublon email/matricule).
 - Etape 2 (ventilation analytique paie) : snapshot des `EmployeeCostAllocation` vers `PayslipCostAllocation` lors de la generation/recalcul des bulletins; postings paie utilisent desormais le snapshot (fallback employe) pour ventiler charges salaires/primes.
 - Etape 3 (garde-fous + PDF bulletins) : mutations presence/variables/recalcul interdites hors periode OPEN; PDF bulletins branche sur utilitaires communs (identite societe, watermark BROUILLON, tri lignes, pagination).
+- Note 2025-11-23 : workflows paie/personnel committes et pousses (postings equilibrés, PDF payslip OK); prochaine etape = poursuivre la roadmap (journal paie, audits, PDF aligné).
 
 Endpoints (feature flag `ENABLE_PAYROLL`) :
 

@@ -12,7 +12,7 @@ const fmt = (n) => {
   return val.toFixed(2); // avoid locales inserting NBSP
 };
 
-const clean = (s = '') => String(s ?? '').replace(/[\u00a0\u202f]/g, ' ');
+const clean = (s = '') => String(s ?? '').replace(/[\u00a0\u202f]/g, ' ').replace(/[^\x20-\x7E]/g, ' ');
 
 function companyFromEnv() {
   return {
@@ -21,6 +21,19 @@ function companyFromEnv() {
     siret: clean(process.env.COMPANY_SIRET),
     vat: clean(process.env.COMPANY_VAT),
   };
+}
+
+function computeTotals(lines) {
+  return lines.reduce(
+    (acc, l) => {
+      const amt = Number(l.amount ?? 0);
+      if (l.kind === 'BASE' || l.kind === 'PRIME') acc.gross += amt;
+      if (l.kind === 'COTISATION_SALARIALE' || l.kind === 'IMPOT' || l.kind === 'RETENUE') acc.deductions += amt;
+      if (l.kind === 'COTISATION_PATRONALE') acc.employer += amt;
+      return acc;
+    },
+    { gross: 0, deductions: 0, employer: 0 }
+  );
 }
 
 export async function GET(_req, { params }) {
@@ -32,6 +45,9 @@ export async function GET(_req, { params }) {
       include: { employee: true, lines: true, period: true }
     });
     if (!payslip) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const sortedLines = [...payslip.lines].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const totals = computeTotals(sortedLines);
 
     const pdfDoc = await PDFDocument.create();
     const pages = [];
@@ -55,16 +71,46 @@ export async function GET(_req, { params }) {
     line(clean(`Employé: ${payslip.employee.firstName} ${payslip.employee.lastName}`));
     line(clean(`Matricule: ${payslip.employee.employeeNumber || '-'}`));
     line(`Brut: ${fmt(payslip.grossAmount)}  Net: ${fmt(payslip.netAmount)}`);
-    y -= 8; line('Détail lignes:', 11, rgb(0.1, 0.1, 0.5)); y -= 4;
+    line(`Deductions: ${fmt(-totals.deductions)}  Charges employeur: ${fmt(totals.employer)}`);
+    y -= 12;
 
-    const sortedLines = [...payslip.lines].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    // Récap net à payer
+    line('Net à payer', 11, rgb(0, 0.35, 0));
+    line(`${fmt(payslip.netAmount)} EUR`, 14, rgb(0, 0.35, 0));
+    y -= 10;
+    line('Détail lignes:', 11, rgb(0.1, 0.1, 0.5));
+    y -= 6;
+
+    // Tableau des lignes : Code | Libellé | Base | Montant
+    const headerY = y;
+    const colX = { code: 40, label: 90, base: 360, amount: 460 };
+    const drawRow = (row, isHeader = false) => {
+      const size = isHeader ? 10 : 9;
+      const color = isHeader ? rgb(0.1, 0.1, 0.4) : rgb(0, 0, 0);
+      currentPage.drawText(row.code, { x: colX.code, y, size, font, color });
+      currentPage.drawText(row.label.slice(0, 45), { x: colX.label, y, size, font, color });
+      currentPage.drawText(row.base, { x: colX.base, y, size, font, color });
+      currentPage.drawText(row.amount, { x: colX.amount, y, size, font, color });
+      y -= 12;
+    };
+    drawRow({ code: 'Code', label: 'Libellé', base: 'Base', amount: 'Montant' }, true);
+    currentPage.drawLine({ start: { x: 40, y: headerY - 2 }, end: { x: 540, y: headerY - 2 }, thickness: 0.5 });
+
     for (const l of sortedLines) {
       if (y < 80) {
         currentPage = addPage(`Suite (${pages.length + 1})`);
         y = 780;
+        drawRow({ code: 'Code', label: 'Libellé', base: 'Base', amount: 'Montant' }, true);
+        currentPage.drawLine({ start: { x: 40, y: y - 2 }, end: { x: 540, y: y - 2 }, thickness: 0.5 });
+        y -= 12;
       }
-      const base = l.baseAmount ? ` base=${fmt(l.baseAmount)}` : '';
-      line(clean(`${l.code} ${l.label} (${l.kind})  Montant: ${fmt(l.amount)}${base}`));
+      const base = l.baseAmount ? fmt(l.baseAmount) : '';
+      drawRow({
+        code: clean(l.code),
+        label: clean(`${l.label} (${l.kind})`),
+        base,
+        amount: fmt(l.amount),
+      });
     }
 
     const totalPages = pages.length;
