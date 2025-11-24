@@ -21,6 +21,13 @@ export async function POST(req) {
     return NextResponse.json({ ok: true, ...res });
   } catch (e) {
     console.error('payroll settlement error', e);
-    return NextResponse.json({ error: e.message || 'Settlement failed' }, { status: 500 });
+    const msg = e?.message || 'Settlement failed';
+    const lower = msg.toLowerCase();
+    const status = lower.includes('posted') ? 409
+      : lower.includes('net total') ? 422
+      : lower.includes('not found') ? 404
+      : lower.includes('missing payroll account mapping') ? 400
+      : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
