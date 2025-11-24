@@ -73,6 +73,7 @@ export default async function PayrollPeriodDetail({ params }) {
   if (settlementJes.length) {
     const tx = await prisma.transaction.findMany({
       where: { journalEntryId: { in: settlementJes.map(j => j.id) } },
+      include: { account: true },
     });
     const txByJe = new Map();
     for (const t of tx) {
@@ -81,10 +82,25 @@ export default async function PayrollPeriodDetail({ params }) {
     }
     settlements = settlementJes.map(j => {
       const list = txByJe.get(j.id) || [];
+      const debitTx = list.find(t => t.direction === 'DEBIT') || null;
+      const creditTx = list.find(t => t.direction === 'CREDIT') || null;
       const debit = list.filter(t => t.direction === 'DEBIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
       const credit = list.filter(t => t.direction === 'CREDIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
       const refMatch = j.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
-      return { id: j.id, number: j.number, date: j.date, voucherRef: refMatch, description: j.description, _debit: debit, _credit: credit };
+      const employeeMatch = j.description?.match(/employ[eé]\\s+([a-z0-9-]+)/i);
+      const employeeId = employeeMatch ? employeeMatch[1] : null;
+      return {
+        id: j.id,
+        number: j.number,
+        date: j.date,
+        voucherRef: refMatch,
+        description: j.description,
+        _debit: debit,
+        _credit: credit,
+        bankAccount: debitTx?.account?.number || '',
+        wagesAccount: creditTx?.account?.number || '',
+        employeeId,
+      };
     });
   }
   const auditBadge = audit ? (
@@ -134,7 +150,10 @@ export default async function PayrollPeriodDetail({ params }) {
       {audit && (<AuditPanel audit={audit} periodId={period.id} />)}
       {period.status === 'POSTED' && settlements.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-medium">Règlements net (PAYSET)</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-medium">Règlements net (PAYSET)</h2>
+            <a className="text-xs underline text-blue-700" href={`/api/payroll/period/${period.id}/settlements?format=csv`}>Exporter CSV</a>
+          </div>
           <table className="text-sm min-w-[520px] border">
             <thead className="bg-gray-100">
               <tr>
@@ -142,6 +161,8 @@ export default async function PayrollPeriodDetail({ params }) {
                 <th className="px-2 py-1 text-left">Journal</th>
                 <th className="px-2 py-1 text-left">Date</th>
                 <th className="px-2 py-1 text-left">Débit/Crédit</th>
+                <th className="px-2 py-1 text-left">Banque</th>
+                <th className="px-2 py-1 text-left">Employé</th>
               </tr>
             </thead>
             <tbody>
@@ -151,6 +172,8 @@ export default async function PayrollPeriodDetail({ params }) {
                   <td className="px-2 py-1">{s.number}</td>
                   <td className="px-2 py-1">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
                   <td className="px-2 py-1">{(s._debit ?? 0).toFixed(2)} / {(s._credit ?? 0).toFixed(2)}</td>
+                  <td className="px-2 py-1">{s.bankAccount || '-'}</td>
+                  <td className="px-2 py-1">{s.employeeId || '-'}</td>
                 </tr>
               ))}
             </tbody>
