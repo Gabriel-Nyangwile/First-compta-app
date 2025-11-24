@@ -69,7 +69,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
         description: desc,
         amount: netTotal,
         direction: 'DEBIT',
-        kind: 'PAYROLL_SETTLEMENT',
+        kind: 'PAYMENT',
         accountId: bankAccountId,
       }
     });
@@ -79,7 +79,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
         description: desc,
         amount: netTotal,
         direction: 'CREDIT',
-        kind: 'PAYROLL_SETTLEMENT',
+        kind: 'WAGES_PAYABLE',
         accountId: netPayAccountId,
       }
     });
