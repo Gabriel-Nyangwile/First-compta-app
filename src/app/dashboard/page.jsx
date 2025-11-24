@@ -313,6 +313,15 @@ export default function DashboardPage() {
             </div>
             <div className="text-sm text-indigo-700">Effectif total : <span className="font-bold">{stats.personnel?.headcount?.total ?? '-'}</span></div>
             <div className="text-sm text-indigo-700">Actifs : <span className="font-bold">{stats.personnel?.headcount?.active ?? '-'}</span></div>
+            <div className="flex items-center gap-2 text-[11px] text-blue-700 flex-wrap">
+              <span>Exports :</span>
+              <a className="underline" href="/api/personnel/summary?format=csv">Résumé CSV</a>
+              <a className="underline" href="/api/personnel/summary/pdf">Résumé PDF</a>
+              <a className="underline" href="/api/personnel/summary/xlsx">Résumé XLSX</a>
+              <a className="underline" href="/api/personnel/trend?format=csv&months=6">Trend CSV</a>
+              <a className="underline" href="/api/personnel/trend/pdf?months=6">Trend PDF</a>
+              <a className="underline" href="/api/personnel/trend/xlsx?months=6">Trend XLSX</a>
+            </div>
             {!sectionsCondensed.personnel && (
               <div className="text-sm text-indigo-700 flex flex-wrap gap-2">
                 <span className="bg-indigo-200 text-indigo-900 px-2 py-1 rounded text-xs">Embauches Mois: {stats.personnel?.headcount?.hiresMonth ?? 0}</span>
