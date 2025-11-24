@@ -84,7 +84,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
       }
     });
     const journal = await finalizeBatchToJournal(tx, {
-      sourceType: 'PAYROLL_SETTLEMENT',
+      sourceType: 'PAYROLL', // journal source type existant
       sourceId: period.id,
       date: today,
       description: desc,
