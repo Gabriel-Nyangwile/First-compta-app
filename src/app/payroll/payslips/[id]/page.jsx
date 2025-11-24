@@ -50,6 +50,14 @@ export default async function PayslipDetailPage({ params }) {
   const allocFamEur = computeAllocFamEur(children);
   const netEstEur = roundEur(grossEur - cnssEur - iprEur);
   const netPlusAllocEur = roundEur(netEstEur + allocFamEur);
+  // Déterminer si un règlement PAYSET existe pour l'employé dans cette période
+  const settlements = ps.period?.id
+    ? await prisma.journalEntry.findMany({
+        where: { sourceType: 'PAYROLL', sourceId: ps.period.id, description: { contains: 'PAYSET-' } },
+        select: { id: true, description: true, date: true },
+      })
+    : [];
+  const hasSettlement = settlements.some(j => j.description?.includes(ps.employee.id) || j.description?.includes('PAYSET-'));
   const grouped = lines.reduce((acc, l) => {
     const key = l.kind || 'AUTRE';
     acc[key] = acc[key] || [];
@@ -63,11 +71,12 @@ export default async function PayslipDetailPage({ params }) {
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Bulletin {ps.ref}</h1>
-      <div className="flex items-center gap-3 text-sm text-gray-700">
+      <div className="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
         <span className={`px-2 py-[2px] rounded text-xs font-semibold border ${badge}`}>{badgeText}</span>
         <div>Employé: <span className="font-medium">{ps.employee.firstName} {ps.employee.lastName}</span></div>
         <div>Matricule: {ps.employee.employeeNumber || '-'}</div>
         <div>Période: {ps.period.month}/{ps.period.year}</div>
+        {hasSettlement && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">Payé (PAYSET)</span>}
       </div>
       <div className="text-sm flex items-center gap-4 flex-wrap">Brut: {ps.grossAmount?.toFixed?.(2) ?? ps.grossAmount} | Net (stocké): {ps.netAmount?.toFixed?.(2) ?? ps.netAmount} <ExportPayslipJson payslip={ps} /></div>
       {!ps.locked && <RecalcButton payslipId={ps.id} />}
