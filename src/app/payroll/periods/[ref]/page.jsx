@@ -74,6 +74,10 @@ export default async function PayrollPeriodDetail({ params }) {
           <div>Journal: {audit.journalNumber || '-'}</div>
           <div>Débit/Crédit: {(audit.debitTotal ?? 0).toFixed(2)} / {(audit.creditTotal ?? 0).toFixed(2)}</div>
           <div>Mismatches: {audit.mismatchCount ?? 0}</div>
+          <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/audit`}>JSON audit</a>
+          <form action={`/api/payroll/period/${period.id}/audit`} method="get" className="inline">
+            <button type="submit" className="px-2 py-1 rounded bg-blue-700 text-white text-xs">Rafraîchir audit</button>
+          </form>
         </div>
       )}
       <aside className="text-[11px] leading-relaxed bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 max-w-prose">
@@ -137,7 +141,7 @@ export default async function PayrollPeriodDetail({ params }) {
                 <td className="px-2 py-1">{ps.employee.employeeNumber || ''} {ps.employee.firstName} {ps.employee.lastName}</td>
                 <td className="px-2 py-1">{ps.grossAmount}</td>
                 <td className="px-2 py-1">{ps.netAmount}</td>
-                <td className="px-2 py-1">{ps.locked ? '🔒' : '—'}</td>
+                <td className="px-2 py-1">{ps.locked ? '✓' : '-'}</td>
                 <td className="px-2 py-1"><a href={`/api/payroll/payslips/${ps.id}/pdf`} className="underline">PDF</a></td>
               </tr>
             ))}
