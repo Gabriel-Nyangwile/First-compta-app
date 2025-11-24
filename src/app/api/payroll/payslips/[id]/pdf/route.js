@@ -64,43 +64,42 @@ export async function GET(_req, { params }) {
       return p;
     };
 
-    let currentPage = addPage(`Période ${payslip.period.month}/${payslip.period.year}`);
+    let currentPage = addPage(`Periode ${payslip.period.month}/${payslip.period.year}`);
     let y = 770;
     const line = (txt, size = 10, color = rgb(0, 0, 0)) => { currentPage.drawText(txt, { x: 40, y, size, font, color }); y -= 14; };
 
-    line(clean(`Employé: ${payslip.employee.firstName} ${payslip.employee.lastName}`));
+    // En-tête employé + récap net
+    line(clean(`Employe: ${payslip.employee.firstName} ${payslip.employee.lastName}`));
     line(clean(`Matricule: ${payslip.employee.employeeNumber || '-'}`));
     line(`Brut: ${fmt(payslip.grossAmount)}  Net: ${fmt(payslip.netAmount)}`);
     line(`Deductions: ${fmt(-totals.deductions)}  Charges employeur: ${fmt(totals.employer)}`);
-    y -= 12;
-
-    // Récap net à payer
-    line('Net à payer', 11, rgb(0, 0.35, 0));
-    line(`${fmt(payslip.netAmount)} EUR`, 14, rgb(0, 0.35, 0));
-    y -= 10;
-    line('Détail lignes:', 11, rgb(0.1, 0.1, 0.5));
+    y -= 8;
+    currentPage.drawText('Net a payer', { x: 40, y, size: 12, font, color: rgb(0, 0.35, 0) }); y -= 14;
+    currentPage.drawText(`${fmt(payslip.netAmount)} EUR`, { x: 40, y, size: 16, font, color: rgb(0, 0.35, 0) }); y -= 16;
+    y -= 4;
+    line('Detail lignes:', 11, rgb(0.1, 0.1, 0.5));
     y -= 6;
 
-    // Tableau des lignes : Code | Libellé | Base | Montant
+    // Tableau des lignes : Code | Libelle | Base | Montant
     const headerY = y;
-    const colX = { code: 40, label: 90, base: 360, amount: 460 };
+    const colX = { code: 40, label: 90, base: 360, amount: 470 };
     const drawRow = (row, isHeader = false) => {
       const size = isHeader ? 10 : 9;
       const color = isHeader ? rgb(0.1, 0.1, 0.4) : rgb(0, 0, 0);
       currentPage.drawText(row.code, { x: colX.code, y, size, font, color });
-      currentPage.drawText(row.label.slice(0, 45), { x: colX.label, y, size, font, color });
+      currentPage.drawText(row.label.slice(0, 50), { x: colX.label, y, size, font, color });
       currentPage.drawText(row.base, { x: colX.base, y, size, font, color });
       currentPage.drawText(row.amount, { x: colX.amount, y, size, font, color });
       y -= 12;
     };
-    drawRow({ code: 'Code', label: 'Libellé', base: 'Base', amount: 'Montant' }, true);
+    drawRow({ code: 'Code', label: 'Libelle', base: 'Base', amount: 'Montant' }, true);
     currentPage.drawLine({ start: { x: 40, y: headerY - 2 }, end: { x: 540, y: headerY - 2 }, thickness: 0.5 });
 
     for (const l of sortedLines) {
       if (y < 80) {
         currentPage = addPage(`Suite (${pages.length + 1})`);
         y = 780;
-        drawRow({ code: 'Code', label: 'Libellé', base: 'Base', amount: 'Montant' }, true);
+        drawRow({ code: 'Code', label: 'Libelle', base: 'Base', amount: 'Montant' }, true);
         currentPage.drawLine({ start: { x: 40, y: y - 2 }, end: { x: 540, y: y - 2 }, thickness: 0.5 });
         y -= 12;
       }
@@ -115,7 +114,7 @@ export async function GET(_req, { params }) {
 
     const totalPages = pages.length;
     pages.forEach((p, idx) => {
-      drawFooter(p, { font, pageNumber: idx + 1, totalPages, legal: isDraft ? 'Document généré automatiquement - Non signé (BROUILLON).' : 'Document généré automatiquement.' });
+      drawFooter(p, { font, pageNumber: idx + 1, totalPages, legal: isDraft ? 'Document genere automatiquement - Non signe (BROUILLON).' : 'Document genere automatiquement.' });
     });
 
     const bytes = await pdfDoc.save();
