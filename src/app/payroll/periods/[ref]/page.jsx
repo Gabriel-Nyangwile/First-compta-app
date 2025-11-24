@@ -59,10 +59,23 @@ export default async function PayrollPeriodDetail({ params }) {
     ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, select: { id: true } })
     : null;
   const hasJournal = !!payrollJe;
+  const auditBadge = audit ? (
+    <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${audit.balanced && audit.mismatchCount === 0 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
+      {audit.balanced && audit.mismatchCount === 0 ? 'Audit OK' : `Écarts: ${audit.mismatchCount || 0}`}
+    </div>
+  ) : null;
   return (
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Période {period.ref}</h1>
+      {audit && (
+        <div className="border rounded p-3 bg-white text-sm flex items-center gap-4 flex-wrap">
+          {auditBadge}
+          <div>Journal: {audit.journalNumber || '-'}</div>
+          <div>Débit/Crédit: {(audit.debitTotal ?? 0).toFixed(2)} / {(audit.creditTotal ?? 0).toFixed(2)}</div>
+          <div>Mismatches: {audit.mismatchCount ?? 0}</div>
+        </div>
+      )}
       <aside className="text-[11px] leading-relaxed bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 max-w-prose">
         <strong>Référence Validation Paie:</strong> Règles & codes d'erreur détaillés
         {' '}<a className="underline hover:no-underline" href="https://github.com/Gabriel-Nyangwile/first-compta#188-validation-rules" target="_blank" rel="noopener noreferrer">README §18.8</a>
