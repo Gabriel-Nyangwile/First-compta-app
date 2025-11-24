@@ -66,16 +66,27 @@ export default async function PayrollPeriodDetail({ params }) {
           sourceId: period.id,
           description: { contains: 'PAYSET-' },
         },
-        include: { transactions: true },
         orderBy: { date: 'desc' },
       })
     : [];
-  const settlements = settlementJes.map(j => {
-    const debit = j.transactions?.filter(t => t.direction === 'DEBIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0) || 0;
-    const credit = j.transactions?.filter(t => t.direction === 'CREDIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0) || 0;
-    const refMatch = j.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
-    return { id: j.id, number: j.number, date: j.date, voucherRef: refMatch, description: j.description, _debit: debit, _credit: credit };
-  });
+  let settlements = [];
+  if (settlementJes.length) {
+    const tx = await prisma.transaction.findMany({
+      where: { journalEntryId: { in: settlementJes.map(j => j.id) } },
+    });
+    const txByJe = new Map();
+    for (const t of tx) {
+      if (!txByJe.has(t.journalEntryId)) txByJe.set(t.journalEntryId, []);
+      txByJe.get(t.journalEntryId).push(t);
+    }
+    settlements = settlementJes.map(j => {
+      const list = txByJe.get(j.id) || [];
+      const debit = list.filter(t => t.direction === 'DEBIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
+      const credit = list.filter(t => t.direction === 'CREDIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
+      const refMatch = j.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
+      return { id: j.id, number: j.number, date: j.date, voucherRef: refMatch, description: j.description, _debit: debit, _credit: credit };
+    });
+  }
   const auditBadge = audit ? (
     <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${audit.balanced && audit.mismatchCount === 0 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
       {audit.balanced && audit.mismatchCount === 0 ? 'Audit OK' : `Écarts: ${audit.mismatchCount || 0}`}
