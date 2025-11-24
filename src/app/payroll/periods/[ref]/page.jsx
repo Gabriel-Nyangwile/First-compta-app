@@ -59,29 +59,22 @@ export default async function PayrollPeriodDetail({ params }) {
     ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, select: { id: true } })
     : null;
   const hasJournal = !!payrollJe;
-  const settlementTx = period.status === 'POSTED'
-    ? await prisma.transaction.findMany({
+  const settlementJes = period.status === 'POSTED'
+    ? await prisma.journalEntry.findMany({
         where: {
-          journalEntry: { sourceType: 'PAYROLL', sourceId: period.id },
+          sourceType: 'PAYROLL',
+          sourceId: period.id,
           description: { contains: 'PAYSET-' },
-          kind: 'PAYMENT',
         },
-        include: { journalEntry: true },
+        include: { transactions: true },
         orderBy: { date: 'desc' },
       })
     : [];
-  const settlements = settlementTx.map(t => {
-    const je = t.journalEntry;
-    const refMatch = t.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
-    return {
-      id: je?.id || t.id,
-      number: je?.number || '-',
-      date: t.date,
-      voucherRef: refMatch,
-      description: t.description,
-      _debit: Number(t.amount?.toNumber?.() ?? t.amount ?? 0),
-      _credit: 0,
-    };
+  const settlements = settlementJes.map(j => {
+    const debit = j.transactions?.filter(t => t.direction === 'DEBIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0) || 0;
+    const credit = j.transactions?.filter(t => t.direction === 'CREDIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0) || 0;
+    const refMatch = j.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
+    return { id: j.id, number: j.number, date: j.date, voucherRef: refMatch, description: j.description, _debit: debit, _credit: credit };
   });
   const auditBadge = audit ? (
     <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${audit.balanced && audit.mismatchCount === 0 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
