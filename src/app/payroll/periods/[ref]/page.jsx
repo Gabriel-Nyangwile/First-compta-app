@@ -59,6 +59,18 @@ export default async function PayrollPeriodDetail({ params }) {
     ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, select: { id: true } })
     : null;
   const hasJournal = !!payrollJe;
+  const settlementJes = period.status === 'POSTED'
+    ? await prisma.journalEntry.findMany({
+        where: { sourceType: 'PAYROLL', sourceId: period.id, voucherRef: { startsWith: 'PAYSET-' } },
+        include: { transactions: true },
+        orderBy: { date: 'desc' },
+      })
+    : [];
+  const settlements = settlementJes.map(j => {
+    const debit = j.transactions?.filter(t => t.direction === 'DEBIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0) || 0;
+    const credit = j.transactions?.filter(t => t.direction === 'CREDIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0) || 0;
+    return { id: j.id, number: j.number, date: j.date, voucherRef: j.voucherRef, description: j.description, _debit: debit, _credit: credit };
+  });
   const auditBadge = audit ? (
     <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${audit.balanced && audit.mismatchCount === 0 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
       {audit.balanced && audit.mismatchCount === 0 ? 'Audit OK' : `Écarts: ${audit.mismatchCount || 0}`}
@@ -104,6 +116,31 @@ export default async function PayrollPeriodDetail({ params }) {
         <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/xlsx`}>Résumé XLSX</a>
       </div>
       {audit && (<AuditPanel audit={audit} periodId={period.id} />)}
+      {period.status === 'POSTED' && settlements.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium">Règlements net (PAYSET)</h2>
+          <table className="text-sm min-w-[520px] border">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-2 py-1 text-left">Ref</th>
+                <th className="px-2 py-1 text-left">Journal</th>
+                <th className="px-2 py-1 text-left">Date</th>
+                <th className="px-2 py-1 text-left">Débit/Crédit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {settlements.map(s => (
+                <tr key={s.id} className="border-t">
+                  <td className="px-2 py-1">{s.voucherRef || s.description || '-'}</td>
+                  <td className="px-2 py-1">{s.number}</td>
+                  <td className="px-2 py-1">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
+                  <td className="px-2 py-1">{(s._debit ?? 0).toFixed(2)} / {(s._credit ?? 0).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       <section className="space-y-2">
         <h2 className="font-medium">Bulletins ({period.payslips.length})</h2>
         {totals && (
