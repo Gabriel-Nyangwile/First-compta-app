@@ -48,6 +48,29 @@ export async function GET(_req, { params }) {
 
     const sortedLines = [...payslip.lines].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const totals = computeTotals(sortedLines);
+    // Récupérer le dernier règlement PAYSET (s'il existe) pour cet employé dans la période
+    const settlements = await prisma.journalEntry.findMany({
+      where: {
+        sourceType: 'PAYROLL',
+        sourceId: payslip.periodId,
+        description: { contains: 'PAYSET-' },
+      },
+      orderBy: { date: 'desc' },
+      take: 5,
+    });
+    let payset = null;
+    if (settlements.length) {
+      // Filtrer par employeeId mentionné dans la description ou fallback sur le plus récent
+      const match = settlements.find(j => j.description?.includes(payslip.employeeId)) || settlements[0];
+      const txs = await prisma.transaction.findMany({ where: { journalEntryId: match.id }, include: { account: true } });
+      const bankTx = txs.find(t => t.direction === 'DEBIT');
+      const refMatch = match.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
+      payset = {
+        ref: refMatch,
+        date: match.date,
+        bank: bankTx?.account?.number || '',
+      };
+    }
 
     const pdfDoc = await PDFDocument.create();
     const pages = [];
@@ -68,11 +91,14 @@ export async function GET(_req, { params }) {
     let y = 770;
     const line = (txt, size = 10, color = rgb(0, 0, 0)) => { currentPage.drawText(txt, { x: 40, y, size, font, color }); y -= 14; };
 
-    // En-tête employé + récap net
+    // En-tête employé + récap net + règlement
     line(clean(`Employe: ${payslip.employee.firstName} ${payslip.employee.lastName}`));
     line(clean(`Matricule: ${payslip.employee.employeeNumber || '-'}`));
     line(`Brut: ${fmt(payslip.grossAmount)}  Net: ${fmt(payslip.netAmount)}`);
     line(`Deductions: ${fmt(-totals.deductions)}  Charges employeur: ${fmt(totals.employer)}`);
+    if (payset) {
+      line(`PAYSET: ${payset.ref || '-'} le ${payset.date ? new Date(payset.date).toLocaleDateString('fr-FR') : '-'} banque ${payset.bank || '-'}`);
+    }
     y -= 8;
     currentPage.drawText('Net a payer', { x: 40, y, size: 12, font, color: rgb(0, 0.35, 0) }); y -= 14;
     currentPage.drawText(`${fmt(payslip.netAmount)} EUR`, { x: 40, y, size: 16, font, color: rgb(0, 0.35, 0) }); y -= 16;
