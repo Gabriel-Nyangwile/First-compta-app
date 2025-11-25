@@ -11,33 +11,50 @@ import { sanitizePlain } from '@/lib/sanitizePlain';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PayrollPeriodDetail({ params }) {
-  if (!featureFlags.payroll) return <div className="p-6">Module paie désactivé.</div>;
+export default async function PayrollPeriodDetail({ params, searchParams }) {
+  if (!featureFlags.payroll) return <div className="p-6">Module paie desactive.</div>;
   const { ref } = await params;
+  const employeeFilter = searchParams?.employeeId || null;
   const rawPeriod = await prisma.payrollPeriod.findUnique({
     where: { ref },
-    include: { payslips: { include: { employee: { select: { firstName: true, lastName: true, employeeNumber: true } }, lines: { select: { code: true, amount: true, meta: true } } } } }
+    include: {
+      payslips: {
+        include: {
+          employee: { select: { id: true, firstName: true, lastName: true, employeeNumber: true } },
+          lines: { select: { code: true, amount: true, meta: true } },
+        },
+      },
+    },
   });
-  const period = rawPeriod ? {
-    id: rawPeriod.id,
-    ref: rawPeriod.ref,
-    status: rawPeriod.status,
-    payslips: rawPeriod.payslips.map(ps => ({
-      id: ps.id,
-      ref: ps.ref,
-      grossAmount: ps.grossAmount?.toNumber?.() ?? ps.grossAmount,
-      netAmount: ps.netAmount?.toNumber?.() ?? ps.netAmount,
-      locked: ps.locked,
-      employee: ps.employee,
-      lines: ps.lines.map(l => ({ code: l.code, amount: l.amount?.toNumber?.() ?? l.amount, meta: l.meta || null }))
-    }))
-  } : null;
-  if (!period) return <div className="p-6">Période introuvable.</div>;
+  const period = rawPeriod
+    ? {
+        id: rawPeriod.id,
+        ref: rawPeriod.ref,
+        status: rawPeriod.status,
+        payslips: rawPeriod.payslips.map((ps) => ({
+          id: ps.id,
+          ref: ps.ref,
+          grossAmount: ps.grossAmount?.toNumber?.() ?? ps.grossAmount,
+          netAmount: ps.netAmount?.toNumber?.() ?? ps.netAmount,
+          locked: ps.locked,
+          employee: ps.employee,
+          lines: ps.lines.map((l) => ({ code: l.code, amount: l.amount?.toNumber?.() ?? l.amount, meta: l.meta || null })),
+        })),
+      }
+    : null;
+  if (!period) return <div className="p-6">Periode introuvable.</div>;
   const auditRaw = period && period.status === 'POSTED' ? await auditPayrollPeriod(period.id) : null;
   // Aggregate totals breakdown across payslips
   let totals = null;
   if (period) {
-    let grossTotal = 0, netTotal = 0, cnssEmployeeTotal = 0, iprTaxTotal = 0, cnssEmployerTotal = 0, onemTotal = 0, inppTotal = 0, overtimeTotal = 0;
+    let grossTotal = 0,
+      netTotal = 0,
+      cnssEmployeeTotal = 0,
+      iprTaxTotal = 0,
+      cnssEmployerTotal = 0,
+      onemTotal = 0,
+      inppTotal = 0,
+      overtimeTotal = 0;
     for (const ps of period.payslips) {
       grossTotal += ps.grossAmount || 0;
       netTotal += ps.netAmount || 0;
@@ -52,27 +69,40 @@ export default async function PayrollPeriodDetail({ params }) {
       }
     }
     const employerChargesTotal = cnssEmployerTotal + onemTotal + inppTotal;
-    totals = { grossTotal, netTotal, cnssEmployeeTotal, iprTaxTotal, cnssEmployerTotal, onemTotal, inppTotal, employerChargesTotal, overtimeTotal, payslipCount: period.payslips.length };
+    totals = {
+      grossTotal,
+      netTotal,
+      cnssEmployeeTotal,
+      iprTaxTotal,
+      cnssEmployerTotal,
+      onemTotal,
+      inppTotal,
+      employerChargesTotal,
+      overtimeTotal,
+      payslipCount: period.payslips.length,
+    };
   }
   const audit = auditRaw ? sanitizePlain(auditRaw) : null;
-  const payrollJe = period.status === 'POSTED'
-    ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, select: { id: true } })
-    : null;
+  const payrollJe =
+    period.status === 'POSTED'
+      ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, select: { id: true } })
+      : null;
   const hasJournal = !!payrollJe;
-  const settlementJes = period.status === 'POSTED'
-    ? await prisma.journalEntry.findMany({
-        where: {
-          sourceType: 'PAYROLL',
-          sourceId: period.id,
-          description: { contains: 'PAYSET-' },
-        },
-        orderBy: { date: 'desc' },
-      })
-    : [];
+  const settlementJes =
+    period.status === 'POSTED'
+      ? await prisma.journalEntry.findMany({
+          where: {
+            sourceType: 'PAYROLL',
+            sourceId: period.id,
+            description: { contains: 'PAYSET-' },
+          },
+          orderBy: { date: 'desc' },
+        })
+      : [];
   let settlements = [];
   if (settlementJes.length) {
     const tx = await prisma.transaction.findMany({
-      where: { journalEntryId: { in: settlementJes.map(j => j.id) } },
+      where: { journalEntryId: { in: settlementJes.map((j) => j.id) } },
       include: { account: true },
     });
     const txByJe = new Map();
@@ -80,14 +110,18 @@ export default async function PayrollPeriodDetail({ params }) {
       if (!txByJe.has(t.journalEntryId)) txByJe.set(t.journalEntryId, []);
       txByJe.get(t.journalEntryId).push(t);
     }
-    settlements = settlementJes.map(j => {
+    settlements = settlementJes.map((j) => {
       const list = txByJe.get(j.id) || [];
-      const debitTx = list.find(t => t.direction === 'DEBIT') || null;
-      const creditTx = list.find(t => t.direction === 'CREDIT') || null;
-      const debit = list.filter(t => t.direction === 'DEBIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
-      const credit = list.filter(t => t.direction === 'CREDIT').reduce((s,t)=> s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
+      const debitTx = list.find((t) => t.direction === 'DEBIT') || null;
+      const creditTx = list.find((t) => t.direction === 'CREDIT') || null;
+      const debit = list
+        .filter((t) => t.direction === 'DEBIT')
+        .reduce((s, t) => s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
+      const credit = list
+        .filter((t) => t.direction === 'CREDIT')
+        .reduce((s, t) => s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
       const refMatch = j.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
-      const employeeMatch = j.description?.match(/employ[eé]\\s+([a-z0-9-]+)/i);
+      const employeeMatch = j.description?.match(/employ[eé]\s+([a-z0-9-]+)/i);
       const employeeId = employeeMatch ? employeeMatch[1] : null;
       return {
         id: j.id,
@@ -103,33 +137,77 @@ export default async function PayrollPeriodDetail({ params }) {
       };
     });
   }
+  if (employeeFilter) {
+    settlements = settlements.filter((s) => s.employeeId === employeeFilter);
+  }
+  const settlementEmployees = Array.from(new Set(settlements.map((s) => s.employeeId).filter(Boolean)));
+  const employeeLabel = (empId) => {
+    const ps = period.payslips.find((p) => p.employee.id === empId);
+    if (!ps) return empId;
+    const e = ps.employee;
+    return `${e.employeeNumber || ''} ${e.firstName} ${e.lastName}`.trim();
+  };
   const auditBadge = audit ? (
-    <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${audit.balanced && audit.mismatchCount === 0 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
-      {audit.balanced && audit.mismatchCount === 0 ? 'Audit OK' : `Écarts: ${audit.mismatchCount || 0}`}
+    <div
+      className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+        audit.balanced && audit.mismatchCount === 0
+          ? 'bg-green-100 text-green-800 border border-green-200'
+          : 'bg-amber-100 text-amber-800 border border-amber-200'
+      }`}
+    >
+      {audit.balanced && audit.mismatchCount === 0 ? 'Audit OK' : `Ecarts: ${audit.mismatchCount || 0}`}
     </div>
   ) : null;
   return (
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
-      <h1 className="text-xl font-semibold">Période {period.ref}</h1>
+      <h1 className="text-xl font-semibold">Periode {period.ref}</h1>
       {audit && (
         <div className="border rounded p-3 bg-white text-sm flex items-center gap-4 flex-wrap">
           {auditBadge}
           <div>Journal: {audit.journalNumber || '-'}</div>
-          <div>Débit/Crédit: {(audit.debitTotal ?? 0).toFixed(2)} / {(audit.creditTotal ?? 0).toFixed(2)}</div>
+          <div>Debit/Credit: {(audit.debitTotal ?? 0).toFixed(2)} / {(audit.creditTotal ?? 0).toFixed(2)}</div>
           <div>Mismatches: {audit.mismatchCount ?? 0}</div>
-          <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/audit`}>JSON audit</a>
+          <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/audit`}>
+            JSON audit
+          </a>
           <form action={`/api/payroll/period/${period.id}/audit`} method="get" className="inline">
-            <button type="submit" className="px-2 py-1 rounded bg-blue-700 text-white text-xs">Rafraîchir audit</button>
+            <button type="submit" className="px-2 py-1 rounded bg-blue-700 text-white text-xs">
+              Rafraichir audit
+            </button>
           </form>
         </div>
       )}
       <aside className="text-[11px] leading-relaxed bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 max-w-prose">
-        <strong>Référence Validation Paie:</strong> Règles & codes d'erreur détaillés
-        {' '}<a className="underline hover:no-underline" href="https://github.com/Gabriel-Nyangwile/first-compta#188-validation-rules" target="_blank" rel="noopener noreferrer">README §18.8</a>
-        {' '}| <a className="underline hover:no-underline" href="https://github.com/Gabriel-Nyangwile/first-compta#1518-règles-de-validation" target="_blank" rel="noopener noreferrer">FR §15.1.8</a>
-        {' '}| <a className="underline hover:no-underline" href="https://github.com/Gabriel-Nyangwile/first-compta/blob/master/docs/payroll-validation.md" target="_blank" rel="noopener noreferrer">Cheat Sheet</a>.
-        Les taux sont des décimaux [0,1]; les tranches fiscales restent strictement ascendantes; un conflit code renvoie <code>code.exists</code>.
+        <strong>Reference Validation Paie:</strong> Regles & codes d'erreur detailles{' '}
+        <a
+          className="underline hover:no-underline"
+          href="https://github.com/Gabriel-Nyangwile/first-compta#188-validation-rules"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          README 18.8
+        </a>{' '}
+        |{' '}
+        <a
+          className="underline hover:no-underline"
+          href="https://github.com/Gabriel-Nyangwile/first-compta#1518-regles-de-validation"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          FR 15.1.8
+        </a>{' '}
+        |{' '}
+        <a
+          className="underline hover:no-underline"
+          href="https://github.com/Gabriel-Nyangwile/first-compta/blob/master/docs/payroll-validation.md"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Cheat Sheet
+        </a>
+        . Les taux sont des decimaux [0,1]; les tranches fiscales restent strictement ascendantes; un conflit code renvoie
+        <code>code.exists</code>.
       </aside>
       <div className="text-sm text-gray-600 flex items-center gap-4 flex-wrap">
         Statut: {period.status}
@@ -141,18 +219,54 @@ export default async function PayrollPeriodDetail({ params }) {
             <SettlementButton periodId={period.id} periodRef={period.ref} />
           </>
         )}
-        <a className="underline text-blue-600" href={`/payroll/periods/${period.ref}/inputs`}>Saisies</a>
-        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary`}>Résumé JSON</a>
-        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary?format=csv`}>Résumé CSV</a>
-        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/pdf`}>Résumé PDF</a>
-        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/xlsx`}>Résumé XLSX</a>
+        <a className="underline text-blue-600" href={`/payroll/periods/${period.ref}/inputs`}>
+          Saisies
+        </a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary`}>
+          Resume JSON
+        </a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary?format=csv`}>
+          Resume CSV
+        </a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/pdf`}>
+          Resume PDF
+        </a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/xlsx`}>
+          Resume XLSX
+        </a>
       </div>
-      {audit && (<AuditPanel audit={audit} periodId={period.id} />)}
+      {audit && <AuditPanel audit={audit} periodId={period.id} />}
       {period.status === 'POSTED' && settlements.length > 0 && (
         <section className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h2 className="font-medium">Règlements net (PAYSET)</h2>
-            <a className="text-xs underline text-blue-700" href={`/api/payroll/period/${period.id}/settlements?format=csv`}>Exporter CSV</a>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="font-medium">Reglements net (PAYSET)</h2>
+            <a
+              className="text-xs underline text-blue-700"
+              href={`/api/payroll/period/${period.id}/settlements?format=csv${employeeFilter ? `&employeeId=${employeeFilter}` : ''}`}
+            >
+              Exporter CSV
+            </a>
+            {settlementEmployees.length > 0 && (
+              <form method="get" className="text-xs flex items-center gap-2">
+                <label htmlFor="employeeId">Filtrer employe</label>
+                <select name="employeeId" id="employeeId" defaultValue={employeeFilter ?? ''} className="border rounded px-1 py-[2px]">
+                  <option value="">(tous)</option>
+                  {settlementEmployees.map((id) => (
+                    <option key={id} value={id}>
+                      {employeeLabel(id)}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className="px-2 py-[2px] rounded bg-blue-600 text-white">
+                  Appliquer
+                </button>
+                {employeeFilter && (
+                  <a href="." className="underline text-blue-700">
+                    Reinitialiser
+                  </a>
+                )}
+              </form>
+            )}
           </div>
           <table className="text-sm min-w-[520px] border">
             <thead className="bg-gray-100">
@@ -160,20 +274,20 @@ export default async function PayrollPeriodDetail({ params }) {
                 <th className="px-2 py-1 text-left">Ref</th>
                 <th className="px-2 py-1 text-left">Journal</th>
                 <th className="px-2 py-1 text-left">Date</th>
-                <th className="px-2 py-1 text-left">Débit/Crédit</th>
+                <th className="px-2 py-1 text-left">Debit/Credit</th>
                 <th className="px-2 py-1 text-left">Banque</th>
-                <th className="px-2 py-1 text-left">Employé</th>
+                <th className="px-2 py-1 text-left">Employe</th>
               </tr>
             </thead>
             <tbody>
-              {settlements.map(s => (
+              {settlements.map((s) => (
                 <tr key={s.id} className="border-t">
                   <td className="px-2 py-1">{s.voucherRef || s.description || '-'}</td>
                   <td className="px-2 py-1">{s.number}</td>
                   <td className="px-2 py-1">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
                   <td className="px-2 py-1">{(s._debit ?? 0).toFixed(2)} / {(s._credit ?? 0).toFixed(2)}</td>
                   <td className="px-2 py-1">{s.bankAccount || '-'}</td>
-                  <td className="px-2 py-1">{s.employeeId || '-'}</td>
+                  <td className="px-2 py-1">{s.employeeId ? employeeLabel(s.employeeId) : '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -184,11 +298,11 @@ export default async function PayrollPeriodDetail({ params }) {
         <h2 className="font-medium">Bulletins ({period.payslips.length})</h2>
         {totals && (
           <div className="border rounded p-3 bg-white text-xs mb-2">
-            <div className="font-semibold mb-1">Totaux période</div>
+            <div className="font-semibold mb-1">Totaux periode</div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
               <div>Brut total: {totals.grossTotal.toFixed(2)}</div>
               <div>Net total: {totals.netTotal.toFixed(2)}</div>
-              <div>CNSS salarié total: {totals.cnssEmployeeTotal.toFixed(2)}</div>
+              <div>CNSS salarie total: {totals.cnssEmployeeTotal.toFixed(2)}</div>
               <div>IPR total: {totals.iprTaxTotal.toFixed(2)}</div>
               <div>CNSS employeur total: {totals.cnssEmployerTotal.toFixed(2)}</div>
               <div>ONEM total: {totals.onemTotal.toFixed(2)}</div>
@@ -203,7 +317,7 @@ export default async function PayrollPeriodDetail({ params }) {
           <thead>
             <tr className="bg-gray-100">
               <th className="px-2 py-1 text-left">Ref</th>
-              <th className="px-2 py-1 text-left">Employé</th>
+              <th className="px-2 py-1 text-left">Employe</th>
               <th className="px-2 py-1 text-left">Brut</th>
               <th className="px-2 py-1 text-left">Net</th>
               <th className="px-2 py-1 text-left">Lock</th>
@@ -211,14 +325,22 @@ export default async function PayrollPeriodDetail({ params }) {
             </tr>
           </thead>
           <tbody>
-            {period.payslips.map(ps => (
+            {period.payslips.map((ps) => (
               <tr key={ps.id} className="border-t hover:bg-gray-50">
-                <td className="px-2 py-1"><a href={`/payroll/payslips/${ps.id}`} className="text-blue-600 underline">{ps.ref}</a></td>
+                <td className="px-2 py-1">
+                  <a href={`/payroll/payslips/${ps.id}`} className="text-blue-600 underline">
+                    {ps.ref}
+                  </a>
+                </td>
                 <td className="px-2 py-1">{ps.employee.employeeNumber || ''} {ps.employee.firstName} {ps.employee.lastName}</td>
                 <td className="px-2 py-1">{ps.grossAmount}</td>
                 <td className="px-2 py-1">{ps.netAmount}</td>
-                <td className="px-2 py-1">{ps.locked ? '✓' : '-'}</td>
-                <td className="px-2 py-1"><a href={`/api/payroll/payslips/${ps.id}/pdf`} className="underline">PDF</a></td>
+                <td className="px-2 py-1">{ps.locked ? 'V' : '-'}</td>
+                <td className="px-2 py-1">
+                  <a href={`/api/payroll/payslips/${ps.id}/pdf`} className="underline">
+                    PDF
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>
