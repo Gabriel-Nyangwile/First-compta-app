@@ -20,7 +20,6 @@ export async function GET(req) {
     totals.corrRatioNet = totals.net!==0 ? (totals.corrNet / Math.abs(totals.net)) : 0;
     years.push({ year:y, totals });
   }
-  const url = new URL(req.url);
   if (url.searchParams.get('format') === 'csv') {
     const headers = ['year','gross','net','corrGross','corrNet','corrRatioGross','corrRatioNet','cnssSal','cnssEmp','ipr','onem','inpp','charges','ot'];
     const rows = years.map(y => headers.map(h => y.totals[h] ?? y[h] ?? ''));
