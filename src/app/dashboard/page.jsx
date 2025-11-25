@@ -32,6 +32,28 @@ export default function DashboardPage() {
     sales: false,
     personnel: false,
   });
+  const [refreshingPersonnel, setRefreshingPersonnel] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 2500);
+  };
+  const refreshPersonnel = async () => {
+    if (refreshingPersonnel) return;
+    setRefreshingPersonnel(true);
+    try {
+      const [summary, trend] = await Promise.all([
+        fetch('/api/personnel/summary').then(r => r.ok ? r.json() : Promise.reject(new Error('summary'))),
+        fetch('/api/personnel/trend?months=6').then(r => r.ok ? r.json() : Promise.reject(new Error('trend'))),
+      ]);
+      setStats(prev => ({ ...(prev || {}), personnel: summary, personnelTrend: trend }));
+      showToast('success', 'Personnel rafraichi');
+    } catch (e) {
+      showToast('error', 'Echec rafraichissement personnel');
+    } finally {
+      setRefreshingPersonnel(false);
+    }
+  };
   const toggleSection = (key) => setSectionsCondensed(prev => ({ ...prev, [key]: !prev[key] }));
 
   useEffect(() => {
@@ -84,6 +106,11 @@ export default function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-4">Dashboard Synthétique</h1>
+      {toast && (
+        <div className={`fixed bottom-6 right-6 px-3 py-2 rounded text-white text-sm shadow-lg ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+          {toast.message}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 mb-6">
         {[
           ['accounting','Comptabilité'],
@@ -305,11 +332,19 @@ export default function DashboardPage() {
           <div className="bg-indigo-50 rounded shadow p-4 flex flex-col gap-2">
             <div className="flex items-start justify-between">
               <div className="text-lg font-semibold text-indigo-900">Personnel</div>
-              <button
-                type="button"
-                onClick={() => toggleSection('personnel')}
-                className="text-[11px] px-2 py-1 rounded border border-indigo-300 bg-white hover:bg-indigo-100 text-indigo-700"
-              >{sectionsCondensed.personnel ? 'Étendu' : 'Condensé'}</button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('personnel')}
+                  className="text-[11px] px-2 py-1 rounded border border-indigo-300 bg-white hover:bg-indigo-100 text-indigo-700"
+                >{sectionsCondensed.personnel ? 'Étendu' : 'Condensé'}</button>
+                <button
+                  type="button"
+                  onClick={refreshPersonnel}
+                  disabled={refreshingPersonnel}
+                  className="text-[11px] px-2 py-1 rounded border border-indigo-300 bg-white hover:bg-indigo-100 text-indigo-700 disabled:opacity-60"
+                >{refreshingPersonnel ? '...' : 'Rafraîchir'}</button>
+              </div>
             </div>
             <div className="text-sm text-indigo-700">Effectif total : <span className="font-bold">{stats.personnel?.headcount?.total ?? '-'}</span></div>
             <div className="text-sm text-indigo-700">Actifs : <span className="font-bold">{stats.personnel?.headcount?.active ?? '-'}</span></div>
