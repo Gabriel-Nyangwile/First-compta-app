@@ -72,15 +72,24 @@ class Account(db.Model):
 
     @property
     def balance(self):
-        """Calculate the current balance of the account."""
+        """Calculate the current balance of the account.
+
+        OHADA accounting balance conventions:
+        - Class 1 (Liabilities/Equity): credit balance (credit - debit)
+        - Class 2 (Fixed Assets): debit balance (debit - credit)
+        - Class 3 (Stocks): debit balance (debit - credit)
+        - Class 4 (Third parties): debit balance by default (debit - credit)
+        - Class 5 (Treasury): debit balance (debit - credit)
+        - Class 6 (Expenses): debit balance (debit - credit)
+        - Class 7 (Revenue): credit balance (credit - debit)
+        - Class 8 (Other): debit balance by default (debit - credit)
+        """
         debit_total = sum(line.debit or 0 for line in self.journal_lines)
         credit_total = sum(line.credit or 0 for line in self.journal_lines)
 
-        # For classes 1-5 (Balance sheet accounts), debit increases assets
-        # For classes 6-8 (Income statement accounts), debit increases expenses
-        if self.account_class and self.account_class.number in [1, 4, 5]:
-            # Passif/Trésorerie: crédit - débit
+        # Classes with credit balance (Liabilities, Equity, Revenue)
+        if self.account_class and self.account_class.number in [1, 7]:
             return credit_total - debit_total
         else:
-            # Actif/Charges/Produits: débit - crédit
+            # Classes with debit balance (Assets, Stocks, Expenses, etc.)
             return debit_total - credit_total
