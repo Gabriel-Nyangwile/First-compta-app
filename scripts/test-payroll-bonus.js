@@ -8,6 +8,21 @@ import { generatePayslipsForPeriod } from '../src/lib/payroll/engine.js';
 
 function toNumber(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 
+async function ensurePersonnel(baseSalary = 1000) {
+  // Reuse an existing ACTIVE employee with a position/bareme when available
+  const existing = await prisma.employee.findFirst({
+    where: { status: 'ACTIVE' },
+    include: { position: { include: { bareme: true } } },
+  });
+  if (existing?.position?.bareme) return existing;
+
+  // Otherwise create a minimal bareme/position/employee triplet for the test
+  const bareme = await prisma.bareme.create({ data: { category: 'A1', legalSalary: baseSalary, categoryDescription: 'Test', tension: 'N/A' } });
+  const position = await prisma.position.create({ data: { title: 'Agent Test', baremeId: bareme.id } });
+  const employee = await prisma.employee.create({ data: { firstName: 'Test', lastName: 'Bonus', status: 'ACTIVE', positionId: position.id } });
+  return employee;
+}
+
 async function run() {
   const year = Number(process.argv[2] || 2025);
   const month = Number(process.argv[3] || 12);
@@ -22,6 +37,9 @@ async function run() {
   // Create a fresh period
   const ref = await nextSequence(prisma, 'PAYROLL_PERIOD', 'PP-');
   const period = await prisma.payrollPeriod.create({ data: { ref, month, year, status: 'OPEN' } });
+
+  // Ensure we have at least one employee with a base salary before generating
+  await ensurePersonnel(1000);
 
   // Generate payslips using engine
   await generatePayslipsForPeriod(period.id);
