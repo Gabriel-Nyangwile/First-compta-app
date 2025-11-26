@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Comptabilité OHADA{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('main.index') }}">📊 Compta OHADA</a>
+        </div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li><a href="{{ url_for('accounts.list_accounts') }}">Plan Comptable</a></li>
+            <li><a href="{{ url_for('journal.list_entries') }}">Journal</a></li>
+            <li><a href="{{ url_for('main.about') }}">À propos</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2024 Application de Comptabilité OHADA</p>
+    </footer>
+</body>
+</html>

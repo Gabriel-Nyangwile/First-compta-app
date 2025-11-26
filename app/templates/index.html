@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil - Comptabilité OHADA{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Tableau de Bord</h1>
+    <p class="subtitle">Application de Comptabilité basée sur le système OHADA</p>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Comptes</h3>
+            <p class="stat-number">{{ total_accounts }}</p>
+            <a href="{{ url_for('accounts.list_accounts') }}">Voir le plan comptable</a>
+        </div>
+        <div class="stat-card">
+            <h3>Écritures</h3>
+            <p class="stat-number">{{ total_entries }}</p>
+            <a href="{{ url_for('journal.list_entries') }}">Voir le journal</a>
+        </div>
+    </div>
+
+    <section class="recent-section">
+        <h2>Écritures Récentes</h2>
+        {% if recent_entries %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Référence</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>État</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in recent_entries %}
+                <tr>
+                    <td>{{ entry.reference }}</td>
+                    <td>{{ entry.date.strftime('%d/%m/%Y') if entry.date else '-' }}</td>
+                    <td>{{ entry.description }}</td>
+                    <td>
+                        {% if entry.is_posted %}
+                            <span class="badge badge-success">Comptabilisée</span>
+                        {% elif entry.is_balanced %}
+                            <span class="badge badge-warning">En attente</span>
+                        {% else %}
+                            <span class="badge badge-danger">Non équilibrée</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">Aucune écriture enregistrée pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="info-section">
+        <h2>À propos du système OHADA</h2>
+        <p>
+            L'OHADA (Organisation pour l'Harmonisation en Afrique du Droit des Affaires)
+            est une organisation regroupant 17 pays africains francophones. Le plan comptable
+            OHADA est structuré en 9 classes permettant une gestion normalisée de la comptabilité.
+        </p>
+        <a href="{{ url_for('main.about') }}" class="btn">En savoir plus</a>
+    </section>
+</div>
+{% endblock %}

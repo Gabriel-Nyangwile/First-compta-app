@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Journal Comptable - Comptabilité OHADA{% endblock %}
+
+{% block content %}
+<div class="journal-page">
+    <h1>Journal Comptable</h1>
+
+    <div class="actions">
+        <p>Consultez et gérez les écritures comptables.</p>
+    </div>
+
+    <section class="entries-list">
+        <h2>Écritures Comptables</h2>
+        {% if entries %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Référence</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Débit</th>
+                    <th>Crédit</th>
+                    <th>État</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr class="entry-header">
+                    <td><strong>{{ entry.reference }}</strong></td>
+                    <td>{{ entry.date.strftime('%d/%m/%Y') if entry.date else '-' }}</td>
+                    <td>{{ entry.description }}</td>
+                    <td class="amount">{{ '{:,.2f}'.format(entry.total_debit) }}</td>
+                    <td class="amount">{{ '{:,.2f}'.format(entry.total_credit) }}</td>
+                    <td>
+                        {% if entry.is_posted %}
+                            <span class="badge badge-success">Comptabilisée</span>
+                        {% elif entry.is_balanced %}
+                            <span class="badge badge-warning">En attente</span>
+                        {% else %}
+                            <span class="badge badge-danger">Non équilibrée</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% for line in entry.lines %}
+                <tr class="entry-line">
+                    <td></td>
+                    <td colspan="2" class="indent">
+                        {{ line.account.code }} - {{ line.account.name }}
+                        {% if line.description %}<br><small>{{ line.description }}</small>{% endif %}
+                    </td>
+                    <td class="amount">{% if line.debit %}{{ '{:,.2f}'.format(line.debit) }}{% endif %}</td>
+                    <td class="amount">{% if line.credit %}{{ '{:,.2f}'.format(line.credit) }}{% endif %}</td>
+                    <td></td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">
+            Aucune écriture comptable enregistrée. Utilisez l'API pour créer des écritures.
+        </p>
+        <div class="api-info">
+            <h3>API Endpoints</h3>
+            <ul>
+                <li><code>GET /journal/api</code> - Liste des écritures</li>
+                <li><code>POST /journal/api</code> - Créer une écriture</li>
+                <li><code>POST /journal/api/&lt;id&gt;/post</code> - Comptabiliser une écriture</li>
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

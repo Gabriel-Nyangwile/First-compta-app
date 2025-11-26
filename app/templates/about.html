@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}À propos - Comptabilité OHADA{% endblock %}
+
+{% block content %}
+<div class="about-page">
+    <h1>À propos du Système OHADA</h1>
+
+    <section class="about-section">
+        <h2>Qu'est-ce que l'OHADA?</h2>
+        <p>
+            L'Organisation pour l'Harmonisation en Afrique du Droit des Affaires (OHADA)
+            est une organisation intergouvernementale d'intégration juridique créée le
+            17 octobre 1993 à Port-Louis (Île Maurice).
+        </p>
+        <p>
+            Elle regroupe actuellement 17 pays africains, principalement francophones:
+            Bénin, Burkina Faso, Cameroun, Centrafrique, Comores, Congo, Côte d'Ivoire,
+            Gabon, Guinée, Guinée-Bissau, Guinée équatoriale, Mali, Niger, RD Congo,
+            Sénégal, Tchad et Togo.
+        </p>
+    </section>
+
+    <section class="about-section">
+        <h2>Le Plan Comptable OHADA</h2>
+        <p>
+            Le Système Comptable OHADA (SYSCOHADA) est le référentiel comptable commun
+            aux États membres de l'OHADA. Il comprend 9 classes de comptes:
+        </p>
+
+        <div class="classes-grid">
+            <div class="class-card">
+                <h3>Classe 1</h3>
+                <p><strong>Ressources durables</strong></p>
+                <p>Capitaux propres et dettes financières</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 2</h3>
+                <p><strong>Actif immobilisé</strong></p>
+                <p>Immobilisations incorporelles, corporelles et financières</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 3</h3>
+                <p><strong>Stocks</strong></p>
+                <p>Stocks et en-cours</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 4</h3>
+                <p><strong>Tiers</strong></p>
+                <p>Fournisseurs, clients, personnel, État</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 5</h3>
+                <p><strong>Trésorerie</strong></p>
+                <p>Banque, caisse, valeurs mobilières de placement</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 6</h3>
+                <p><strong>Charges des activités ordinaires</strong></p>
+                <p>Achats, services extérieurs, impôts, charges de personnel</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 7</h3>
+                <p><strong>Produits des activités ordinaires</strong></p>
+                <p>Ventes, prestations de services, produits accessoires</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 8</h3>
+                <p><strong>Autres charges et produits</strong></p>
+                <p>Charges et produits hors activités ordinaires</p>
+            </div>
+            <div class="class-card">
+                <h3>Classe 9</h3>
+                <p><strong>Comptabilité analytique</strong></p>
+                <p>Comptes de la comptabilité analytique de gestion</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="about-section">
+        <h2>Principes de base</h2>
+        <ul>
+            <li><strong>Partie double:</strong> Chaque écriture doit avoir un débit égal au crédit</li>
+            <li><strong>Continuité d'exploitation:</strong> L'entreprise est présumée continuer ses activités</li>
+            <li><strong>Indépendance des exercices:</strong> Les charges et produits sont rattachés à l'exercice concerné</li>
+            <li><strong>Prudence:</strong> Les pertes probables sont comptabilisées, les gains ne le sont qu'une fois réalisés</li>
+            <li><strong>Permanence des méthodes:</strong> Les méthodes d'évaluation doivent être constantes</li>
+        </ul>
+    </section>
+
+    <a href="{{ url_for('main.index') }}" class="btn">Retour à l'accueil</a>
+</div>
+{% endblock %}

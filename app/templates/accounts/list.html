@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Plan Comptable - Comptabilité OHADA{% endblock %}
+
+{% block content %}
+<div class="accounts-page">
+    <h1>Plan Comptable OHADA</h1>
+
+    <div class="actions">
+        <p>Gérez les comptes de votre plan comptable selon les normes OHADA.</p>
+    </div>
+
+    {% if classes %}
+    <div class="classes-overview">
+        <h2>Classes de comptes</h2>
+        <div class="class-pills">
+            {% for cls in classes %}
+            <span class="class-pill class-{{ cls.number }}">
+                {{ cls.number }} - {{ cls.name }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <section class="accounts-list">
+        <h2>Liste des Comptes</h2>
+        {% if accounts %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Intitulé</th>
+                    <th>Classe</th>
+                    <th>État</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in accounts %}
+                <tr>
+                    <td><strong>{{ account.code }}</strong></td>
+                    <td>{{ account.name }}</td>
+                    <td>
+                        <span class="class-badge class-{{ account.account_class.number }}">
+                            {{ account.account_class.number }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if account.is_active %}
+                            <span class="badge badge-success">Actif</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Inactif</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">
+            Aucun compte n'a été créé. Utilisez l'API pour ajouter des comptes.
+        </p>
+        <div class="api-info">
+            <h3>API Endpoints</h3>
+            <ul>
+                <li><code>GET /accounts/api</code> - Liste des comptes</li>
+                <li><code>POST /accounts/api</code> - Créer un compte</li>
+                <li><code>GET /accounts/classes/api</code> - Liste des classes</li>
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
