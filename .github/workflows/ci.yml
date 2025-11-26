@@ -27,6 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create .env.local for CI
+        run:
+          cat <<'EOF' > .env.local
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/first_compta_ci?schema=public
+          NODE_ENV=test
+          BASE_URL=http://localhost:3000
+          EOF
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
