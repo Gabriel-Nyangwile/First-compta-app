@@ -7,7 +7,9 @@ import { Suspense } from 'react';
 export default function HomePage() {
   return (
     <main id="top" className="u-main-container u-padding-content-container scroll-smooth">
-      <LogoutToast />
+      <Suspense fallback={null}>
+        <LogoutToast />
+      </Suspense>
       <div className="max-w-xl p-8 bg-white rounded shadow text-center">
         <h1 className="text-4xl font-bold mb-4 text-blue-900">SCOFEX Consulting</h1>
         <p className="text-semibold text-gray-700">Bienvenue sur notre site</p>

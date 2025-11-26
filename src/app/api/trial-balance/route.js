@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 export const revalidate = 60; // cache hint
+export const dynamic = "force-dynamic"; // uses request.url (searchParams)
 
 const toNumber = (value) => {
   if (value == null) return 0;
