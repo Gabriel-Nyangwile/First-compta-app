@@ -7,7 +7,7 @@ function useDebounce(fn, ms){
   return useCallback((...a)=>{ clearTimeout(t.current); t.current = setTimeout(()=>fn(...a), ms); }, [fn, ms]);
 }
 
-export default function POFormClient({ suppliers, initialProducts }) {
+export default function POFormClient({ suppliers, initialProducts, assetCategories = [] }) {
   const [products, setProducts] = useState(initialProducts || []);
   const [lines, setLines] = useState([emptyLine()]);
   const [showModal, setShowModal] = useState(false);
@@ -18,7 +18,7 @@ export default function POFormClient({ suppliers, initialProducts }) {
   const toastTimer = useRef();
   const supplierRef = useRef();
 
-  function emptyLine(){ return { productId: '', orderedQty: '', unitPrice: '', vatRate: '' }; }
+  function emptyLine(){ return { productId: '', orderedQty: '', unitPrice: '', vatRate: '', assetCategoryId: '' }; }
 
   function pushToast(msg, type='info'){
     clearTimeout(toastTimer.current);
@@ -122,7 +122,7 @@ export default function POFormClient({ suppliers, initialProducts }) {
     const supplierId = e.currentTarget.supplierId.value;
     if(!supplierId){ pushToast('Fournisseur requis','error'); return; }
     // Build payload lines excluding empty ones
-    const useLines = lines.filter(l => l.productId || l.orderedQty || l.unitPrice || l.vatRate).filter(l => l.productId);
+    const useLines = lines.filter(l => l.productId || l.orderedQty || l.unitPrice || l.vatRate || l.assetCategoryId).filter(l => l.productId);
     if(!useLines.length){ pushToast('Ajouter au moins une ligne','error'); return; }
     // Validate numeric
     for(const l of useLines){
@@ -135,7 +135,8 @@ export default function POFormClient({ suppliers, initialProducts }) {
       productId: l.productId,
       orderedQty: String(parseFloat(l.orderedQty)),
       unitPrice: String(parseFloat(l.unitPrice)),
-      vatRate: l.vatRate ? Number(l.vatRate).toFixed(2) : undefined
+      vatRate: l.vatRate ? Number(l.vatRate).toFixed(2) : undefined,
+      assetCategoryId: l.assetCategoryId || undefined
     }));
     const payload = {
       supplierId,
@@ -191,7 +192,7 @@ export default function POFormClient({ suppliers, initialProducts }) {
             {lines.map((l,idx)=> {
               const used = lines.filter((o,i)=> i!==idx).map(o=>o.productId).filter(Boolean);
               return (
-                <div key={idx} className="grid grid-cols-6 gap-2 items-start border p-2 rounded" data-line-row>
+                <div key={idx} className="grid grid-cols-7 gap-2 items-start border p-2 rounded" data-line-row>
                   <div className="space-y-1 col-span-2">
                     <select value={l.productId} onChange={e=> handleProductChange(idx, e.target.value)} className="border px-2 py-1 rounded text-xs w-full">
                       <option value="">Produit…</option>
@@ -202,6 +203,10 @@ export default function POFormClient({ suppliers, initialProducts }) {
                   <input value={l.orderedQty} onChange={e=> updateLine(idx,{ orderedQty:e.target.value })} type="number" step="0.001" placeholder="Qté" className="border px-2 py-1 rounded text-xs" />
                   <input value={l.unitPrice} onChange={e=> updateLine(idx,{ unitPrice:e.target.value })} type="number" step="0.0001" placeholder="PU" className="border px-2 py-1 rounded text-xs" />
                   <input value={l.vatRate} onChange={e=> updateLine(idx,{ vatRate:e.target.value })} type="number" step="0.01" placeholder="TVA" className="border px-2 py-1 rounded text-xs" />
+                  <select value={l.assetCategoryId} onChange={e=> updateLine(idx,{ assetCategoryId:e.target.value })} className="border px-2 py-1 rounded text-xs">
+                    <option value="">Caté immobilisation</option>
+                    {assetCategories.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
+                  </select>
                   <div className="flex flex-col items-end gap-1">
                     <button type="button" onClick={()=> removeLine(idx)} className="text-xs text-red-600">Supprimer</button>
                     {idx === lines.length-1 && <button type="button" onClick={()=> openModal(idx)} className="text-[10px] text-emerald-700 underline">+ produit</button>}

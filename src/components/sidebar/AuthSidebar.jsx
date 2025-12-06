@@ -99,6 +99,14 @@ const GROUPS = [
     ],
   },
   {
+    key: "immos",
+    label: "Gestion des immobilisés",
+    items: [
+      { href: "/assets", label: "Immobilisations" },
+      { href: "/asset-purchase-orders", label: "BC immobilisations" },
+    ],
+  },
+  {
     key: "tres",
     label: "Trésorerie",
     items: [

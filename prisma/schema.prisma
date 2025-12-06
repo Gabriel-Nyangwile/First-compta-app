@@ -123,6 +123,12 @@ model Account {
   inventoryProducts      Product[]             @relation("ProductInventoryAccount")
   stockVariationProducts Product[]             @relation("ProductStockVariationAccount")
   salesOrderLines        SalesOrderLine[]
+  // Asset mapping back-relations
+  assetCategoriesAssetAccount   AssetCategory[] @relation("AssetCategoryAssetAccount")
+  assetCategoriesDepAccount     AssetCategory[] @relation("AssetCategoryDepAccount")
+  assetCategoriesExpenseAccount AssetCategory[] @relation("AssetCategoryExpenseAccount")
+  assetCategoriesGainAccount    AssetCategory[] @relation("AssetCategoryGainAccount")
+  assetCategoriesLossAccount    AssetCategory[] @relation("AssetCategoryLossAccount")
 }
 
 enum ClientCategory {
@@ -171,6 +177,7 @@ model Supplier {
   goodsReceipts    GoodsReceipt[]
   returnOrders     ReturnOrder[]
   moneyMovements   MoneyMovement[]
+  assetPurchaseOrders AssetPurchaseOrder[]
 }
 
 enum PaymentStatus {
@@ -208,6 +215,12 @@ enum TransactionKind {
   WAGES_PAYABLE // Salaire net à payer (4220)
   BENEFIT_IN_KIND_EXPENSE // Avantages en nature (6617)
   SALARY_BONUS_EXPENSE // Primes & gratifications (6612)
+  ASSET_ACQUISITION // Acquisition d'immobilisation (débit 2xx)
+  ASSET_CLEARING // Sortie d'immobilisation (crédit 2xx)
+  ASSET_DEPRECIATION_EXPENSE // Dotation amortissement (681x)
+  ASSET_DEPRECIATION_RESERVE // Amortissement cumulé (281x)
+  ASSET_DISPOSAL_GAIN // Produit de cession immobilisation (775)
+  ASSET_DISPOSAL_LOSS // Perte de cession immobilisation (675)
 }
 
 enum TransactionLetterStatus {
@@ -236,6 +249,7 @@ enum JournalSourceType {
   RETURN_ORDER
   GOODS_RECEIPT
   PAYROLL
+  ASSET
 }
 
 model JournalEntry {
@@ -252,6 +266,8 @@ model JournalEntry {
   // Relations
   lines       Transaction[]
   inventoryCountLines InventoryCountLine[] @relation("InventoryCountJournal")
+  depreciationLines DepreciationLine[]
+  assetDisposals    AssetDisposal[]
 
   @@index([sourceType, sourceId])
   @@index([date])
@@ -507,6 +523,7 @@ enum PurchaseOrderStatus {
   RECEIVED
   CLOSED
   CANCELLED
+  INVOICED
 }
 
 enum GoodsReceiptStatus {
@@ -567,6 +584,8 @@ model PurchaseOrderLine {
   purchaseOrder        PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
   productId            String
   product              Product               @relation(fields: [productId], references: [id])
+  assetCategoryId      String?
+  assetCategory        AssetCategory?        @relation(fields: [assetCategoryId], references: [id])
   orderedQty           Decimal               @db.Decimal(14, 3)
   receivedQty          Decimal               @default(0) @db.Decimal(14, 3)
   returnedQty          Decimal               @default(0) @db.Decimal(14, 3)
@@ -583,6 +602,45 @@ model PurchaseOrderLine {
 
   @@index([purchaseOrderId])
   @@index([productId])
+  @@index([assetCategoryId])
+}
+
+// =============================
+//  Bons de commande immobilisations
+// =============================
+
+model AssetPurchaseOrder {
+  id            String                     @id @default(uuid())
+  number        String                     @unique
+  status        PurchaseOrderStatus        @default(DRAFT)
+  supplierId    String
+  supplier      Supplier                   @relation(fields: [supplierId], references: [id])
+  issueDate     DateTime                   @default(now())
+  expectedDate  DateTime?
+  currency      String                     @default("EUR")
+  notes         String?
+  lines         AssetPurchaseOrderLine[]
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model AssetPurchaseOrderLine {
+  id                    String                @id @default(uuid())
+  assetPurchaseOrderId  String
+  assetPurchaseOrder    AssetPurchaseOrder    @relation(fields: [assetPurchaseOrderId], references: [id])
+  label                 String
+  assetCategoryId       String
+  assetCategory         AssetCategory         @relation(fields: [assetCategoryId], references: [id])
+  quantity              Decimal               @default(1) @db.Decimal(14, 3)
+  unitPrice             Decimal               @db.Decimal(14, 4)
+  vatRate               Decimal?              @db.Decimal(4, 2)
+  createdAt             DateTime              @default(now())
+
+  @@index([assetPurchaseOrderId])
+  @@index([assetCategoryId])
 }
 
 model GoodsReceipt {
@@ -1360,28 +1418,134 @@ model BankAdvice {
     @@index([costCenterId])
   }
 
-  model PayrollAccountMapping {
-    id            String  @id @default(uuid())
-    code          String  @unique
-    accountId     String?
-    accountNumber String?
-    label         String
-    active        Boolean @default(true)
-    createdAt     DateTime @default(now())
-    updatedAt     DateTime @updatedAt
-  }
+model PayrollAccountMapping {
+  id            String  @id @default(uuid())
+  code          String  @unique
+  accountId     String?
+  accountNumber String?
+  label         String
+  active        Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
 
-  model FxRate {
-    id            String   @id @default(uuid())
-    date          DateTime
-    baseCurrency  String
-    quoteCurrency String
-    rate          Decimal  @db.Decimal(18, 8)
-    source        String?
-    createdAt     DateTime @default(now())
+model FxRate {
+  id            String   @id @default(uuid())
+  date          DateTime
+  baseCurrency  String
+  quoteCurrency String
+  rate          Decimal  @db.Decimal(18, 8)
+  source        String?
+  createdAt     DateTime @default(now())
 
-    @@unique([date, baseCurrency, quoteCurrency])
-  }
+  @@unique([date, baseCurrency, quoteCurrency])
+}
+
+// =============================
+//  Immobilisations
+// =============================
+
+enum DepreciationMethod {
+  LINEAR
+}
+
+enum AssetStatus {
+  DRAFT
+  ACTIVE
+  DISPOSED
+}
+
+enum DepreciationLineStatus {
+  PLANNED
+  POSTED
+}
+
+model AssetCategory {
+  id                         String   @id @default(uuid())
+  code                       String   @unique
+  label                      String
+  durationMonths             Int
+  method                     DepreciationMethod @default(LINEAR)
+  active                     Boolean  @default(true)
+  assetAccountId             String?
+  assetAccountNumber         String?
+  assetAccount               Account? @relation("AssetCategoryAssetAccount", fields: [assetAccountId], references: [id])
+  depreciationAccountId      String?
+  depreciationAccountNumber  String?
+  depreciationAccount        Account? @relation("AssetCategoryDepAccount", fields: [depreciationAccountId], references: [id])
+  expenseAccountId           String?
+  expenseAccountNumber       String?
+  expenseAccount             Account? @relation("AssetCategoryExpenseAccount", fields: [expenseAccountId], references: [id])
+  disposalGainAccountId      String?
+  disposalGainAccountNumber  String?
+  disposalGainAccount        Account? @relation("AssetCategoryGainAccount", fields: [disposalGainAccountId], references: [id])
+  disposalLossAccountId      String?
+  disposalLossAccountNumber  String?
+  disposalLossAccount        Account? @relation("AssetCategoryLossAccount", fields: [disposalLossAccountId], references: [id])
+  assets                     Asset[]
+  purchaseOrderLines         PurchaseOrderLine[]
+  assetPurchaseOrderLines    AssetPurchaseOrderLine[]
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model Asset {
+  id               String            @id @default(uuid())
+  ref              String            @unique
+  label            String
+  categoryId       String
+  category         AssetCategory     @relation(fields: [categoryId], references: [id])
+  acquisitionDate  DateTime
+  inServiceDate    DateTime?
+  cost             Decimal           @db.Decimal(16, 2)
+  salvage          Decimal?          @db.Decimal(16, 2)
+  usefulLifeMonths Int
+  method           DepreciationMethod @default(LINEAR)
+  status           AssetStatus       @default(DRAFT)
+  meta             Json?
+  depreciationLines DepreciationLine[]
+  disposals        AssetDisposal[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+model DepreciationLine {
+  id             String                 @id @default(uuid())
+  assetId        String
+  asset          Asset                  @relation(fields: [assetId], references: [id])
+  year           Int
+  month          Int
+  amount         Decimal                @db.Decimal(16, 2)
+  cumulative     Decimal                @db.Decimal(16, 2)
+  status         DepreciationLineStatus @default(PLANNED)
+  journalEntryId String?
+  journalEntry   JournalEntry?          @relation(fields: [journalEntryId], references: [id])
+  postedAt       DateTime?
+  createdAt      DateTime               @default(now())
+
+  @@unique([assetId, year, month])
+  @@index([journalEntryId])
+}
+
+model AssetDisposal {
+  id             String       @id @default(uuid())
+  assetId        String
+  asset          Asset        @relation(fields: [assetId], references: [id])
+  date           DateTime
+  proceed        Decimal      @db.Decimal(16, 2)
+  gainLoss       Decimal?     @db.Decimal(16, 2)
+  journalEntryId String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  reason         String?
+  meta           Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([assetId])
+  @@index([journalEntryId])
+}
 
   // =============================
   //  Paie - Phase A (Présence & Variables)

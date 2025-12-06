@@ -20,7 +20,7 @@ export async function GET(request) {
     const pos = await prisma.purchaseOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { supplier: true, lines: { include: { product: true } } },
+      include: { supplier: true, lines: { include: { product: true, assetCategory: true } } },
     });
     const normalized = pos.map((po) => {
       const lines = (po.lines || []).map((line) => {
@@ -58,7 +58,7 @@ export async function GET(request) {
 }
 
 // POST /api/purchase-orders
-// { supplierId, expectedDate?, currency?, notes?, lines:[{ productId, orderedQty, unitPrice, vatRate? }] }
+// { supplierId, expectedDate?, currency?, notes?, lines:[{ productId, orderedQty, unitPrice, vatRate?, assetCategoryId? }] }
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -90,6 +90,7 @@ export async function POST(request) {
         orderedQty: orderedQty.toString(),
         unitPrice: unitPrice.toString(),
         vatRate: vatRate != null ? vatRate.toFixed(2) : undefined,
+        assetCategoryId: l.assetCategoryId || undefined,
       };
     });
 

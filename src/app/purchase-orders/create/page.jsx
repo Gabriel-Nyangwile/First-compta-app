@@ -35,8 +35,20 @@ async function fetchProducts() {
   return [];
 }
 
+async function fetchAssetCategories() {
+  try {
+    const url = await absoluteUrl('/api/asset-categories');
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data?.categories)) return data.categories;
+    }
+  } catch {}
+  return [];
+}
+
 export default async function CreatePurchaseOrderPage() {
-  const [suppliers, products] = await Promise.all([fetchSuppliers(), fetchProducts()]);
+  const [suppliers, products, assetCategories] = await Promise.all([fetchSuppliers(), fetchProducts(), fetchAssetCategories()]);
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       <AuthorizedFetchBridge />
@@ -49,16 +61,16 @@ export default async function CreatePurchaseOrderPage() {
         </Link>
       </div>
       <h1 className="text-xl font-semibold">Créer un bon de commande</h1>
-      <POForm suppliers={suppliers} products={products} />
+      <POForm suppliers={suppliers} products={products} assetCategories={assetCategories} />
       <ProductModal />
       <div><Link href="/purchase-orders" className="text-sm text-blue-600 underline">← Retour liste</Link></div>
     </div>
   );
 }
 
-function LineRow({ index, products }) {
+function LineRow({ index, products, assetCategories }) {
   return (
-    <div className="grid grid-cols-6 gap-2 items-start" data-line-row>
+    <div className="grid grid-cols-7 gap-2 items-start" data-line-row>
       <div className="space-y-1 col-span-2">
         <select name={`lines[${index}][productId]`} className="border px-2 py-1 rounded text-xs w-full" data-product-select>
           <option value="">Produit…</option>
@@ -69,12 +81,16 @@ function LineRow({ index, products }) {
       <input name={`lines[${index}][orderedQty]`} type="number" step="0.001" placeholder="Qté" className="border px-2 py-1 rounded text-xs" data-qty />
       <input name={`lines[${index}][unitPrice]`} type="number" step="0.0001" placeholder="PU" className="border px-2 py-1 rounded text-xs" data-unit-price />
       <input name={`lines[${index}][vatRate]`} type="number" step="0.01" placeholder="TVA" className="border px-2 py-1 rounded text-xs" />
+      <select name={`lines[${index}][assetCategoryId]`} className="border px-2 py-1 rounded text-xs" data-asset-category>
+        <option value="">Caté immobilisation</option>
+        {assetCategories.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
+      </select>
       <button type="button" data-remove className="text-xs text-red-600 mt-1">Supprimer</button>
     </div>
   );
 }
 
-function POForm({ suppliers, products }) {
+function POForm({ suppliers, products, assetCategories }) {
   return (
     <form className="space-y-6" data-po-form noValidate>
       <div className="grid md:grid-cols-3 gap-6">
@@ -105,7 +121,7 @@ function POForm({ suppliers, products }) {
             </div>
           </div>
           <div className="space-y-3" data-lines-container>
-            <LineRow index={0} products={products} />
+            <LineRow index={0} products={products} assetCategories={assetCategories} />
           </div>
           <div className="text-[10px] text-gray-500">Remplir au moins une ligne (quantité & prix requis). Une ligne vide à la fin sera ajoutée automatiquement.</div>
         </div>
@@ -119,7 +135,7 @@ function POForm({ suppliers, products }) {
         <a href="/purchase-orders" className="px-4 py-2 bg-gray-300 rounded text-sm">Annuler</a>
       </div>
       <div id="toast-container" className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none" />
-      <ClientEnhancements />
+      <ClientEnhancements assetCategories={assetCategories} />
     </form>
   );
 }
@@ -127,12 +143,13 @@ function POForm({ suppliers, products }) {
 // (Ancienne server action supprimée : soumission gérée côté client pour feedback fiable.)
 
 // Client-side enhancements component (islands approach)
-function ClientEnhancements() {
+function ClientEnhancements({ assetCategories }) {
   return (
     <Script id="po-form-enhancements" strategy="afterInteractive">{`
       (function(){
         try {
         const ADMIN_TOKEN = ${JSON.stringify(CLIENT_ADMIN_TOKEN)};
+        const ASSET_CATEGORIES = ${JSON.stringify(assetCategories)};
         const fallbackAuthorizedFetch = (input, init = {}) => {
           const baseHeaders = (init && init.headers) ? init.headers : {};
           const headers = Object.assign({}, baseHeaders, { "x-admin-token": ADMIN_TOKEN });
@@ -410,7 +427,8 @@ function ClientEnhancements() {
               const qtyRaw = qtyEl.value.trim();
               const upRaw = upEl.value.trim();
               const vatRaw = vatEl?.value?.trim() || '';
-              const empty = !pid && !qtyRaw && !upRaw && !vatRaw;
+              const assetCat = (r.querySelector('[data-asset-category]')?.value || '').trim();
+              const empty = !pid && !qtyRaw && !upRaw && !vatRaw && !assetCat;
               if(empty) continue;
               if(!pid){ showToast('Produit manquant','error'); r.classList.add('ring-2','ring-red-500'); return; }
               const qty = parseNum(qtyRaw);
@@ -418,7 +436,7 @@ function ClientEnhancements() {
               if(!(qty>0)){ showToast('Quantité > 0 requise','error'); r.classList.add('ring-2','ring-red-500'); return; }
               if(isNaN(up) || up < 0){ showToast('PU >= 0 requis','error'); r.classList.add('ring-2','ring-red-500'); return; }
               let vatRate; if(vatRaw){ const v=parseNum(vatRaw); if(isNaN(v) || v<0){ showToast('TVA invalide','error'); r.classList.add('ring-2','ring-red-500'); return; } vatRate=v; }
-              lines.push({ productId: pid, orderedQty: qty.toString(), unitPrice: up.toString(), vatRate: vatRate!=null ? vatRate.toFixed(2): undefined });
+              lines.push({ productId: pid, orderedQty: qty.toString(), unitPrice: up.toString(), vatRate: vatRate!=null ? vatRate.toFixed(2): undefined, assetCategoryId: assetCat || undefined });
             }
             if(!lines.length){ showToast('Ajouter au moins une ligne valide','error'); return; }
             const payload = {
