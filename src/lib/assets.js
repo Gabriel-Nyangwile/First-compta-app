@@ -60,6 +60,13 @@ function computeMonthlyDepreciation(asset) {
   return round2(base / asset.usefulLifeMonths);
 }
 
+async function isPeriodLocked(client, year, month) {
+  const lock = await client.depreciationPeriodLock.findUnique({
+    where: { year_month: { year, month } },
+  });
+  return !!lock;
+}
+
 export async function createAsset(data) {
   const ref = await nextSequence(prisma, 'ASSET', 'AS-');
   const asset = await prisma.asset.create({
@@ -87,9 +94,11 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
   });
   if (!asset) throw new Error('Asset not found');
   if (asset.status === 'DISPOSED') throw new Error('Asset disposed');
+  if (await isPeriodLocked(client, year, month)) throw new Error(`Periode ${month}/${year} verrouillee`);
   const existing = await client.depreciationLine.findUnique({
     where: { assetId_year_month: { assetId, year, month } },
   });
+  if (existing?.status === 'POSTED') return existing;
   if (existing) return existing;
   const amount = computeMonthlyDepreciation(asset);
   const cumuPrev = await client.depreciationLine.aggregate({
@@ -104,6 +113,7 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
 
 export async function postDepreciation(assetId, year, month) {
   return prisma.$transaction(async (tx) => {
+    if (await isPeriodLocked(tx, year, month)) throw new Error(`Periode ${month}/${year} verrouillee`);
     const asset = await tx.asset.findUnique({
       where: { id: assetId },
       include: { category: true },
@@ -255,8 +265,9 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
 export async function postDepreciationBatch(year, month) {
   if (!year || !month) throw new Error('year/month requis');
   return prisma.$transaction(async (tx) => {
+    if (await isPeriodLocked(tx, year, month)) throw new Error(`Periode ${month}/${year} verrouillee`);
     const already = await tx.depreciationLine.count({ where: { year, month, status: 'POSTED' } });
-    if (already > 0) throw new Error(`Dotations ${month}/${year} déjà postées`);
+    if (already > 0) throw new Error(`Dotations ${month}/${year} deja postees`);
     const assets = await tx.asset.findMany({
       where: { status: { not: 'DISPOSED' } },
       include: { category: true },
@@ -319,6 +330,11 @@ export async function postDepreciationBatch(year, month) {
     await tx.depreciationLine.updateMany({
       where: { id: { in: lineIds } },
       data: { status: 'POSTED', journalEntryId: journal.id, postedAt: today },
+    });
+    await tx.depreciationPeriodLock.upsert({
+      where: { year_month: { year, month } },
+      create: { year, month },
+      update: {},
     });
     return { journalNumber: journal.number, postedCount: lineIds.length, total: txns.reduce((s, t) => s + toNumber(t.amount), 0) };
   });

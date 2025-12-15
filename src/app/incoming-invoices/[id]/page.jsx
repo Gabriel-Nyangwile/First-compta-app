@@ -3,6 +3,9 @@ import Link from "next/link";
 import { formatAmount } from "@/lib/utils";
 import DownloadIncomingInvoicePDFButton from "@/components/DownloadIncomingInvoicePDFButton";
 import DeleteIncomingInvoiceButton from "./DeleteIncomingInvoiceButton";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createAsset } from "@/lib/assets";
 
 export default async function IncomingInvoiceDetail({ params, searchParams }) {
   const { id } = await params;
@@ -13,6 +16,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
       lines: { include: { account: true } },
       transactions: { include: { account: true } },
       purchaseOrder: { select: { id: true, number: true } },
+      assetPurchaseOrder: { select: { id: true, number: true } },
       moneyMovements: {
         select: {
           id: true,
@@ -63,6 +67,52 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
   });
   const sp = await searchParams;
   const returnTo = sp?.returnTo ? decodeURIComponent(sp.returnTo) : null;
+
+  async function createAssetFromInvoice() {
+    "use server";
+    const invoice = await prisma.incomingInvoice.findUnique({
+      where: { id },
+      include: {
+        assetPurchaseOrder: {
+          include: {
+            lines: { include: { assetCategory: true } },
+          },
+        },
+      },
+    });
+    if (!invoice?.assetPurchaseOrder) {
+      throw new Error("BC immobilisation non lié à cette facture");
+    }
+    const po = invoice.assetPurchaseOrder;
+    for (const line of po.lines || []) {
+      if (!line.assetCategoryId) continue;
+      const qty = Number(line.quantity?.toNumber?.() ?? line.quantity ?? 1);
+      const unit = Number(line.unitPrice?.toNumber?.() ?? line.unitPrice ?? 0);
+      const cost = qty * unit;
+      const ul = line.assetCategory?.durationMonths || 36;
+      const acquisitionDate = invoice.receiptDate || new Date();
+      const inServiceDate = acquisitionDate;
+      await createAsset({
+        label: line.label || po.number,
+        categoryId: line.assetCategoryId,
+        acquisitionDate,
+        inServiceDate,
+        cost,
+        salvage: 0,
+        usefulLifeMonths: ul,
+        method: "LINEAR",
+        status: "ACTIVE",
+        meta: {
+          source: "INCOMING_INVOICE",
+          incomingInvoiceId: invoice.id,
+          assetPurchaseOrderId: po.id,
+          assetPurchaseOrderLineId: line.id,
+        },
+      });
+    }
+    revalidatePath("/assets");
+    redirect("/assets");
+  }
   return (
     <main className="flex min-h-screen flex-col items-center p-8 bg-gray-50">
       <div className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md border border-gray-200 space-y-6">
@@ -79,6 +129,17 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
                   className="text-blue-600 underline"
                 >
                   {inv.purchaseOrder.number}
+                </Link>
+              </p>
+            )}
+            {inv.assetPurchaseOrder && (
+              <p className="text-xs text-gray-600">
+                BC immobilisation :{" "}
+                <Link
+                  href={`/asset-purchase-orders/${inv.assetPurchaseOrder.id}`}
+                  className="text-blue-600 underline"
+                >
+                  {inv.assetPurchaseOrder.number}
                 </Link>
               </p>
             )}
@@ -105,6 +166,16 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
               !inv.transactions.some((t) => t.kind === "PAYMENT") && (
                 <DeleteIncomingInvoiceButton id={inv.id} />
               )}
+            {inv.assetPurchaseOrder && (
+              <form action={createAssetFromInvoice}>
+                <button
+                  type="submit"
+                  className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm"
+                >
+                  Créer immobilisation(s) depuis ce BC
+                </button>
+              </form>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm">

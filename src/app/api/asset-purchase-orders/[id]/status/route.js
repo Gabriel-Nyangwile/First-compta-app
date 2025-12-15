@@ -19,7 +19,13 @@ export async function POST(req, { params }) {
     if (!po) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const nexts = allowedTransitions[po.status] || [];
     if (!nexts.includes(status)) return NextResponse.json({ error: `Transition ${po.status} -> ${status} interdite` }, { status: 409 });
-    const updated = await prisma.assetPurchaseOrder.update({ where: { id }, data: { status } });
+    const updated = await prisma.assetPurchaseOrder.update({
+      where: { id },
+      data: {
+        status,
+        receivedAt: status === 'RECEIVED' && !po.receivedAt ? new Date() : po.receivedAt,
+      },
+    });
     return NextResponse.json({ ok: true, status: updated.status });
   } catch (e) {
     return NextResponse.json({ error: e.message || 'Maj statut échouée' }, { status: 500 });

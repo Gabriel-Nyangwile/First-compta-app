@@ -13,7 +13,8 @@ export async function POST(req) {
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e.message || 'Post batch failed';
-    const status = msg.includes('déjà postées') ? 409 : 500;
+    const status = msg.toLowerCase().includes('deja post') ? 409 : 500;
     return NextResponse.json({ ok: false, error: msg }, { status });
   }
 }
+

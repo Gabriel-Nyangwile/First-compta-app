@@ -617,9 +617,12 @@ model AssetPurchaseOrder {
   supplier      Supplier                   @relation(fields: [supplierId], references: [id])
   issueDate     DateTime                   @default(now())
   expectedDate  DateTime?
+  receivedAt    DateTime?
   currency      String                     @default("EUR")
   notes         String?
   lines         AssetPurchaseOrderLine[]
+  incomingInvoiceId String?  @unique
+  incomingInvoice   IncomingInvoice? @relation("AssetPOInvoice", fields: [incomingInvoiceId], references: [id])
   createdAt     DateTime                   @default(now())
   updatedAt     DateTime                   @updatedAt
 
@@ -955,6 +958,7 @@ model IncomingInvoice {
   moneyMovements         MoneyMovement[]
   treasuryAuthorizations TreasuryAuthorization[]
   bankAdvices            BankAdvice[]
+  assetPurchaseOrder     AssetPurchaseOrder?     @relation("AssetPOInvoice")
 
   // Optionnel: empêcher doublon du même numéro fournisseur pour un même supplier
   // @@unique([supplierId, supplierInvoiceNumber])  // (commenté car supplierId nullable)
@@ -1530,6 +1534,16 @@ model DepreciationLine {
   @@index([journalEntryId])
 }
 
+model DepreciationPeriodLock {
+  id       String   @id @default(uuid())
+  year     Int
+  month    Int
+  lockedAt DateTime @default(now())
+  note     String?
+
+  @@unique([year, month], name: "year_month")
+}
+
 model AssetDisposal {
   id             String       @id @default(uuid())
   assetId        String
@@ -1592,4 +1606,3 @@ model AssetDisposal {
     @@index([employeeId])
     @@index([costCenterId])
   }
-

@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req, { params }) {
-  const { id } = params;
+  const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   const asset = await prisma.asset.findUnique({
     where: { id },
@@ -19,7 +19,7 @@ export async function GET(_req, { params }) {
 }
 
 export async function PUT(req, { params }) {
-  const { id } = params;
+  const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
     const body = await req.json();
@@ -44,7 +44,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(_req, { params }) {
-  const { id } = params;
+  const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
     await prisma.depreciationLine.deleteMany({ where: { assetId: id } });

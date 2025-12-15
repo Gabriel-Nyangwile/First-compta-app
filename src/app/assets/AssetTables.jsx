@@ -49,9 +49,12 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
   const [assetEditId, setAssetEditId] = useState(null);
   const [assetEditForm, setAssetEditForm] = useState(null);
   const [exportParams, setExportParams] = useState({ from: '', to: '' });
+  const [scheduleYear, setScheduleYear] = useState(now.getFullYear());
   const [batchPeriod, setBatchPeriod] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [periodInputs, setPeriodInputs] = useState(() => Object.fromEntries(initialAssets.map(a => [a.id, { year: now.getFullYear(), month: now.getMonth() + 1 }])));
   const [disposeInputs, setDisposeInputs] = useState(() => Object.fromEntries(initialAssets.map(a => [a.id, { proceed: '', date: now.toISOString().slice(0, 10) }])));
+  const [locks, setLocks] = useState([]);
+  const [lockPeriod, setLockPeriod] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
 
   useEffect(() => {
     setPeriodInputs(Object.fromEntries(initialAssets.map(a => [a.id, { year: now.getFullYear(), month: now.getMonth() + 1 }])));
@@ -66,12 +69,14 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
   async function refresh() {
     setLoading(true);
     try {
-      const [cats, assetsRes] = await Promise.all([
+      const [cats, assetsRes, locksRes] = await Promise.all([
         apiJSON('/api/asset-categories'),
         apiJSON('/api/assets'),
+        apiJSON('/api/assets/depreciations/lock').catch(() => ({ locks: [] })),
       ]);
       setCategories(cats.categories || []);
       setAssets(assetsRes.assets || []);
+      setLocks(locksRes.locks || []);
       setCatEditId(null); setCatEditForm(null);
       setAssetEditId(null); setAssetEditForm(null);
     } catch (e) {
@@ -80,6 +85,19 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       setLoading(false);
     }
   }
+
+  // Charge les verrous séparément pour gérer la réponse
+  useEffect(() => {
+    async function loadLocks() {
+      try {
+        const res = await apiJSON('/api/assets/depreciations/lock');
+        setLocks(res.locks || []);
+      } catch {
+        setLocks([]);
+      }
+    }
+    loadLocks();
+  }, []);
 
   async function submitCategory(e) {
     e.preventDefault();
@@ -115,7 +133,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
           ...assetForm,
           cost: Number(assetForm.cost),
           salvage: assetForm.salvage ? Number(assetForm.salvage) : 0,
-          usefulLifeMonths: Number(assetForm.usefulLifeMonths),
+          usefulLifeMonths: Number(categories.find(c => c.id === assetForm.categoryId)?.durationMonths ?? assetForm.usefulLifeMonths),
         },
       });
       pushToast('Immobilisation ajoutée');
@@ -125,7 +143,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
         acquisitionDate: now.toISOString().slice(0, 10),
         cost: '',
         salvage: '',
-        usefulLifeMonths: 36,
+        usefulLifeMonths: categories.find(c => c.id === assetForm.categoryId)?.durationMonths ?? 36,
       });
       await refresh();
     } catch (e) {
@@ -180,13 +198,14 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
     if (!assetEditId || !assetEditForm) return;
     setLoading(true);
     try {
+      const catDuration = categories.find(c => c.id === assetEditForm.categoryId)?.durationMonths;
       await apiJSON(`/api/assets/${assetEditId}`, {
         method: 'PUT',
         body: {
           ...assetEditForm,
           cost: assetEditForm.cost !== '' ? Number(assetEditForm.cost) : undefined,
           salvage: assetEditForm.salvage !== '' ? Number(assetEditForm.salvage) : undefined,
-          usefulLifeMonths: assetEditForm.usefulLifeMonths ? Number(assetEditForm.usefulLifeMonths) : undefined,
+          usefulLifeMonths: catDuration ?? undefined,
         },
       });
       pushToast('Immobilisation mise à jour');
@@ -221,7 +240,8 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       pushToast('Dotation générée');
       await refresh();
     } catch (e) {
-      pushToast(e.message || 'Erreur génération', 'error');
+      const msg = (e.message || '').toLowerCase().includes('postee') ? 'Période déjà postée' : (e.message || 'Erreur génération');
+      pushToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -236,7 +256,8 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       pushToast('Dotation postée');
       await refresh();
     } catch (e) {
-      pushToast(e.message || 'Erreur posting', 'error');
+      const msg = (e.message || '').toLowerCase().includes('postee') ? 'Période déjà postée' : (e.message || 'Erreur posting');
+      pushToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -269,6 +290,40 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
     params.set('format', 'csv');
     const url = `/api/assets/depreciations/export?${params.toString()}`;
     window.open(url, '_blank');
+  }
+
+  function exportSchedule(format) {
+    if (!scheduleYear) {
+      pushToast('Année requise', 'error');
+      return;
+    }
+    const url = `/api/assets/depreciations/schedule?year=${encodeURIComponent(scheduleYear)}&format=${format}`;
+    window.open(url, '_blank');
+  }
+
+  async function toggleLock(action = 'lock') {
+    if (!lockPeriod.year || !lockPeriod.month) {
+      pushToast('Année et mois requis', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiJSON('/api/assets/depreciations/lock', {
+        method: 'POST',
+        body: {
+          year: Number(lockPeriod.year),
+          month: Number(lockPeriod.month),
+          action,
+        },
+      });
+      const res = await apiJSON('/api/assets/depreciations/lock');
+      setLocks(res.locks || []);
+      pushToast(action === 'lock' ? 'Période verrouillée' : 'Période déverrouillée');
+    } catch (e) {
+      pushToast(e.message || 'Erreur lock', 'error');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function postBatch() {
@@ -326,7 +381,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
               <input className="w-full border px-2 py-1 rounded" value={catForm.label} onChange={e => setCatForm({ ...catForm, label: e.target.value })} required />
             </label>
             <label className="space-y-1">
-              <span>Durée (mois)</span>
+              <span>Durée (mois) (catégorie)</span>
               <input type="number" className="w-full border px-2 py-1 rounded" value={catForm.durationMonths} onChange={e => setCatForm({ ...catForm, durationMonths: e.target.value })} required />
             </label>
             <label className="space-y-1">
@@ -365,7 +420,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
               acquisitionDate: now.toISOString().slice(0, 10),
               cost: 1200,
               salvage: 0,
-              usefulLifeMonths: 36,
+              usefulLifeMonths: categories.find(c => c.id === (assetForm.categoryId || categories[0]?.id))?.durationMonths ?? 36,
               inServiceDate: now.toISOString().slice(0, 10),
             })}>Préremplir laptop (36 mois)</button>
           </div>
@@ -376,7 +431,16 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
             </label>
             <label className="space-y-1">
               <span>Catégorie</span>
-              <select className="w-full border px-2 py-1 rounded" value={assetForm.categoryId} onChange={e => setAssetForm({ ...assetForm, categoryId: e.target.value })} required>
+              <select
+                className="w-full border px-2 py-1 rounded"
+                value={assetForm.categoryId}
+                onChange={e => {
+                  const catId = e.target.value;
+                  const cat = categories.find(c => c.id === catId);
+                  setAssetForm({ ...assetForm, categoryId: catId, usefulLifeMonths: cat?.durationMonths ?? assetForm.usefulLifeMonths });
+                }}
+                required
+              >
                 <option value="">--</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.code} · {c.label}</option>)}
               </select>
@@ -399,7 +463,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
             </label>
             <label className="space-y-1">
               <span>Durée (mois)</span>
-              <input type="number" className="w-full border px-2 py-1 rounded" value={assetForm.usefulLifeMonths} onChange={e => setAssetForm({ ...assetForm, usefulLifeMonths: e.target.value })} required />
+              <input type="number" className="w-full border px-2 py-1 rounded bg-gray-100 text-gray-700" value={assetForm.usefulLifeMonths} disabled readOnly />
             </label>
           </div>
         </form>
@@ -498,6 +562,17 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
               <input type="month" className="border px-2 py-1 rounded" value={exportParams.to} onChange={e => setExportParams({ ...exportParams, to: e.target.value })} />
               <button className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200" onClick={exportDepreciations}>Exporter dotations</button>
               <div className="flex items-center gap-1">
+                <input type="number" className="w-20 border px-2 py-1 rounded" value={scheduleYear} onChange={e => setScheduleYear(e.target.value)} />
+                <button className="px-2 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded" onClick={() => exportSchedule('xlsx')}>Amort. annuel Excel</button>
+                <button className="px-2 py-1 text-white bg-indigo-600 hover:bg-indigo-700 rounded" onClick={() => exportSchedule('pdf')}>PDF</button>
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="number" className="w-16 border px-2 py-1 rounded" value={lockPeriod.month} min={1} max={12} onChange={e => setLockPeriod({ ...lockPeriod, month: e.target.value })} />
+                <input type="number" className="w-20 border px-2 py-1 rounded" value={lockPeriod.year} onChange={e => setLockPeriod({ ...lockPeriod, year: e.target.value })} />
+                <button className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded" onClick={() => toggleLock('lock')}>Verrouiller période</button>
+                <button className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded" onClick={() => toggleLock('unlock')}>Déverrouiller</button>
+              </div>
+              <div className="flex items-center gap-1">
                 <input type="number" className="w-16 border px-2 py-1 rounded" value={batchPeriod.month} min={1} max={12} onChange={e => setBatchPeriod({ ...batchPeriod, month: e.target.value })} />
                 <input type="number" className="w-20 border px-2 py-1 rounded" value={batchPeriod.year} onChange={e => setBatchPeriod({ ...batchPeriod, year: e.target.value })} />
                 <button className="px-2 py-1 bg-blue-600 text-white rounded disabled:opacity-50" onClick={postBatch} disabled={loading}>Poster batch</button>
@@ -505,6 +580,15 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
             </div>
             {loading && <span className="text-xs text-gray-500">Chargement…</span>}
           </div>
+          {!!locks.length && (
+            <div className="px-4 pb-2 text-xs text-gray-700 flex flex-wrap gap-2">
+              {locks.map(l => (
+                <span key={`${l.year}-${l.month}`} className="px-2 py-1 bg-red-50 border border-red-200 rounded">
+                  Verrouillé {String(l.month).padStart(2, '0')}/{l.year}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -537,7 +621,15 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
                     <td className="px-3 py-2">
                       {editing
                         ? (
-                          <select className="w-32 border px-2 py-1 rounded text-xs" value={form.categoryId} onChange={e => setAssetEditForm({ ...form, categoryId: e.target.value })}>
+                          <select
+                            className="w-32 border px-2 py-1 rounded text-xs"
+                            value={form.categoryId}
+                            onChange={e => {
+                              const catId = e.target.value;
+                              const cat = categories.find(c => c.id === catId);
+                              setAssetEditForm({ ...form, categoryId: catId, usefulLifeMonths: cat?.durationMonths ?? form.usefulLifeMonths });
+                            }}
+                          >
                             {categories.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                           </select>
                         )
@@ -565,7 +657,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
                     <td className="px-3 py-2 space-y-2">
                       {editing && (
                         <div className="flex flex-wrap gap-2 items-center">
-                          <input type="number" className="w-20 border px-2 py-1 rounded text-xs" placeholder="Durée" value={form.usefulLifeMonths || ''} onChange={e => setAssetEditForm({ ...form, usefulLifeMonths: e.target.value })} />
+                          <input type="number" className="w-20 border px-2 py-1 rounded text-xs bg-gray-100 text-gray-700" placeholder="Durée" value={form.usefulLifeMonths || ''} disabled readOnly />
                           <input type="number" step="0.01" className="w-24 border px-2 py-1 rounded text-xs" placeholder="Val. résiduelle" value={form.salvage || ''} onChange={e => setAssetEditForm({ ...form, salvage: e.target.value })} />
                           <input type="date" className="border px-2 py-1 rounded text-xs" value={form.inServiceDate?.slice(0, 10) || ''} onChange={e => setAssetEditForm({ ...form, inServiceDate: e.target.value })} />
                         </div>
@@ -589,7 +681,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
                           </>
                         ) : (
                           <>
-                            <button className="px-2 py-1 border rounded" onClick={() => { setAssetEditId(a.id); setAssetEditForm({ ...a }); }}>Éditer</button>
+                            <button className="px-2 py-1 border rounded" onClick={() => { const cat = categories.find(c => c.id === a.categoryId); setAssetEditId(a.id); setAssetEditForm({ ...a, usefulLifeMonths: cat?.durationMonths ?? a.usefulLifeMonths }); }}>Éditer</button>
                             <button className="px-2 py-1 border rounded text-red-700" onClick={() => deleteAsset(a.id)} disabled={loading}>Supprimer</button>
                           </>
                         )}

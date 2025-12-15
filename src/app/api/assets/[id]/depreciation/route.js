@@ -3,8 +3,12 @@ import { generateDepreciationLine } from '@/lib/assets';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET() {
+  return NextResponse.json({ ok: false, error: 'Method not allowed. Use POST.' }, { status: 405 });
+}
+
 export async function POST(req, { params }) {
-  const { id } = params;
+  const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
     const body = await req.json();
@@ -14,6 +18,8 @@ export async function POST(req, { params }) {
     const line = await generateDepreciationLine(id, year, month);
     return NextResponse.json({ ok: true, line });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: e.message || 'Generate failed' }, { status: 500 });
+    const msg = e.message || 'Generate failed';
+    const status = msg.toLowerCase().includes('deja postee') ? 409 : 500;
+    return NextResponse.json({ ok: false, error: msg }, { status });
   }
 }

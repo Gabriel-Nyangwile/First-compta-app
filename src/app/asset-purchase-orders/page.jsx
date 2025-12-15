@@ -27,6 +27,8 @@ export default async function Page() {
               <th className="px-3 py-2 text-left">Numéro</th>
               <th className="px-3 py-2 text-left">Fournisseur</th>
               <th className="px-3 py-2 text-left">Statut</th>
+              <th className="px-3 py-2 text-left">Émise le</th>
+              <th className="px-3 py-2 text-left">Reçue le</th>
               <th className="px-3 py-2 text-left">Échéance</th>
               <th className="px-3 py-2 text-left">Lignes</th>
             </tr>
@@ -39,6 +41,8 @@ export default async function Page() {
                 </td>
                 <td className="px-3 py-2">{po.supplier?.name || '—'}</td>
                 <td className="px-3 py-2">{po.status}</td>
+                <td className="px-3 py-2">{po.issueDate ? new Date(po.issueDate).toISOString().slice(0,10) : '—'}</td>
+                <td className="px-3 py-2">{po.receivedAt ? new Date(po.receivedAt).toISOString().slice(0,10) : '—'}</td>
                 <td className="px-3 py-2">{po.expectedDate ? new Date(po.expectedDate).toISOString().slice(0,10) : '—'}</td>
                 <td className="px-3 py-2 text-xs">
                   {(po.lines || []).map(l => (

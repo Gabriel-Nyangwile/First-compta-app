@@ -5,6 +5,18 @@ import { getSystemAccounts } from '@/lib/systemAccounts';
 
 export const dynamic = 'force-dynamic';
 
+function parseDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function addDays(base, days) {
+  const d = new Date(base);
+  d.setDate(d.getDate() + Number(days || 0));
+  return d;
+}
+
 async function generateNextEntryNumber(tx) {
   const now = new Date();
   const year = now.getFullYear();
@@ -18,21 +30,30 @@ async function generateNextEntryNumber(tx) {
   return `EI-${year}-${seqPadded}`;
 }
 
-export async function POST(_req, { params }) {
+export async function POST(req, { params }) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
   try {
+    const payload = await req.json().catch(() => ({}));
+    const supplierInvoiceNumber = (payload.supplierInvoiceNumber || '').trim();
+    if (!supplierInvoiceNumber) return NextResponse.json({ error: 'Numero facture fournisseur requis' }, { status: 400 });
+    const receiptDate = parseDate(payload.receiptDate) || new Date();
+    const issueDate = parseDate(payload.issueDate) || receiptDate;
+    let dueDate = parseDate(payload.dueDate);
+    const termDays = Number.isFinite(Number(payload.paymentTermDays)) ? Number(payload.paymentTermDays) : null;
+    if (!dueDate) {
+      dueDate = termDays != null ? addDays(receiptDate, termDays) : receiptDate;
+    }
+
     const apo = await prisma.assetPurchaseOrder.findUnique({
       where: { id },
       include: { supplier: true, lines: { include: { assetCategory: true } } },
     });
-    if (!apo) return NextResponse.json({ error: 'BC immob non trouvé' }, { status: 404 });
-    if (apo.status !== 'RECEIVED' && apo.status !== 'APPROVED') {
-      // allow from APPROVED for simplification
-    }
+    if (!apo) return NextResponse.json({ error: 'BC immob non trouve' }, { status: 404 });
+    if (apo.status === 'INVOICED') return NextResponse.json({ error: 'BC deja facture' }, { status: 409 });
+    if (apo.status !== 'RECEIVED') return NextResponse.json({ error: 'BC non recu : facture impossible' }, { status: 409 });
     if (!apo.lines.length) return NextResponse.json({ error: 'Aucune ligne' }, { status: 400 });
 
-    const today = new Date();
     const lines = [];
     let totalHt = 0;
     let totalVat = 0;
@@ -73,16 +94,16 @@ export async function POST(_req, { params }) {
       const inv = await tx.incomingInvoice.create({
         data: {
           entryNumber,
-          receiptDate: today,
-          issueDate: today,
-          dueDate: today,
+          receiptDate,
+          issueDate,
+          dueDate,
           totalAmount: (totalHt + totalVat).toFixed(2),
           totalAmountHt: totalHt.toFixed(2),
           vatAmount: totalVat.toFixed(2),
           vat: 0,
           paidAmount: '0',
           outstandingAmount: (totalHt + totalVat).toFixed(2),
-          supplierInvoiceNumber: apo.number ? `AUTO-${apo.number}` : entryNumber,
+          supplierInvoiceNumber,
           status: 'PENDING',
           supplier: apo.supplierId ? { connect: { id: apo.supplierId } } : undefined,
           lines: { create: lines },
@@ -94,7 +115,7 @@ export async function POST(_req, { params }) {
       for (const l of lines) {
         txns.push(await tx.transaction.create({
           data: {
-            date: today,
+            date: receiptDate,
             nature: 'purchase',
             description: l.description,
             amount: l.lineTotal,
@@ -112,9 +133,9 @@ export async function POST(_req, { params }) {
           const pct = (Number(rate) * 100).toFixed(2).replace(/\.00$/, '');
           txns.push(await tx.transaction.create({
             data: {
-              date: today,
+              date: receiptDate,
               nature: 'purchase',
-              description: `TVA déductible ${pct}% facture ${inv.entryNumber}`,
+              description: `TVA deductible ${pct}% facture ${inv.entryNumber}`,
               amount: amt.toFixed(2),
               direction: 'DEBIT',
               kind: 'VAT_DEDUCTIBLE',
@@ -127,7 +148,7 @@ export async function POST(_req, { params }) {
       }
       txns.push(await tx.transaction.create({
         data: {
-          date: today,
+          date: receiptDate,
           nature: 'purchase',
           description: `Dette fournisseur facture ${inv.entryNumber}`,
           amount: (totalHt + totalVat).toFixed(2),
@@ -143,18 +164,17 @@ export async function POST(_req, { params }) {
       await finalizeBatchToJournal(tx, {
         sourceType: 'INCOMING_INVOICE',
         sourceId: inv.id,
-        date: today,
+        date: receiptDate,
         description: `Facture fournisseur immob ${inv.entryNumber}`,
         transactions: txns,
       });
 
-      await tx.assetPurchaseOrder.update({ where: { id: apo.id }, data: { status: 'INVOICED' } });
+      await tx.assetPurchaseOrder.update({ where: { id: apo.id }, data: { status: 'INVOICED', incomingInvoiceId: inv.id } });
       return inv;
     });
 
     return NextResponse.json({ ok: true, invoiceId: invoice.id, entryNumber: invoice.entryNumber });
   } catch (e) {
-    return NextResponse.json({ error: e.message || 'Création facture immob échouée' }, { status: 500 });
+    return NextResponse.json({ error: e.message || 'Creation facture immob echouee' }, { status: 500 });
   }
 }
-
