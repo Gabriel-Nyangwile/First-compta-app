@@ -84,8 +84,15 @@ model Lettering {
 // Le mot-clé "@@map" permet d'utiliser des noms de tables différents dans la base de données si nécessaire
 
 enum UserRole {
-  ADMIN
-  USER
+  SUPERADMIN
+  FINANCE_MANAGER
+  ACCOUNTANT
+  PROCUREMENT
+  SALES
+  HR_MANAGER
+  PAYROLL_CLERK
+  TREASURY
+  VIEWER
 }
 
 model User {
@@ -93,7 +100,7 @@ model User {
   email                     String            @unique
   password                  String? // Hash du mot de passe (null si provider OAuth)
   username                  String?
-  role                      UserRole          @default(USER)
+  role                      UserRole          @default(VIEWER)
   provider                  String? // ex: 'google', 'github', 'credentials'
   providerAccountId         String? // id du compte provider
   isActive                  Boolean           @default(true)

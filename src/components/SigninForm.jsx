@@ -22,6 +22,10 @@ export default function SigninForm() {
       setUser(data.user);
       // Enregistre l'utilisateur dans le localStorage pour le layout global
       localStorage.setItem("user", JSON.stringify(data.user));
+      // Cookie simple pour le middleware RBAC (dev only)
+      if (data.user?.role) {
+        document.cookie = `user-role=${encodeURIComponent(data.user.role)}; path=/`;
+      }
       window.dispatchEvent(new Event('user:login'));
       setTimeout(() => {
         router.push('/dashboard');
@@ -74,6 +78,7 @@ export default function SigninForm() {
             onClick={() => {
               localStorage.removeItem("user");
               setUser(null);
+              document.cookie = "user-role=; path=/; Max-Age=0";
               window.location.reload();
             }}
           >

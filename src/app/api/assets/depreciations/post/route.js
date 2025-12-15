@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { postDepreciationBatch } from '@/lib/assets';
+import { checkPerm, getUserRole } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
+  const role = await getUserRole(req);
+  if (!checkPerm('postDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
     const body = await req.json();
     const year = Number(body.year);
@@ -17,4 +20,3 @@ export async function POST(req) {
     return NextResponse.json({ ok: false, error: msg }, { status });
   }
 }
-

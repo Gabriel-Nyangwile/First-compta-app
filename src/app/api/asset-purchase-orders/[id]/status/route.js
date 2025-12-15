@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm, getUserRole } from '@/lib/authz';
 
 const allowedTransitions = {
   DRAFT: ['APPROVED'],
@@ -12,6 +13,10 @@ export async function POST(req, { params }) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
   try {
+    const role = await getUserRole(req);
+    if (!checkPerm('approveAssetPO', role) && !checkPerm('receiveAssetPO', role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const body = await req.json();
     const status = body.status;
     if (!status) return NextResponse.json({ error: 'status requis' }, { status: 400 });

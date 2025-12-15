@@ -1,8 +1,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const roles = [
+  { value: "VIEWER", label: "Viewer (lecture seule)" },
+  { value: "ACCOUNTANT", label: "Comptable" },
+  { value: "FINANCE_MANAGER", label: "Responsable finance" },
+  { value: "PROCUREMENT", label: "Achats" },
+  { value: "SALES", label: "Ventes" },
+  { value: "HR_MANAGER", label: "RH / Manager" },
+  { value: "PAYROLL_CLERK", label: "Paie" },
+  { value: "TREASURY", label: "Trésorerie" },
+  { value: "SUPERADMIN", label: "Super admin" },
+];
+
 export default function SignupForm() {
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [form, setForm] = useState({ username: "", email: "", password: "", role: "VIEWER" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const router = useRouter();
@@ -18,15 +30,25 @@ export default function SignupForm() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error || "Erreur inconnue");
+      setError(data.error || "Erreur inconnue (vérifiez le jeton d'admin)");
     } else {
       setSuccess("Inscription réussie !");
-      setForm({ username: "", email: "", password: "" });
+      setForm({ username: "", email: "", password: "", role: "VIEWER" });
       setTimeout(() => {
         router.push('/auth/signin');
-      }, 3000);
+      }, 1500);
     }
   }
+
+  // Si tentative non autorisée, on efface le message et on repart au menu après 10s
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => {
+      setError("");
+      router.push("/");
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [error, router]);
 
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto p-6 bg-white">
@@ -70,6 +92,18 @@ export default function SignupForm() {
         className="f-auth-input"
         required
       />
+      <label htmlFor="role" className="f-label">Rôle</label>
+      <select
+        id="role"
+        name="role"
+        className="f-auth-input"
+        value={form.role}
+        onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+      >
+        {roles.map(r => (
+          <option key={r.value} value={r.value}>{r.label}</option>
+        ))}
+      </select>
       <button 
         type="submit" className="w-full bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 my-10 rounded font-semibold">S'inscrire</button>
       <a 

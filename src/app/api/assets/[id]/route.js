@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm, getUserRole } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,8 @@ export async function GET(_req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const role = await getUserRole(req);
+  if (!checkPerm('createAsset', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
@@ -44,6 +47,8 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(_req, { params }) {
+  const role = await getUserRole(_req);
+  if (!checkPerm('createAsset', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {

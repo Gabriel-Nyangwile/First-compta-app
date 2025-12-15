@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server';
 import { generateDepreciationLine } from '@/lib/assets';
+import { checkPerm, getUserRole } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
+  const role = await getUserRole(req);
+  if (!checkPerm('postDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   return NextResponse.json({ ok: false, error: 'Method not allowed. Use POST.' }, { status: 405 });
 }
 
 export async function POST(req, { params }) {
+  const role = await getUserRole(req);
+  if (!checkPerm('postDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {

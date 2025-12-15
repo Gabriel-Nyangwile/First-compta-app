@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { resolveCategoryAccounts } from '@/lib/assets';
 import { getSystemAccounts } from '@/lib/systemAccounts';
+import { checkPerm, getUserRole } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,8 @@ export async function POST(req, { params }) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
   try {
+    const role = await getUserRole(req);
+    if (!checkPerm('generateAssetInvoice', role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     const payload = await req.json().catch(() => ({}));
     const supplierInvoiceNumber = (payload.supplierInvoiceNumber || '').trim();
     if (!supplierInvoiceNumber) return NextResponse.json({ error: 'Numero facture fournisseur requis' }, { status: 400 });

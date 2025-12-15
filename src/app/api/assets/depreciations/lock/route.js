@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm, getUserRole } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
+  const role = await getUserRole(req);
+  if (!checkPerm('lockDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
     const locks = await prisma.depreciationPeriodLock.findMany({
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -15,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const role = await getUserRole(req);
+  if (!checkPerm('lockDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
     const body = await req.json();
     const year = Number(body.year);
@@ -38,4 +43,3 @@ export async function POST(req) {
     return NextResponse.json({ ok: false, error: e.message || 'Lock/unlock failed' }, { status: 500 });
   }
 }
-
