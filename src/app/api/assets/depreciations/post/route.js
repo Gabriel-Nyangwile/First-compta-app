@@ -16,7 +16,10 @@ export async function POST(req) {
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e.message || 'Post batch failed';
-    const status = msg.toLowerCase().includes('deja post') ? 409 : 500;
+    const lower = msg.toLowerCase();
+    const isPosted = lower.includes('deja post');
+    const isLocked = lower.includes('verrouillee');
+    const status = isPosted || isLocked ? 409 : 500;
     return NextResponse.json({ ok: false, error: msg }, { status });
   }
 }

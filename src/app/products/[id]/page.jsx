@@ -1,6 +1,7 @@
 import { absoluteUrl } from "@/lib/url";
 import Amount from "@/components/Amount";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -36,6 +37,9 @@ export default async function ProductDetailPage({ params }) {
   const { id } = resolvedParams || {};
   if (!id) {
     throw new Error("Paramètre produit manquant.");
+  }
+  if (id === "create" || id === "new") {
+    redirect("/products");
   }
 
   const data = await fetchProductDetail(id);

@@ -87,13 +87,19 @@ export function checkPerm(action, role) {
 }
 
 export async function getUserRole(req) {
-  // 1) header explicite
-  const headerRole = req.headers.get('x-user-role');
-  if (headerRole) return normalizeRole(headerRole);
-  // 2) cookie (ex: set via document.cookie = "user-role=SUPERADMIN")
-  const cookieHeader = req.headers.get('cookie') || '';
-  const match = cookieHeader.match(/(?:^|; )user-role=([^;]+)/);
-  if (match) return normalizeRole(decodeURIComponent(match[1]));
-  // 3) fallback env (utile en dev)
-  return normalizeRole(process.env.DEFAULT_ROLE || 'VIEWER');
+  const devMode = (process.env.AUTH_DEV_MODE || '').toString().trim() === '1';
+  if (devMode) {
+    // 1) header explicite (dev)
+    const headerRole = req.headers.get('x-user-role');
+    if (headerRole) return normalizeRole(headerRole);
+    // 2) cookie (dev)
+    const cookieHeader = req.headers.get('cookie') || '';
+    const match = cookieHeader.match(/(?:^|; )user-role=([^;]+)/);
+    if (match) return normalizeRole(decodeURIComponent(match[1]));
+    // 3) fallback env (dev)
+    return normalizeRole(process.env.DEFAULT_ROLE || 'VIEWER');
+  }
+  // Prod : remplacer par la lecture de la session (NextAuth/JWT) si disponible.
+  // Par défaut, VIEWER si rien n'est fourni.
+  return normalizeRole('VIEWER');
 }

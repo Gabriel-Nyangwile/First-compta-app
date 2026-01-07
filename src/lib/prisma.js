@@ -1,7 +1,14 @@
-// lib/prisma.js
+// src/lib/prisma.js
+import { PrismaClient } from "@prisma/client";
 
-import { PrismaClient } from '@prisma/client';
+const globalForPrisma = globalThis;
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ["error", "warn"],
+  });
 
-const prisma = new PrismaClient();
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
+// Allow both named and default import patterns
 export default prisma;

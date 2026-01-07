@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { absoluteUrl } from "@/lib/url";
 import PurchaseOrderRowActions from "./PurchaseOrderRowActions";
+import ProtectedLink from "@/components/ProtectedLink";
 
 function StatusBadge({ status }) {
   const base =
@@ -74,12 +75,13 @@ export default async function PurchaseOrdersPage(props) {
                 ? "1 bon de commande reçu n’a pas encore de facture fournisseur."
                 : `${missing.length} bons de commande reçus n’ont pas encore de facture fournisseur.`}
             </span>
-            <Link
+            <ProtectedLink
+              action="createIncomingInvoice"
               href="/incoming-invoices/create"
               className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
             >
               Créer une facture maintenant
-            </Link>
+            </ProtectedLink>
           </div>
           <ul className="space-y-1">
             {missing.slice(0, 5).map((po) => (
@@ -104,12 +106,13 @@ export default async function PurchaseOrdersPage(props) {
         </div>
       )}
       <div>
-        <Link
+        <ProtectedLink
+          action="createPurchaseOrder"
           href="/purchase-orders/create"
           className="inline-block mb-2 px-3 py-1 bg-green-600 text-white text-xs rounded"
         >
           Nouveau bon de commande
-        </Link>
+        </ProtectedLink>
       </div>
       <form className="flex flex-wrap gap-2 text-xs bg-gray-50 p-3 rounded border">
         <input

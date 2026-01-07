@@ -12,6 +12,7 @@ import { Suspense } from "react";
 import InvoiceListItem from '@/components/InvoiceListItem';
 import SearchFilterControls from '@/components/SearchFilterControls';
 import ClientList from '@/components/ClientList';
+import { getClientRole, can } from "@/lib/clientRbac";
 
 export default function InvoicesPage({ searchParams }) {
   const router = useRouter();
@@ -28,6 +29,9 @@ export default function InvoicesPage({ searchParams }) {
     endDate: '',
     payment: 'ALL'
   });
+  const role = getClientRole();
+  const canCreateInvoice = can('createSalesInvoice', role);
+  const canCreateClient = can('createSalesInvoice', role) || can('approveSalesOrder', role);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -83,12 +87,14 @@ export default function InvoicesPage({ searchParams }) {
             >
               Ajouter un client
             </Link>
-            <Link
-              href="/invoices/create"
-              className="px-2 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-150 ease-in-out"
-            >
-              Créer une facture
-            </Link>
+            {canCreateInvoice && (
+              <Link
+                href="/invoices/create"
+                className="px-2 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-150 ease-in-out"
+              >
+                Créer une facture
+              </Link>
+            )}
           </div>
         </div>
         {/* Aperçu des totaux par statut */}

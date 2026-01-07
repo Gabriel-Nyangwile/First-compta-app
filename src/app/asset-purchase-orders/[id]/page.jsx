@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { createAsset } from '@/lib/assets';
+import { getSystemAccounts } from '@/lib/systemAccounts';
+import { finalizeBatchToJournal } from '@/lib/journal';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +19,14 @@ async function fetchDetail(id) {
 async function statusAction(poId, status) {
   'use server';
   const url = await absoluteUrl(`/api/asset-purchase-orders/${poId}/status`);
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user-role': process.env.DEFAULT_ROLE || 'SUPERADMIN',
+    },
+    body: JSON.stringify({ status }),
+  });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error(d.error || 'Maj statut echouee');
@@ -41,7 +50,14 @@ async function invoiceAction(poId, formData) {
     dueDate,
     paymentTermDays: paymentTermDays || undefined,
   };
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user-role': process.env.DEFAULT_ROLE || 'SUPERADMIN',
+    },
+    body: JSON.stringify(payload),
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || 'Creation facture echouee');
@@ -56,13 +72,114 @@ async function invoiceAction(poId, formData) {
   redirect(`/asset-purchase-orders/${poId}`);
 }
 
+async function ensureInvoicePosted(invoiceId) {
+  'use server';
+  if (!invoiceId) return;
+  const invoice = await prisma.incomingInvoice.findUnique({
+    where: { id: invoiceId },
+    include: { lines: true, supplier: true, transactions: true },
+  });
+  if (!invoice) return;
+  const hasAcquisition = (invoice.transactions || []).some(
+    (t) => t.kind === 'ASSET_ACQUISITION' || t.kind === 'PAYABLE'
+  );
+  if (hasAcquisition) return;
+
+  const receiptDate = invoice.receiptDate || new Date();
+  const vatBuckets = new Map();
+  const txns = [];
+
+  let supplierAccountId = invoice.supplier?.accountId || null;
+  if (!supplierAccountId) {
+    let acc = await prisma.account.findFirst({ where: { number: '401000' } });
+    if (!acc) acc = await prisma.account.create({ data: { number: '401000', label: 'Fournisseurs' } });
+    supplierAccountId = acc.id;
+  }
+
+  for (const l of invoice.lines || []) {
+    const amt = Number(l.lineTotal?.toString?.() ?? l.lineTotal ?? 0);
+    const rate = l.vatRate != null ? Number(l.vatRate) : null;
+    if (rate != null) vatBuckets.set(rate, (vatBuckets.get(rate) || 0) + amt * rate);
+    txns.push(await prisma.transaction.create({
+      data: {
+        date: receiptDate,
+        nature: 'purchase',
+        description: l.description || 'Immobilisation',
+        amount: amt.toFixed(2),
+        direction: 'DEBIT',
+        kind: 'ASSET_ACQUISITION',
+        accountId: l.accountId,
+        incomingInvoiceId: invoice.id,
+        supplierId: invoice.supplierId || undefined,
+      },
+    }));
+  }
+
+  const { vatDeductibleAccount } = await getSystemAccounts();
+  if (vatDeductibleAccount && vatBuckets.size) {
+    for (const [rate, amt] of vatBuckets.entries()) {
+      if (!(amt > 0)) continue;
+      const pct = (Number(rate) * 100).toFixed(2).replace(/\\.00$/, '');
+      txns.push(await prisma.transaction.create({
+        data: {
+          date: receiptDate,
+          nature: 'purchase',
+          description: `TVA deductible ${pct}% facture ${invoice.entryNumber}`,
+          amount: amt.toFixed(2),
+          direction: 'DEBIT',
+          kind: 'VAT_DEDUCTIBLE',
+          accountId: vatDeductibleAccount.id,
+          incomingInvoiceId: invoice.id,
+          supplierId: invoice.supplierId || undefined,
+        },
+      }));
+    }
+  }
+
+  const totalAmount = Number(invoice.totalAmount?.toString?.() ?? invoice.totalAmount ?? 0);
+  txns.push(await prisma.transaction.create({
+    data: {
+      date: receiptDate,
+      nature: 'purchase',
+      description: `Dette fournisseur facture ${invoice.entryNumber}`,
+      amount: totalAmount.toFixed(2),
+      direction: 'CREDIT',
+      kind: 'PAYABLE',
+      accountId: supplierAccountId,
+      incomingInvoiceId: invoice.id,
+      supplierId: invoice.supplierId || undefined,
+    },
+  }));
+
+  await finalizeBatchToJournal(prisma, {
+    sourceType: 'INCOMING_INVOICE',
+    sourceId: invoice.id,
+    date: receiptDate,
+    description: `Facture fournisseur immob ${invoice.entryNumber}`,
+    transactions: txns,
+  });
+}
+
 async function createAssetsAction(poId) {
   'use server';
   const po = await prisma.assetPurchaseOrder.findUnique({
     where: { id: poId },
-    include: { lines: { include: { assetCategory: true } } },
+    include: { lines: { include: { assetCategory: true } }, incomingInvoice: true },
   });
   if (!po) throw new Error('BC immob introuvable');
+  await ensureInvoicePosted(po.incomingInvoiceId);
+  if (po.incomingInvoiceId) {
+    const postedInvoice = await prisma.incomingInvoice.findUnique({
+      where: { id: po.incomingInvoiceId },
+      include: { transactions: true },
+    });
+    const hasAcquisition = (postedInvoice?.transactions || []).some(
+      (t) => t.kind === 'ASSET_ACQUISITION' || t.kind === 'PAYABLE'
+    );
+    if (!hasAcquisition) {
+      throw new Error("Écritures d'acquisition manquantes (compte immo non renseigné). Corrigez la catégorie ou éditez la facture pour sélectionner le compte.");
+    }
+  }
   const created = [];
   for (const line of po.lines || []) {
     if (!line.assetCategoryId) continue;
@@ -87,6 +204,7 @@ async function createAssetsAction(poId) {
         assetPurchaseOrderId: po.id,
         assetPurchaseOrderNumber: po.number,
         assetPurchaseOrderLineId: line.id,
+        incomingInvoiceId: po.incomingInvoiceId || null,
       },
     });
     created.push(asset);

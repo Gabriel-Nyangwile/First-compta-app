@@ -7,8 +7,12 @@ function toNumber(x) {
   return x?.toNumber?.() ?? Number(x ?? 0) ?? 0;
 }
 
-async function buildRows(year) {
+async function buildRows(year, { categoryId, status }) {
   const assets = await prisma.asset.findMany({
+    where: {
+      ...(categoryId ? { categoryId } : {}),
+      ...(status ? { status } : {}),
+    },
     include: {
       category: true,
       depreciationLines: {
@@ -134,9 +138,11 @@ export async function GET(req) {
   const url = new URL(req.url);
   const year = Number(url.searchParams.get('year'));
   const format = (url.searchParams.get('format') || 'xlsx').toLowerCase();
+  const categoryId = url.searchParams.get('categoryId') || undefined;
+  const status = url.searchParams.get('status') || undefined;
   if (!year) return NextResponse.json({ ok: false, error: 'year requis' }, { status: 400 });
   try {
-    const rows = await buildRows(year);
+    const rows = await buildRows(year, { categoryId, status });
     if (!rows.length) return NextResponse.json({ ok: false, error: 'Aucune dotation trouvée pour cette année' }, { status: 404 });
 
     if (format === 'csv') {

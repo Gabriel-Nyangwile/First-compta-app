@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { featureFlags } from "@/lib/features";
+import { getClientRole } from "@/lib/clientRbac";
 
 // Private route prefixes (adjust as needed)
 const PRIVATE_PREFIXES = [
@@ -104,6 +105,21 @@ const GROUPS = [
     items: [
       { href: "/assets", label: "Immobilisations" },
       { href: "/asset-purchase-orders", label: "BC immobilisations" },
+    ],
+  },
+  {
+    key: "capital",
+    label: "Capital",
+    items: [
+      { href: "/capital-operations", label: "Opérations de capital" },
+      { href: "/shareholders", label: "Associés" },
+    ],
+  },
+  {
+    key: "admin",
+    label: "Paramètres",
+    items: [
+      { href: "/admin/users", label: "Utilisateurs (SuperAdmin)", superadminOnly: true },
     ],
   },
   {
@@ -250,6 +266,7 @@ export default function AuthSidebar() {
   const [pinned, setPinned] = useState(false);
   const [salesUnpaid, setSalesUnpaid] = useState(0);
   const [purchaseUnpaid, setPurchaseUnpaid] = useState(0);
+  const [role, setRole] = useState(() => getClientRole());
   const sideRef = useRef(null);
   const isPrivate = PRIVATE_PREFIXES.some((p) => pathname.startsWith(p));
   const logout = () => {
@@ -265,9 +282,12 @@ export default function AuthSidebar() {
     const read = () => {
       try {
         const raw = localStorage.getItem("user");
-        setUser(raw ? JSON.parse(raw) : null);
+        const parsed = raw ? JSON.parse(raw) : null;
+        setUser(parsed);
+        setRole(parsed?.role ? parsed.role : getClientRole());
       } catch {
         setUser(null);
+        setRole(getClientRole());
       }
     };
     read();
@@ -291,6 +311,7 @@ export default function AuthSidebar() {
     };
     const onLogout = () => {
       setUser(null);
+      setRole(getClientRole());
     };
     window.addEventListener("user:login", onLogin);
     window.addEventListener("user:logout", onLogout);
@@ -404,6 +425,16 @@ export default function AuthSidebar() {
         },
       ]
     : GROUPS;
+  const normalizedRole = (role || "").toString().toUpperCase();
+  const isSuperAdmin = normalizedRole === "SUPERADMIN";
+  const visibleGroups = allGroups
+    .filter((g) => (g.key === "admin" ? isSuperAdmin : true))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((it) =>
+        it.superadminOnly ? isSuperAdmin : true
+      ),
+    }));
 
   function renderGroup(g) {
     if (!expanded) return null;
@@ -495,7 +526,7 @@ export default function AuthSidebar() {
             title="Ouvrir le menu"
           />
           <div className="flex flex-col items-center gap-3 ml-1 py-3 px-1 bg-blue-950/70 backdrop-blur-sm border-r border-blue-900 rounded-tr-lg rounded-br-lg shadow-inner">
-            {allGroups.map((g) => (
+            {visibleGroups.map((g) => (
               <button
                 key={g.key}
                 onClick={() => {
@@ -506,17 +537,17 @@ export default function AuthSidebar() {
                   }, 60);
                 }}
                 className="text-blue-200 hover:text-white focus:outline-none focus:ring-1 focus:ring-blue-400 p-1.5 rounded hover:bg-blue-800/60"
-                aria-label={g.label}
-                title={g.label}
-              >
-                {ICONS[g.key] || g.label[0]}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setPinned((p) => {
-                  const nv = !p;
-                  try {
+            aria-label={g.label}
+            title={g.label}
+          >
+            {ICONS[g.key] || g.label[0]}
+          </button>
+        ))}
+        <button
+          onClick={() => {
+            setPinned((p) => {
+              const nv = !p;
+              try {
                     localStorage.setItem("sidebarPinned", nv.toString());
                   } catch {}
                   return nv;
@@ -586,7 +617,7 @@ export default function AuthSidebar() {
             </div>
           </div>
           <div className="flex-1 px-1 space-y-2 overflow-y-auto transition-opacity duration-300 opacity-100">
-            {allGroups.map(renderGroup)}
+            {visibleGroups.map(renderGroup)}
           </div>
           <div className="flex flex-col gap-2 px-2 mb-2 pt-2 border-t border-blue-800/40">
             <div className="text-[11px] text-blue-300/60 truncate px-1">

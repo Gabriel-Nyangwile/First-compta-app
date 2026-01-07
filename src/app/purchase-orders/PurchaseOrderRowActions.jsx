@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authorizedFetch } from '@/lib/apiClient';
+import { can, getClientRole } from '@/lib/clientRbac';
 
 /**
  * Client-side wrapper for per-row actions (Approve / Cancel) to allow confirm dialogues
@@ -10,6 +11,10 @@ import { authorizedFetch } from '@/lib/apiClient';
  */
 export default function PurchaseOrderRowActions({ po }) {
   if (!po) return null;
+  const role = getClientRole();
+  const canApprove = can('approvePurchaseOrder', role);
+  const canCancel = can('approvePurchaseOrder', role);
+
   if (po.status !== 'DRAFT') {
     return (
       <div className="flex flex-col gap-1 items-end text-[11px]">
@@ -71,7 +76,7 @@ export default function PurchaseOrderRowActions({ po }) {
         <button
           type="button"
           onClick={() => runAction('approve')}
-          disabled={busy === 'approve'}
+          disabled={busy === 'approve' || !canApprove}
           className="px-2 py-0.5 rounded bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
         >
           {busy === 'approve' ? 'Approve...' : 'Approve'}
@@ -79,7 +84,7 @@ export default function PurchaseOrderRowActions({ po }) {
         <button
           type="button"
           onClick={() => runAction('cancel')}
-          disabled={busy === 'cancel'}
+          disabled={busy === 'cancel' || !canCancel}
           className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
         >
           {busy === 'cancel' ? 'Cancel...' : 'Cancel'}

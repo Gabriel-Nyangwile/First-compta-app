@@ -21,6 +21,9 @@ export async function POST(req) {
     if (!code || !label || !durationMonths) {
       return NextResponse.json({ ok: false, error: 'code, label, durationMonths requis' }, { status: 400 });
     }
+    if (!body.assetAccountId && !body.assetAccountNumber) {
+      return NextResponse.json({ ok: false, error: 'Compte d’immobilisation requis (assetAccountId ou assetAccountNumber)' }, { status: 400 });
+    }
     const created = await prisma.assetCategory.create({
       data: {
         code,

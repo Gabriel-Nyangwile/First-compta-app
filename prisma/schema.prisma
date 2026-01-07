@@ -136,6 +136,7 @@ model Account {
   assetCategoriesExpenseAccount AssetCategory[] @relation("AssetCategoryExpenseAccount")
   assetCategoriesGainAccount    AssetCategory[] @relation("AssetCategoryGainAccount")
   assetCategoriesLossAccount    AssetCategory[] @relation("AssetCategoryLossAccount")
+  capitalPayments        CapitalPayment[]      @relation("CapitalPaymentAccount")
 }
 
 enum ClientCategory {
@@ -228,6 +229,10 @@ enum TransactionKind {
   ASSET_DEPRECIATION_RESERVE // Amortissement cumulé (281x)
   ASSET_DISPOSAL_GAIN // Produit de cession immobilisation (775)
   ASSET_DISPOSAL_LOSS // Perte de cession immobilisation (675)
+  CAPITAL_SUBSCRIPTION // Souscription capital (461/109/1011/1012)
+  CAPITAL_CALL // Appel de fonds (461/109/1011/1012)
+  CAPITAL_PAYMENT // Paiement appel (52/57 vs 461)
+  CAPITAL_REGULARIZATION // Dr 1012 / Cr 1013
 }
 
 enum TransactionLetterStatus {
@@ -275,6 +280,7 @@ model JournalEntry {
   inventoryCountLines InventoryCountLine[] @relation("InventoryCountJournal")
   depreciationLines DepreciationLine[]
   assetDisposals    AssetDisposal[]
+  capitalPayments  CapitalPayment[] @relation("CapitalPaymentJournal")
 
   @@index([sourceType, sourceId])
   @@index([date])
@@ -1596,7 +1602,7 @@ model AssetDisposal {
     @@index([employeeId])
   }
 
-  model PayrollVariable {
+model PayrollVariable {
     id           String              @id @default(uuid())
     periodId     String
     period       PayrollPeriod       @relation(fields: [periodId], references: [id])
@@ -1613,3 +1619,129 @@ model AssetDisposal {
     @@index([employeeId])
     @@index([costCenterId])
   }
+
+// =============================
+//  Capital (Apports OHADA)
+// =============================
+
+enum ShareholderType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum CapitalOperationType {
+  CONSTITUTION
+  AUGMENTATION
+}
+
+enum CapitalForm {
+  SARL
+  SA
+}
+
+enum CapitalStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  REGISTERED
+}
+
+enum CapitalCallStatus {
+  OPEN
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+enum CapitalPaymentMethod {
+  BANK
+  CASH
+}
+
+model Shareholder {
+  id          String   @id @default(uuid())
+  name        String
+  type        ShareholderType
+  email       String?
+  phone       String?
+  address     String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  subscriptions CapitalSubscription[]
+}
+
+model CapitalOperation {
+  id             String                @id @default(uuid())
+  ref            String                @unique
+  type           CapitalOperationType
+  form           CapitalForm
+  status         CapitalStatus         @default(DRAFT)
+  resolutionDate DateTime?
+  decisionRef    String?
+  nominalTarget  Decimal               @db.Decimal(16, 2)
+  premiumTarget  Decimal?              @db.Decimal(16, 2)
+  note           String?
+  meta           Json?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  subscriptions  CapitalSubscription[]
+  calls          CapitalCall[]
+}
+
+model CapitalSubscription {
+  id               String           @id @default(uuid())
+  capitalOperationId String
+  capitalOperation CapitalOperation @relation(fields: [capitalOperationId], references: [id])
+  shareholderId    String
+  shareholder      Shareholder      @relation(fields: [shareholderId], references: [id])
+  nominalAmount    Decimal          @db.Decimal(16, 2)
+  premiumAmount    Decimal?         @db.Decimal(16, 2)
+  sharesCount      Int?
+  note             String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  calls            CapitalCall[]
+
+  @@index([capitalOperationId])
+  @@index([shareholderId])
+}
+
+model CapitalCall {
+  id                 String               @id @default(uuid())
+  capitalOperationId String
+  capitalOperation   CapitalOperation     @relation(fields: [capitalOperationId], references: [id])
+  subscriptionId     String?
+  subscription       CapitalSubscription? @relation(fields: [subscriptionId], references: [id])
+  callNumber         Int
+  label              String?
+  amountCalled       Decimal              @db.Decimal(16, 2)
+  dueDate            DateTime?
+  status             CapitalCallStatus    @default(OPEN)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  payments           CapitalPayment[]
+
+  @@unique([capitalOperationId, callNumber])
+  @@index([subscriptionId])
+}
+
+model CapitalPayment {
+  id             String               @id @default(uuid())
+  callId         String
+  call           CapitalCall          @relation(fields: [callId], references: [id])
+  amount         Decimal              @db.Decimal(16, 2)
+  paymentDate    DateTime
+  method         CapitalPaymentMethod @default(BANK)
+  accountId      String?
+  account        Account?             @relation("CapitalPaymentAccount", fields: [accountId], references: [id])
+  journalEntryId String?
+  journalEntry   JournalEntry?        @relation("CapitalPaymentJournal", fields: [journalEntryId], references: [id])
+  note           String?
+  createdAt      DateTime             @default(now())
+
+  @@index([callId])
+  @@index([accountId])
+  @@index([journalEntryId])
+}

@@ -10,14 +10,28 @@ async function apiJSON(url, { method = 'GET', body } = {}) {
   });
   let data = null;
   try { data = await res.json(); } catch { /* noop */ }
-  if (!res.ok) throw new Error(data?.error || `Erreur ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data?.error || `Erreur ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
+}
+
+function getStatus(err) {
+  return err?.status;
 }
 
 function Toast({ toast }) {
   if (!toast) return null;
   const color = toast.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
-  return <div className={`px-3 py-2 text-sm rounded ${color}`}>{toast.msg}</div>;
+  return (
+    <div className="fixed top-4 right-4 z-50 shadow-lg">
+      <div className={`px-3 py-2 text-sm rounded border ${color}`}>
+        {toast.msg}
+      </div>
+    </div>
+  );
 }
 
 export default function AssetTables({ initialCategories = [], initialAssets = [] }) {
@@ -25,6 +39,8 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
   const [categories, setCategories] = useState(initialCategories);
   const [assets, setAssets] = useState(initialAssets);
   const [toast, setToast] = useState(null);
+  const [globalAlert, setGlobalAlert] = useState(null); // bandeau persistant pour erreurs
+
   const [loading, setLoading] = useState(false);
   const [catForm, setCatForm] = useState({
     code: '',
@@ -50,6 +66,7 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
   const [assetEditForm, setAssetEditForm] = useState(null);
   const [exportParams, setExportParams] = useState({ from: '', to: '' });
   const [scheduleYear, setScheduleYear] = useState(now.getFullYear());
+  const [scheduleFilters, setScheduleFilters] = useState({ categoryId: '', status: '' });
   const [batchPeriod, setBatchPeriod] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [periodInputs, setPeriodInputs] = useState(() => Object.fromEntries(initialAssets.map(a => [a.id, { year: now.getFullYear(), month: now.getMonth() + 1 }])));
   const [disposeInputs, setDisposeInputs] = useState(() => Object.fromEntries(initialAssets.map(a => [a.id, { proceed: '', date: now.toISOString().slice(0, 10) }])));
@@ -61,9 +78,13 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
     setDisposeInputs(Object.fromEntries(initialAssets.map(a => [a.id, { proceed: '', date: now.toISOString().slice(0, 10) }])));
   }, [initialAssets, now]);
 
-  function pushToast(msg, type = 'info') {
+  function pushToast(msg, type = "info") {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3200);
+    setTimeout(() => setToast(null), 6000);
+  }
+  function pushGlobal(msg, type = "error") {
+    setGlobalAlert({ msg, type });
+    setTimeout(() => setGlobalAlert(null), 10000);
   }
 
   async function refresh() {
@@ -240,8 +261,17 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       pushToast('Dotation générée');
       await refresh();
     } catch (e) {
-      const msg = (e.message || '').toLowerCase().includes('postee') ? 'Période déjà postée' : (e.message || 'Erreur génération');
-      pushToast(msg, 'error');
+      const lower = (e.message || '').toLowerCase();
+      const status = getStatus(e);
+      const msg409 = 'Période déjà postée ou verrouillée';
+      if (status === 409 || lower.includes('post') || lower.includes('verrouillee')) {
+        pushToast(msg409, 'error');
+        pushGlobal(msg409, 'error');
+      } else {
+        const msg = lower.includes('verrouillee') ? 'Période verrouillée' : (e.message || 'Erreur génération');
+        pushToast(msg, 'error');
+        pushGlobal(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -256,8 +286,17 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       pushToast('Dotation postée');
       await refresh();
     } catch (e) {
-      const msg = (e.message || '').toLowerCase().includes('postee') ? 'Période déjà postée' : (e.message || 'Erreur posting');
-      pushToast(msg, 'error');
+      const lower = (e.message || '').toLowerCase();
+      const status = getStatus(e);
+      const msg409 = 'Période déjà postée ou verrouillée';
+      if (status === 409 || lower.includes('post') || lower.includes('verrouillee')) {
+        pushToast(msg409, 'error');
+        pushGlobal(msg409, 'error');
+      } else {
+        const msg = lower.includes('verrouillee') ? 'Période verrouillée' : (e.message || 'Erreur posting');
+        pushToast(msg, 'error');
+        pushGlobal(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -297,7 +336,12 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       pushToast('Année requise', 'error');
       return;
     }
-    const url = `/api/assets/depreciations/schedule?year=${encodeURIComponent(scheduleYear)}&format=${format}`;
+    const params = new URLSearchParams();
+    params.set('year', scheduleYear);
+    params.set('format', format);
+    if (scheduleFilters.categoryId) params.set('categoryId', scheduleFilters.categoryId);
+    if (scheduleFilters.status) params.set('status', scheduleFilters.status);
+    const url = `/api/assets/depreciations/schedule?${params.toString()}`;
     window.open(url, '_blank');
   }
 
@@ -333,7 +377,17 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
       pushToast('Dotations mensuelles postées (batch)');
       await refresh();
     } catch (e) {
-      pushToast(e.message || 'Erreur posting batch', 'error');
+      const lower = (e.message || '').toLowerCase();
+      const status = getStatus(e);
+      const msg409 = 'Période déjà postée ou verrouillée';
+      if (status === 409 || lower.includes('post') || lower.includes('verrouillee')) {
+        pushToast(msg409, 'error');
+        pushGlobal(msg409, 'error');
+      } else {
+        const msg = lower.includes('verrouillee') ? 'Période verrouillée' : (e.message || 'Erreur posting batch');
+        pushToast(msg, 'error');
+        pushGlobal(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -346,6 +400,11 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
         <button onClick={refresh} className="text-sm text-blue-600 underline disabled:opacity-50" disabled={loading}>Rafraîchir</button>
       </div>
       <Toast toast={toast} />
+      {globalAlert ? (
+        <div className={`px-3 py-2 text-sm rounded border ${globalAlert.type === "error" ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+          {globalAlert.msg}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <form onSubmit={submitCategory} className="border rounded-lg p-4 space-y-3">
@@ -563,6 +622,16 @@ export default function AssetTables({ initialCategories = [], initialAssets = []
               <button className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200" onClick={exportDepreciations}>Exporter dotations</button>
               <div className="flex items-center gap-1">
                 <input type="number" className="w-20 border px-2 py-1 rounded" value={scheduleYear} onChange={e => setScheduleYear(e.target.value)} />
+                <select className="border px-2 py-1 rounded text-xs" value={scheduleFilters.categoryId} onChange={e => setScheduleFilters({ ...scheduleFilters, categoryId: e.target.value })}>
+                  <option value="">Catégorie (toutes)</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.code} · {c.label}</option>)}
+                </select>
+                <select className="border px-2 py-1 rounded text-xs" value={scheduleFilters.status} onChange={e => setScheduleFilters({ ...scheduleFilters, status: e.target.value })}>
+                  <option value="">Statut (tous)</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="DISPOSED">DISPOSED</option>
+                </select>
                 <button className="px-2 py-1 text-white bg-emerald-600 hover:bg-emerald-700 rounded" onClick={() => exportSchedule('xlsx')}>Amort. annuel Excel</button>
                 <button className="px-2 py-1 text-white bg-indigo-600 hover:bg-indigo-700 rounded" onClick={() => exportSchedule('pdf')}>PDF</button>
               </div>

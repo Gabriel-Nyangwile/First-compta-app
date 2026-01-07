@@ -21,16 +21,35 @@ function normalizeRole(role) {
   return allowedRoles.includes(upper) ? upper : "VIEWER";
 }
 
+// GET /api/admin/users?page=&pageSize=&q=
 export async function GET(req) {
   const role = await getUserRole(req);
   if (!checkPerm("manageUsers", role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true },
-  });
-  return NextResponse.json({ users });
+  const url = new URL(req.url);
+  const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+  const pageSize = Math.min(50, Math.max(5, Number(url.searchParams.get("pageSize") || 10)));
+  const q = url.searchParams.get("q");
+  const where = q
+    ? {
+        OR: [
+          { email: { contains: q, mode: "insensitive" } },
+          { username: { contains: q, mode: "insensitive" } },
+        ],
+      }
+    : {};
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true },
+    }),
+  ]);
+  return NextResponse.json({ users, total, page, pageSize });
 }
 
 export async function POST(req) {

@@ -457,3 +457,11 @@ Facture marquée `PAID`.
 
 Dernière mise à jour : 2025-10-11
 
+
+
+## 6. Immobilisations (BC immo → facture → immo)
+
+- Chaque catégorie d’immobilisation doit renseigner ses comptes (2xxxx actif, 28xxx amort., 68xxx dotation, 754000/654000 gain/perte). Aucune création de compte de secours n’est faite.
+- Lorsqu’une facture est générée depuis un BC immo, les écritures d’acquisition se basent sur ces comptes. Si la facture se retrouve sans transactions (cas d’anciennes données ou d’une facture générée avant remplissage des comptes), le bouton “Créer immobilisation(s)” tente de reconstituer les écritures (débit 2xxxx catégorie, TVA déductible, crédit 401xxx), puis crée l’immo.
+- Si le comptabilisation ne se fait toujours pas : ouvrir /incoming-invoices/edit/[id], sélectionner le compte d’immobilisation correspondant à la catégorie, puis valider pour poster l’écriture. Ensuite seulement, créer l’immobilisation.
+- Vérification : s’assurer que la catégorie porte bien ssetAccountNumber/assetAccountId ; en cas d’absence ou d’erreur, corriger la catégorie puis régénérer la facture ou passer par l’édition de la facture.

@@ -877,4 +877,5 @@ Duplicate code (any entity):
 { "ok": false, "error": "code.exists" }
 ```
 
-
+- [Documentation Comptable](docs/accounting.md)
+- [Sécurité / RBAC](docs/security-rbac.md)

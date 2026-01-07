@@ -6,6 +6,8 @@ import DeleteIncomingInvoiceButton from "./DeleteIncomingInvoiceButton";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAsset } from "@/lib/assets";
+import { getSystemAccounts } from "@/lib/systemAccounts";
+import { finalizeBatchToJournal } from "@/lib/journal";
 
 export default async function IncomingInvoiceDetail({ params, searchParams }) {
   const { id } = await params;
@@ -68,6 +70,94 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
   const sp = await searchParams;
   const returnTo = sp?.returnTo ? decodeURIComponent(sp.returnTo) : null;
 
+  async function ensureInvoicePosted(invoiceId) {
+    "use server";
+    if (!invoiceId) return;
+    const invoice = await prisma.incomingInvoice.findUnique({
+      where: { id: invoiceId },
+      include: { lines: true, supplier: true, transactions: true },
+    });
+    if (!invoice) return;
+    const hasAcquisition = (invoice.transactions || []).some(
+      (t) => t.kind === "ASSET_ACQUISITION" || t.kind === "PAYABLE"
+    );
+    if (hasAcquisition) return;
+
+    const receiptDate = invoice.receiptDate || new Date();
+    const vatBuckets = new Map();
+    const txns = [];
+
+    let supplierAccountId = invoice.supplier?.accountId || null;
+    if (!supplierAccountId) {
+      let acc = await prisma.account.findFirst({ where: { number: "401000" } });
+      if (!acc) acc = await prisma.account.create({ data: { number: "401000", label: "Fournisseurs" } });
+      supplierAccountId = acc.id;
+    }
+
+    for (const l of invoice.lines || []) {
+      const amt = Number(l.lineTotal?.toString?.() ?? l.lineTotal ?? 0);
+      const rate = l.vatRate != null ? Number(l.vatRate) : null;
+      if (rate != null) vatBuckets.set(rate, (vatBuckets.get(rate) || 0) + amt * rate);
+      txns.push(await prisma.transaction.create({
+        data: {
+          date: receiptDate,
+          nature: "purchase",
+          description: l.description || "Immobilisation",
+          amount: amt.toFixed(2),
+          direction: "DEBIT",
+          kind: "ASSET_ACQUISITION",
+          accountId: l.accountId,
+          incomingInvoiceId: invoice.id,
+          supplierId: invoice.supplierId || undefined,
+        },
+      }));
+    }
+
+    const { vatDeductibleAccount } = await getSystemAccounts();
+    if (vatDeductibleAccount && vatBuckets.size) {
+      for (const [rate, amt] of vatBuckets.entries()) {
+        if (!(amt > 0)) continue;
+        const pct = (Number(rate) * 100).toFixed(2).replace(/\\.00$/, "");
+        txns.push(await prisma.transaction.create({
+          data: {
+            date: receiptDate,
+            nature: "purchase",
+            description: `TVA deductible ${pct}% facture ${invoice.entryNumber}`,
+            amount: amt.toFixed(2),
+            direction: "DEBIT",
+            kind: "VAT_DEDUCTIBLE",
+            accountId: vatDeductibleAccount.id,
+            incomingInvoiceId: invoice.id,
+            supplierId: invoice.supplierId || undefined,
+          },
+        }));
+      }
+    }
+
+    const totalAmount = Number(invoice.totalAmount?.toString?.() ?? invoice.totalAmount ?? 0);
+    txns.push(await prisma.transaction.create({
+      data: {
+        date: receiptDate,
+        nature: "purchase",
+        description: `Dette fournisseur facture ${invoice.entryNumber}`,
+        amount: totalAmount.toFixed(2),
+        direction: "CREDIT",
+        kind: "PAYABLE",
+        accountId: supplierAccountId,
+        incomingInvoiceId: invoice.id,
+        supplierId: invoice.supplierId || undefined,
+      },
+    }));
+
+    await finalizeBatchToJournal(prisma, {
+      sourceType: "INCOMING_INVOICE",
+      sourceId: invoice.id,
+      date: receiptDate,
+      description: `Facture fournisseur immob ${invoice.entryNumber}`,
+      transactions: txns,
+    });
+  }
+
   async function createAssetFromInvoice() {
     "use server";
     const invoice = await prisma.incomingInvoice.findUnique({
@@ -82,6 +172,17 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
     });
     if (!invoice?.assetPurchaseOrder) {
       throw new Error("BC immobilisation non lié à cette facture");
+    }
+    await ensureInvoicePosted(invoice.id);
+    const postedInvoice = await prisma.incomingInvoice.findUnique({
+      where: { id },
+      include: { transactions: true },
+    });
+    const hasAcquisition = (postedInvoice?.transactions || []).some(
+      (t) => t.kind === "ASSET_ACQUISITION" || t.kind === "PAYABLE"
+    );
+    if (!hasAcquisition) {
+      throw new Error("Écritures d'acquisition manquantes (compte immo non renseigné). Corrigez la catégorie ou éditez la facture pour sélectionner le compte.");
     }
     const po = invoice.assetPurchaseOrder;
     for (const line of po.lines || []) {
@@ -183,7 +284,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
             <h2 className="font-semibold mb-1">Fournisseur</h2>
             <p>
               <span className="font-medium">Nom:</span>{" "}
-              {inv.supplier?.name || "—"}
+              {inv.supplier?.name || "-"}
             </p>
             {inv.supplier?.email && (
               <p>
@@ -309,7 +410,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
                     </td>
                     <td className="px-2 py-1 text-xs">
                       {(entry.transactions || []).length === 0 ? (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-400">-</span>
                       ) : (
                         <ul className="space-y-0.5">
                           {entry.transactions.map((tx) => (
@@ -338,7 +439,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
                           {entry.voucherRef}
                         </Link>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-400">-</span>
                       )}
                     </td>
                   </tr>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCallback } from 'react';
 import Amount from '@/components/Amount.jsx';
+import { getClientRole, can } from '@/lib/clientRbac';
 
 export default function IncomingInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
@@ -10,6 +11,10 @@ export default function IncomingInvoicesPage() {
   const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const role = getClientRole();
+  const canCreate = can('createIncomingInvoice', role);
+  const canPay = can('createPayment', role) || can('approvePayment', role);
+  const canManage = can('approveIncomingInvoice', role);
 
   useEffect(()=> {
     const url = new URL('/api/incoming-invoices', window.location.origin);
@@ -105,7 +110,9 @@ export default function IncomingInvoicesPage() {
               {[10,20,50,100].map(sz=> <option key={sz} value={sz}>{sz}/p</option>)}
             </select>
           </div>
-          <Link href="/incoming-invoices/create" className="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Nouvelle facture reçue</Link>
+          {canCreate && (
+            <Link href="/incoming-invoices/create" className="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Nouvelle facture reçue</Link>
+          )}
           <Link href="/suppliers" className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Fournisseurs</Link>
         </div>
         {error && <div className="text-red-600 text-sm">{error}</div>}
@@ -150,14 +157,16 @@ export default function IncomingInvoicesPage() {
                     <a href={`/treasury/movements/${inv.moneyMovements[inv.moneyMovements.length-1].id}`} className="underline text-indigo-600">{inv.moneyMovements[inv.moneyMovements.length-1].voucherRef}</a>
                   ) : '—'}{Array.isArray(inv.moneyMovements) && inv.moneyMovements.length>1 && <span className="ml-1 inline-block px-1 py-0.5 rounded bg-gray-200 text-gray-700">×{inv.moneyMovements.length}</span>}</td>
                   <td className="px-3 py-2 flex gap-2 flex-wrap items-center">
-                    <Link href={`/incoming-invoices/edit/${inv.id}`} className="text-xs text-blue-600 underline">Modifier</Link>
-                    {inv.status !== 'PAID' && <button onClick={()=>openPay(inv)} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">Régler</button>}
-                    {inv.status !== 'PAID' && remaining>0 && <a href={`/treasury?quickIncoming=${inv.id}`} className="text-xs text-emerald-600 underline">Payer restant</a>}
+                    {canManage && <Link href={`/incoming-invoices/edit/${inv.id}`} className="text-xs text-blue-600 underline">Modifier</Link>}
+                    {inv.status !== 'PAID' && canPay && (
+                      <button onClick={()=>openPay(inv)} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">Régler</button>
+                    )}
+                    {inv.status !== 'PAID' && remaining>0 && canPay && <a href={`/treasury?quickIncoming=${inv.id}`} className="text-xs text-emerald-600 underline">Payer restant</a>}
                     <a
                       href={`/api/incoming-invoices/${inv.id}/pdf`}
                       className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded"
                     >PDF</a>
-                    {canDelete(inv) && <button onClick={()=>deleteInvoice(inv)} className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Supprimer</button>}
+                    {canManage && canDelete(inv) && <button onClick={()=>deleteInvoice(inv)} className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Supprimer</button>}
                   </td>
                 </tr>
               )})}
