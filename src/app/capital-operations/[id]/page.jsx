@@ -303,6 +303,12 @@ export default function CapitalOperationDetail({ params }) {
         </a>
       </div>
 
+      <div className="border rounded-lg p-3 bg-white shadow-sm text-xs text-gray-600 space-y-1">
+        <div className="font-semibold text-gray-800">Parcours conseillé</div>
+        <div>1) Créer l’opération  2) Ajouter les associés + souscriptions  3) Appeler les fonds</div>
+        <div>4) Encaisser (banque/caisse)  5) Régulariser (1012 → 1013)</div>
+      </div>
+
       {op && (
         <div className="grid md:grid-cols-4 gap-3">
           <div className="bg-white border rounded p-3 shadow-sm">
@@ -869,6 +875,11 @@ export default function CapitalOperationDetail({ params }) {
                           <div key={p.id}>
                             {Number(p.amount || 0).toLocaleString()} le{" "}
                             {new Date(p.paymentDate).toISOString().slice(0, 10)} ({p.method})
+                            {p.journalEntry?.number ? (
+                              <div className="text-[11px] text-gray-500">
+                                JRN: {p.journalEntry.number}
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                         {!c.payments?.length && <div className="text-gray-500">Aucun paiement</div>}
@@ -883,6 +894,9 @@ export default function CapitalOperationDetail({ params }) {
                             return false;
                           }}
                         >
+                          <div className="text-[11px] text-gray-500">
+                            Choisir un compte 52 (banque) ou 57 (caisse).
+                          </div>
                           <input
                             type="number"
                             className="border rounded px-2 py-1"

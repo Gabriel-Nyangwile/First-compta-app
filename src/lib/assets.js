@@ -56,6 +56,13 @@ export async function resolveCategoryAccounts(category, client = prisma) {
 
 function computeMonthlyDepreciation(asset) {
   const base = toNumber(asset.cost) - toNumber(asset.salvage || 0);
+  if (base <= 0) return 0;
+  const openingAccum = toNumber(asset?.meta?.openingAccumulated || 0);
+  const remainingLife = Number(asset?.meta?.remainingLifeMonths || 0);
+  if (openingAccum > 0 && remainingLife > 0) {
+    const remainingBase = Math.max(0, base - openingAccum);
+    return round2(remainingBase / remainingLife);
+  }
   if (asset.usefulLifeMonths <= 0) throw new Error('usefulLifeMonths must be > 0');
   return round2(base / asset.usefulLifeMonths);
 }

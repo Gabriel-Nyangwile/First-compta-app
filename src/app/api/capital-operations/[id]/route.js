@@ -10,7 +10,12 @@ export async function GET(_req, { params }) {
       where: { id },
       include: {
         subscriptions: { include: { shareholder: true, calls: true } },
-        calls: { include: { payments: true, subscription: { include: { shareholder: true } } } },
+        calls: {
+          include: {
+            payments: { include: { journalEntry: true } },
+            subscription: { include: { shareholder: true } },
+          },
+        },
       },
     });
     if (!op) return NextResponse.json({ error: "Opération introuvable" }, { status: 404 });
