@@ -18,11 +18,12 @@ import { Prisma } from "@prisma/client";
  *  - supplier ledger running balance = credits - debits (positive = payable)
  */
 
-export async function getClientLettering({ clientId }) {
+export async function getClientLettering({ clientId, companyId }) {
   if (!clientId) throw new Error("clientId requis");
 
   const transactions = await prisma.transaction.findMany({
     where: {
+      ...(companyId ? { companyId } : {}),
       OR: [
         { clientId },
         { invoice: { clientId } },
@@ -127,6 +128,7 @@ export async function getClientLettering({ clientId }) {
 export async function getThirdPartyLedger({
   party,
   id,
+  companyId,
   dateStart,
   dateEnd,
   includeDetails = false,
@@ -166,8 +168,14 @@ export async function getThirdPartyLedger({
   // Include legacy transactions where partyId was not set but can be inferred through related documents
   const wherePartyKey =
     party === "client"
-      ? { OR: [{ clientId: id }, { invoice: { clientId: id } }] }
-      : { OR: [{ supplierId: id }, { incomingInvoice: { supplierId: id } }] };
+      ? {
+          ...(companyId ? { companyId } : {}),
+          OR: [{ clientId: id }, { invoice: { clientId: id } }],
+        }
+      : {
+          ...(companyId ? { companyId } : {}),
+          OR: [{ supplierId: id }, { incomingInvoice: { supplierId: id } }],
+        };
 
   // Period where for MAIN account movements only (exclude PAYMENT treasury counterparts)
   const periodWhere = {
@@ -826,7 +834,7 @@ export async function getThirdPartyLedger({
   let partyMeta = {};
   if (party === "client") {
     const c = await prisma.client.findUnique({
-      where: { id },
+      where: companyId ? { id, companyId } : { id },
       select: {
         name: true,
         email: true,
@@ -843,7 +851,7 @@ export async function getThirdPartyLedger({
     }
   } else {
     const s = await prisma.supplier.findUnique({
-      where: { id },
+      where: companyId ? { id, companyId } : { id },
       select: {
         name: true,
         email: true,
@@ -888,11 +896,12 @@ export async function getSupplierLedger(params) {
   return getThirdPartyLedger({ party: "supplier", ...params });
 }
 
-export async function getSupplierLettering({ supplierId }) {
+export async function getSupplierLettering({ supplierId, companyId }) {
   if (!supplierId) throw new Error("supplierId requis");
 
   const transactions = await prisma.transaction.findMany({
     where: {
+      ...(companyId ? { companyId } : {}),
       OR: [
         { supplierId },
         { incomingInvoice: { supplierId } },

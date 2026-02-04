@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 import {
   computeSalesOrderTotals,
   nextSalesOrderNumber,
@@ -55,6 +56,7 @@ function buildOrderTotalsPayload(lines) {
 
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || undefined;
     const clientId = searchParams.get("clientId") || undefined;
@@ -65,7 +67,7 @@ export async function GET(request) {
       remainingOnlyRaw === "yes";
     const q = searchParams.get("q")?.trim();
 
-    const where = {};
+    const where = { companyId };
     if (status) {
       where.status = status;
     }
@@ -147,6 +149,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const {
       clientId,
@@ -205,7 +208,7 @@ export async function POST(request) {
     const order = await prisma.$transaction(async (tx) => {
       if (clientId) {
         const exists = await tx.client.findUnique({
-          where: { id: String(clientId) },
+          where: { id: String(clientId), companyId },
           select: { id: true },
         });
         if (!exists) {
@@ -218,9 +221,9 @@ export async function POST(request) {
       ];
       const products = productIds.length
         ? await tx.product.findMany({
-            where: { id: { in: productIds } },
-            select: { id: true, name: true, unit: true },
-          })
+              where: { id: { in: productIds }, companyId },
+              select: { id: true, name: true, unit: true },
+            })
         : [];
       if (products.length !== productIds.length) {
         throw new Error("Certains produits sont introuvables.");
@@ -232,15 +235,15 @@ export async function POST(request) {
       ];
       const accounts = accountIds.length
         ? await tx.account.findMany({
-            where: { id: { in: accountIds } },
-            select: { id: true },
-          })
+              where: { id: { in: accountIds }, companyId },
+              select: { id: true },
+            })
         : [];
       if (accounts.length !== accountIds.length) {
         throw new Error("Certains comptes comptables sont introuvables.");
       }
 
-      const number = await nextSalesOrderNumber(tx);
+      const number = await nextSalesOrderNumber(tx, companyId);
 
       const lineCreates = normalizedLines.map((line) => {
         const product = productMap.get(line.productId);
@@ -264,6 +267,7 @@ export async function POST(request) {
 
       const created = await tx.salesOrder.create({
         data: {
+          companyId,
           number,
           clientId: clientId ? String(clientId) : null,
           issueDate: issueDate ? new Date(issueDate) : undefined,
@@ -276,7 +280,7 @@ export async function POST(request) {
             ? String(customerReference).trim()
             : null,
           ...totalsPayload,
-          lines: { create: lineCreates },
+          lines: { create: lineCreates.map((l) => ({ ...l, companyId })) },
         },
         include: BASE_INCLUDE,
       });

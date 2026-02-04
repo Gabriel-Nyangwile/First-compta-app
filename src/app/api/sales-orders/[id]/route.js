@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 import {
   SALES_ORDER_STATUSES,
   canTransitionStatus,
@@ -38,9 +39,9 @@ const BASE_INCLUDE = {
   },
 };
 
-async function loadOrder(tx, id) {
+async function loadOrder(tx, id, companyId) {
   const order = await tx.salesOrder.findUnique({
-    where: { id },
+    where: { id, companyId },
     include: BASE_INCLUDE,
   });
   if (!order) {
@@ -116,6 +117,7 @@ function buildTotalsPayload(lines) {
 
 export async function GET(_request, context) {
   try {
+    const companyId = requireCompanyId(_request);
     const params = await Promise.resolve(context?.params ?? context);
     const id = params?.id;
     if (!id) {
@@ -126,7 +128,7 @@ export async function GET(_request, context) {
     }
 
     const order = await prisma.salesOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: BASE_INCLUDE,
     });
     if (!order) {
@@ -147,6 +149,7 @@ export async function GET(_request, context) {
 }
 
 export async function PUT(request, context) {
+  const companyId = requireCompanyId(request);
   const params = await Promise.resolve(context?.params ?? context);
   const id = params?.id;
   if (!id) {
@@ -164,7 +167,7 @@ export async function PUT(request, context) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const order = await loadOrder(tx, id);
+      const order = await loadOrder(tx, id, companyId);
 
       if (action === "UPDATE") {
         if (order.status !== "DRAFT") {
@@ -194,7 +197,7 @@ export async function PUT(request, context) {
         ];
         const products = productIds.length
           ? await tx.product.findMany({
-              where: { id: { in: productIds } },
+              where: { id: { in: productIds }, companyId },
               select: { id: true, name: true, unit: true },
             })
           : [];
@@ -208,7 +211,7 @@ export async function PUT(request, context) {
         ];
         const accounts = accountIds.length
           ? await tx.account.findMany({
-              where: { id: { in: accountIds } },
+              where: { id: { in: accountIds }, companyId },
               select: { id: true },
             })
           : [];
@@ -216,10 +219,12 @@ export async function PUT(request, context) {
           throw new Error("Certains comptes comptables sont introuvables.");
         }
 
-        await tx.salesOrderLine.deleteMany({ where: { salesOrderId: id } });
+        await tx.salesOrderLine.deleteMany({
+          where: { salesOrderId: id, companyId },
+        });
 
         await tx.salesOrder.update({
-          where: { id },
+          where: { id, companyId },
           data: {
             issueDate: body.issueDate
               ? new Date(body.issueDate)
@@ -239,6 +244,7 @@ export async function PUT(request, context) {
                   line.description || product?.name || null;
                 const resolvedUnit = line.unit || product?.unit || null;
                 return {
+                  companyId,
                   productId: line.productId,
                   accountId: line.accountId,
                   description: resolvedDescription,
@@ -257,7 +263,7 @@ export async function PUT(request, context) {
           },
         });
 
-        const refreshed = await loadOrder(tx, id);
+        const refreshed = await loadOrder(tx, id, companyId);
         return refreshed;
       }
 
@@ -272,14 +278,14 @@ export async function PUT(request, context) {
         }
 
         await tx.salesOrder.update({
-          where: { id },
+          where: { id, companyId },
           data: {
             status: "CONFIRMED",
             confirmedAt: new Date(),
           },
         });
 
-        const refreshed = await loadOrder(tx, id);
+        const refreshed = await loadOrder(tx, id, companyId);
         return refreshed;
       }
 
@@ -301,14 +307,14 @@ export async function PUT(request, context) {
         }
 
         await tx.salesOrder.update({
-          where: { id },
+          where: { id, companyId },
           data: {
             status: "FULFILLED",
             fulfilledAt: new Date(),
           },
         });
 
-        const refreshed = await loadOrder(tx, id);
+        const refreshed = await loadOrder(tx, id, companyId);
         return refreshed;
       }
 
@@ -318,7 +324,7 @@ export async function PUT(request, context) {
         }
 
         await tx.salesOrder.update({
-          where: { id },
+          where: { id, companyId },
           data: {
             status: action,
             confirmedAt:
@@ -327,7 +333,7 @@ export async function PUT(request, context) {
               action === "FULFILLED" ? new Date() : order.fulfilledAt,
           },
         });
-        const refreshed = await loadOrder(tx, id);
+        const refreshed = await loadOrder(tx, id, companyId);
         return refreshed;
       }
 

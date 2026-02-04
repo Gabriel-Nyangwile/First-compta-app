@@ -2,12 +2,14 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { normalizeEmail, validateCategory } from '@/lib/validation/client';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
   const client = await prisma.client.findUnique({
-    where: { id },
+    where: { id, companyId },
     select: {
       id: true,
       name: true,
@@ -30,12 +32,13 @@ export async function GET(req, { params }) {
 
 // DELETE /api/clients/[id]
 export async function DELETE(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
   try {
     // Récupérer le client et son compte
     const client = await prisma.client.findUnique({
-      where: { id },
+      where: { id, companyId },
       select: { accountId: true },
     });
     if (!client) {
@@ -43,18 +46,18 @@ export async function DELETE(req, { params }) {
     }
     const accountId = client.accountId;
     // Supprimer le client
-    await prisma.client.delete({ where: { id } });
+    await prisma.client.delete({ where: { id, companyId } });
     // Vérifier si le compte est orphelin (ni autre client ni supplier)
     if (accountId) {
       const [otherClients, otherSuppliers] = await Promise.all([
-        prisma.client.count({ where: { accountId } }),
-        prisma.supplier.count({ where: { accountId } }),
+        prisma.client.count({ where: { accountId, companyId } }),
+        prisma.supplier.count({ where: { accountId, companyId } }),
       ]);
       if (otherClients === 0 && otherSuppliers === 0) {
         // Vérifier aussi qu'il n'y a pas de transactions ou lignes de facture -> sécurité
         const [txCount, lineCount] = await Promise.all([
-          prisma.transaction.count({ where: { accountId } }),
-          prisma.invoiceLine.count({ where: { accountId } }),
+          prisma.transaction.count({ where: { accountId, companyId } }),
+          prisma.invoiceLine.count({ where: { accountId, companyId } }),
         ]);
         if (txCount === 0 && lineCount === 0) {
           await prisma.account.delete({ where: { id: accountId } });
@@ -71,6 +74,7 @@ export async function DELETE(req, { params }) {
 
 // PUT /api/clients/[id]
 export async function PUT(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
   try {
@@ -82,13 +86,13 @@ export async function PUT(req, { params }) {
     name = name.trim();
     email = normalizeEmail(email);
     // Vérifier existence du client cible
-    const existing = await prisma.client.findUnique({ where: { id }, select: { id: true, email: true } });
+    const existing = await prisma.client.findUnique({ where: { id, companyId }, select: { id: true, email: true } });
     if (!existing) {
       return NextResponse.json({ error: 'Client introuvable' }, { status: 404 });
     }
     // Unicité email (ne pas compter soi-même)
     if (email) {
-      const emailOwner = await prisma.client.findFirst({ where: { email } });
+      const emailOwner = await prisma.client.findFirst({ where: { email, companyId } });
       if (emailOwner && emailOwner.id !== id) {
         return NextResponse.json({ error: 'Email déjà utilisé' }, { status: 409 });
       }
@@ -98,14 +102,14 @@ export async function PUT(req, { params }) {
     // Vérifier compte si fourni
     let linkedAccountId = null;
     if (accountId) {
-      const acc = await prisma.account.findUnique({ where: { id: accountId }, select: { id: true } });
+      const acc = await prisma.account.findUnique({ where: { id: accountId, companyId }, select: { id: true } });
       if (!acc) {
         return NextResponse.json({ error: 'Compte introuvable' }, { status: 400 });
       }
       linkedAccountId = acc.id;
     }
     const updated = await prisma.client.update({
-      where: { id },
+      where: { id, companyId },
       data: {
         name,
         email,

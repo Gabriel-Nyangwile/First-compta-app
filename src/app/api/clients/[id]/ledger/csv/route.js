@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getClientLedger } from '@/lib/serverActions/ledgers';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const dateStart = searchParams.get('dateStart') || undefined;
     const dateEnd = searchParams.get('dateEnd') || undefined;
     const includeDetails = searchParams.get('includeDetails') === '1';
-  const ledger = await getClientLedger({ id: params.id, dateStart, dateEnd, includeDetails });
+  const ledger = await getClientLedger({ id: params.id, companyId, dateStart, dateEnd, includeDetails });
     const headers = ['Date','Compte','Libellé','Pièce','Statut facture','Type','Débit','Crédit','Solde'];
     const rows = ledger.rows.map(r => [
       new Date(r.date).toISOString().split('T')[0],

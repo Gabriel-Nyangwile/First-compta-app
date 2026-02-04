@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
+import { requireCompanyId } from "@/lib/tenant";
 
 function toNumber(val) {
   return val?.toNumber?.() ?? 0;
@@ -26,22 +27,24 @@ function toNumber(val) {
   });
 } */
 
-export async function GET() {
-  const poCount = await prisma.purchaseOrder.count();
+export async function GET(request) {
+  const companyId = requireCompanyId(request);
+  const poCount = await prisma.purchaseOrder.count({ where: { companyId } });
   // Récupère toutes les lignes de commande
   const poLines = await prisma.purchaseOrderLine.findMany({
+    where: { companyId },
     select: { unitPrice: true, orderedQty: true }
   });
   // Calcule le total des achats
   const poTotal = poLines.reduce((sum, line) =>
     sum + (Number(line.unitPrice) * Number(line.orderedQty)), 0);
 
-  const invoiceCount = await prisma.incomingInvoice.count();
-  const invoiceTotalArr = await prisma.incomingInvoice.findMany({ select: { totalAmount: true } });
+  const invoiceCount = await prisma.incomingInvoice.count({ where: { companyId } });
+  const invoiceTotalArr = await prisma.incomingInvoice.findMany({ where: { companyId }, select: { totalAmount: true } });
   const invoiceTotal = invoiceTotalArr.reduce((sum, inv) => sum + Number(inv.totalAmount ?? 0), 0);
 
   const overdueInvoices = await prisma.incomingInvoice.count({
-    where: { status: "PENDING", dueDate: { lt: new Date() } }
+    where: { companyId, status: "PENDING", dueDate: { lt: new Date() } }
   });
 
   return Response.json({

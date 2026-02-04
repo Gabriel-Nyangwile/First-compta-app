@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { getSupplierLedger } from '@/lib/serverActions/ledgers';
+import { requireCompanyId } from '@/lib/tenant';
 
 function drawHeader(page, font, title, info) {
   page.drawText(title, { x: 40, y: 800, size: 18, font, color: rgb(0.15,0.15,0.6) });
@@ -17,11 +18,12 @@ function drawHeader(page, font, title, info) {
 
 export async function GET(req, { params }) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const dateStart = searchParams.get('dateStart') || undefined;
     const dateEnd = searchParams.get('dateEnd') || undefined;
     const includeDetails = searchParams.get('includeDetails') === '1';
-  const ledger = await getSupplierLedger({ id: params.id, dateStart, dateEnd, includeDetails });
+  const ledger = await getSupplierLedger({ id: params.id, companyId, dateStart, dateEnd, includeDetails });
     const pdf = await PDFDocument.create();
     const font = await pdf.embedFont('Helvetica');
     let page = pdf.addPage([595.28, 841.89]);

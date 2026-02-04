@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupplierLedger } from '@/lib/serverActions/ledgers';
+import { requireCompanyId } from '@/lib/tenant';
 
 // Helper to resolve potential promise-based context/params (Next.js 15+ dynamic API routes)
 async function resolveParams(maybeCtx) {
@@ -12,6 +13,7 @@ async function resolveParams(maybeCtx) {
 
 export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const params = await resolveParams(context);
     if (!params.id) return NextResponse.json({ error: 'param id manquant' }, { status: 400 });
 
@@ -20,7 +22,7 @@ export async function GET(request, context) {
     const dateEnd = searchParams.get('dateEnd') || undefined;
     const includeDetails = searchParams.get('includeDetails') === '1';
 
-    const data = await getSupplierLedger({ id: params.id, dateStart, dateEnd, includeDetails });
+    const data = await getSupplierLedger({ id: params.id, companyId, dateStart, dateEnd, includeDetails });
     return NextResponse.json(data);
   } catch (e) {
     return NextResponse.json({ error: e.message || 'Erreur inconnue' }, { status: 400 });

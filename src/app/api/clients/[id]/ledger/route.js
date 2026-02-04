@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getClientLedger } from '@/lib/serverActions/ledgers';
+import { requireCompanyId } from '@/lib/tenant';
 
 async function resolveParams(maybeCtx) {
   let ctx = maybeCtx;
@@ -11,6 +12,7 @@ async function resolveParams(maybeCtx) {
 
 export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const params = await resolveParams(context);
     if (!params.id) return NextResponse.json({ error: 'param id manquant' }, { status: 400 });
 
@@ -19,7 +21,7 @@ export async function GET(request, context) {
     const dateEnd = searchParams.get('dateEnd') || undefined;
     const includeDetails = searchParams.get('includeDetails') === '1';
 
-    const data = await getClientLedger({ id: params.id, dateStart, dateEnd, includeDetails });
+    const data = await getClientLedger({ id: params.id, companyId, dateStart, dateEnd, includeDetails });
     return NextResponse.json(data);
   } catch (e) {
     return NextResponse.json({ error: e.message || 'Erreur inconnue' }, { status: 400 });

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { matchClientPaymentAction } from "@/lib/serverActions/clients";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function POST(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id: clientId } = params;
   const body = await req.json().catch(() => ({}));
   const { movementId } = body || {};
@@ -11,7 +13,7 @@ export async function POST(req, { params }) {
   }
 
   try {
-    const result = await matchClientPaymentAction({ movementId });
+    const result = await matchClientPaymentAction({ movementId, companyId });
     return NextResponse.json(result);
   } catch (error) {
     console.error("matchClientPaymentAction failed", error);

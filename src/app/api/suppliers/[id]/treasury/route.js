@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSupplierTreasuryDetail } from "@/lib/serverActions/money";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function GET(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: "supplierId requis" }, { status: 400 });
   }
 
   try {
-    const detail = await getSupplierTreasuryDetail({ supplierId: id });
+    const detail = await getSupplierTreasuryDetail({ supplierId: id, companyId });
     if (!detail) {
       return NextResponse.json(
         { error: "Fournisseur introuvable" },

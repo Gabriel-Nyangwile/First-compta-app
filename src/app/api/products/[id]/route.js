@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 import {
   STOCK_NATURES,
   validateProductLedgerAccounts,
@@ -17,6 +18,7 @@ function toNumber(value) {
 }
 
 export async function GET(_req, { params }) {
+  const companyId = requireCompanyId(_req);
   const p = await params;
   const { id } = p || {};
   if (!id) {
@@ -28,7 +30,7 @@ export async function GET(_req, { params }) {
 
   try {
     const product = await prisma.product.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         inventoryAccount: { select: { id: true, number: true, label: true } },
         stockVariationAccount: {
@@ -45,11 +47,11 @@ export async function GET(_req, { params }) {
     }
 
     const inventory = await prisma.productInventory.findUnique({
-      where: { productId: id },
+      where: { productId_companyId: { productId: id, companyId } },
     });
 
     const movements = await prisma.stockMovement.findMany({
-      where: { productId: id },
+      where: { productId: id, companyId },
       orderBy: { date: "desc" },
       take: 200,
       select: {
@@ -92,6 +94,7 @@ export async function GET(_req, { params }) {
 }
 
 export async function PATCH(_req, { params }) {
+  const companyId = requireCompanyId(_req);
   const p = await params; // Next 15 async params support
   const { id } = p;
   try {
@@ -155,7 +158,7 @@ export async function PATCH(_req, { params }) {
     let productForValidation = null;
     if (touchesLedgerConfig) {
       productForValidation = await prisma.product.findUnique({
-        where: { id },
+        where: { id, companyId },
         select: {
           stockNature: true,
           inventoryAccountId: true,
@@ -187,7 +190,7 @@ export async function PATCH(_req, { params }) {
     }
 
     const updated = await prisma.product.update({
-      where: { id },
+      where: { id, companyId },
       data,
       include: {
         inventoryAccount: { select: { id: true, number: true, label: true } },
@@ -210,11 +213,12 @@ export async function PATCH(_req, { params }) {
 }
 
 export async function DELETE(_req, { params }) {
+  const companyId = requireCompanyId(_req);
   const p = await params;
   const { id } = p;
   try {
     // Attempt delete; will throw if FK constraints
-    await prisma.product.delete({ where: { id } });
+    await prisma.product.delete({ where: { id, companyId } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === "P2003" || e.code === "P2014") {
