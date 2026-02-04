@@ -10,12 +10,14 @@ function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-async function resolveAccountId({ accountId, accountNumber, label }, client = prisma) {
+async function resolveAccountId({ accountId, accountNumber, label, companyId }, client = prisma) {
   if (accountId) return accountId;
   if (!accountNumber) throw new Error(`Missing account mapping for ${label || 'asset'}`);
-  let acc = await client.account.findFirst({ where: { number: accountNumber } });
+  let acc = await client.account.findFirst({ where: { number: accountNumber, companyId } });
   if (!acc) {
-    acc = await client.account.create({ data: { number: accountNumber, label: label || accountNumber } });
+    acc = await client.account.create({
+      data: { number: accountNumber, label: label || accountNumber, companyId },
+    });
   }
   return acc.id;
 }
@@ -26,22 +28,26 @@ export async function resolveCategoryAccounts(category, client = prisma) {
       accountId: category.assetAccountId,
       accountNumber: category.assetAccountNumber,
       label: category.assetAccount?.label || 'Asset',
+      companyId: category.companyId,
     }, client),
     depreciation: await resolveAccountId({
       accountId: category.depreciationAccountId,
       accountNumber: category.depreciationAccountNumber,
       label: category.depreciationAccount?.label || 'Depreciation reserve',
+      companyId: category.companyId,
     }, client),
     expense: await resolveAccountId({
       accountId: category.expenseAccountId,
       accountNumber: category.expenseAccountNumber,
       label: category.expenseAccount?.label || 'Depreciation expense',
+      companyId: category.companyId,
     }, client),
     gain: category.disposalGainAccountId || category.disposalGainAccountNumber
       ? await resolveAccountId({
           accountId: category.disposalGainAccountId,
           accountNumber: category.disposalGainAccountNumber,
           label: category.disposalGainAccount?.label || 'Disposal gain',
+          companyId: category.companyId,
         }, client)
       : null,
     loss: category.disposalLossAccountId || category.disposalLossAccountNumber
@@ -49,6 +55,7 @@ export async function resolveCategoryAccounts(category, client = prisma) {
           accountId: category.disposalLossAccountId,
           accountNumber: category.disposalLossAccountNumber,
           label: category.disposalLossAccount?.label || 'Disposal loss',
+          companyId: category.companyId,
         }, client)
       : null,
   };
@@ -67,17 +74,19 @@ function computeMonthlyDepreciation(asset) {
   return round2(base / asset.usefulLifeMonths);
 }
 
-async function isPeriodLocked(client, year, month) {
+async function isPeriodLocked(client, year, month, companyId = null) {
   const lock = await client.depreciationPeriodLock.findUnique({
-    where: { year_month: { year, month } },
+    where: { year_month: { companyId, year, month } },
   });
   return !!lock;
 }
 
 export async function createAsset(data) {
-  const ref = await nextSequence(prisma, 'ASSET', 'AS-');
+  const companyId = data.companyId || null;
+  const ref = await nextSequence(prisma, 'ASSET', 'AS-', companyId);
   const asset = await prisma.asset.create({
     data: {
+      companyId,
       ref,
       label: data.label,
       categoryId: data.categoryId,
@@ -101,7 +110,7 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
   });
   if (!asset) throw new Error('Asset not found');
   if (asset.status === 'DISPOSED') throw new Error('Asset disposed');
-  if (await isPeriodLocked(client, year, month)) throw new Error(`Periode ${month}/${year} verrouillee`);
+  if (await isPeriodLocked(client, year, month, asset.companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
   const existing = await client.depreciationLine.findUnique({
     where: { assetId_year_month: { assetId, year, month } },
   });
@@ -120,12 +129,12 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
 
 export async function postDepreciation(assetId, year, month) {
   return prisma.$transaction(async (tx) => {
-    if (await isPeriodLocked(tx, year, month)) throw new Error(`Periode ${month}/${year} verrouillee`);
     const asset = await tx.asset.findUnique({
       where: { id: assetId },
       include: { category: true },
     });
     if (!asset) throw new Error('Asset not found');
+    if (await isPeriodLocked(tx, year, month, asset.companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
     if (asset.status === 'DISPOSED') throw new Error('Asset disposed');
     const line = await generateDepreciationLine(assetId, year, month, tx);
     if (line.status === 'POSTED') return { alreadyPosted: true, line };
@@ -134,6 +143,7 @@ export async function postDepreciation(assetId, year, month) {
     const today = new Date();
     const debit = await tx.transaction.create({
       data: {
+        companyId: asset.companyId,
         date: today,
         description: desc,
         amount: toNumber(line.amount),
@@ -144,6 +154,7 @@ export async function postDepreciation(assetId, year, month) {
     });
     const credit = await tx.transaction.create({
       data: {
+        companyId: asset.companyId,
         date: today,
         description: desc,
         amount: toNumber(line.amount),
@@ -179,6 +190,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
     const proceedAccId = await resolveAccountId({
       accountNumber: proceedAccountNumber || '512000',
       label: 'Produit de cession',
+      companyId: asset.companyId,
     }, tx);
     const cumu = round2(asset.depreciationLines.reduce((s, l) => s + toNumber(l.amount), 0));
     const cost = toNumber(asset.cost);
@@ -190,6 +202,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
     if (proceedAmount > 0) {
       txns.push(await tx.transaction.create({
         data: {
+          companyId: asset.companyId,
           date: today,
           description: desc,
           amount: proceedAmount,
@@ -202,6 +215,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
     if (cumu > 0) {
       txns.push(await tx.transaction.create({
         data: {
+          companyId: asset.companyId,
           date: today,
           description: desc,
           amount: cumu,
@@ -213,6 +227,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
     }
     txns.push(await tx.transaction.create({
       data: {
+        companyId: asset.companyId,
         date: today,
         description: desc,
         amount: cost,
@@ -226,6 +241,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
       if (!accounts.gain) throw new Error('Missing disposal gain account on category');
       txns.push(await tx.transaction.create({
         data: {
+          companyId: asset.companyId,
           date: today,
           description: desc,
           amount: delta,
@@ -238,6 +254,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
       if (!accounts.loss) throw new Error('Missing disposal loss account on category');
       txns.push(await tx.transaction.create({
         data: {
+          companyId: asset.companyId,
           date: today,
           description: desc,
           amount: Math.abs(delta),
@@ -256,6 +273,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
     });
     const disposal = await tx.assetDisposal.create({
       data: {
+        companyId: asset.companyId,
         assetId: asset.id,
         date: today,
         proceed: proceedAmount,
@@ -269,14 +287,14 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
 }
 
 // Post all depreciations for a given period in a single balanced journal.
-export async function postDepreciationBatch(year, month) {
+export async function postDepreciationBatch(year, month, companyId = null) {
   if (!year || !month) throw new Error('year/month requis');
   return prisma.$transaction(async (tx) => {
-    if (await isPeriodLocked(tx, year, month)) throw new Error(`Periode ${month}/${year} verrouillee`);
-    const already = await tx.depreciationLine.count({ where: { year, month, status: 'POSTED' } });
+    if (await isPeriodLocked(tx, year, month, companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
+    const already = await tx.depreciationLine.count({ where: { year, month, status: 'POSTED', companyId } });
     if (already > 0) throw new Error(`Dotations ${month}/${year} deja postees`);
     const assets = await tx.asset.findMany({
-      where: { status: { not: 'DISPOSED' } },
+      where: { status: { not: 'DISPOSED' }, companyId },
       include: { category: true },
     });
     if (!assets.length) throw new Error('Aucun actif éligible');
@@ -304,6 +322,7 @@ export async function postDepreciationBatch(year, month) {
     for (const [accId, amt] of expenseMap.entries()) {
       txns.push(await tx.transaction.create({
         data: {
+          companyId,
           date: today,
           description: `Dotations amort. ${month}/${year}`,
           amount: round2(amt),
@@ -316,6 +335,7 @@ export async function postDepreciationBatch(year, month) {
     for (const [accId, amt] of reserveMap.entries()) {
       txns.push(await tx.transaction.create({
         data: {
+          companyId,
           date: today,
           description: `Dotations amort. ${month}/${year}`,
           amount: round2(amt),
@@ -335,12 +355,12 @@ export async function postDepreciationBatch(year, month) {
       transactions: txns,
     });
     await tx.depreciationLine.updateMany({
-      where: { id: { in: lineIds } },
+      where: { id: { in: lineIds }, companyId },
       data: { status: 'POSTED', journalEntryId: journal.id, postedAt: today },
     });
     await tx.depreciationPeriodLock.upsert({
-      where: { year_month: { year, month } },
-      create: { year, month },
+      where: { year_month: { companyId, year, month } },
+      create: { companyId, year, month },
       update: {},
     });
     return { journalNumber: journal.number, postedCount: lineIds.length, total: txns.reduce((s, t) => s + toNumber(t.amount), 0) };

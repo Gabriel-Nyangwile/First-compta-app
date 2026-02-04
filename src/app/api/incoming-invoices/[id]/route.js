@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSystemAccounts } from '@/lib/systemAccounts';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/incoming-invoices/:id
 // Note: In newer Next.js versions, params may be async – await context.params
 export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await context.params;
-    const invoice = await prisma.incomingInvoice.findUnique({
-      where: { id },
+    const invoice = await prisma.incomingInvoice.findFirst({
+      where: { id, companyId },
       include: {
         lines: { include: { account: { select: { id: true, number: true, label: true } } } },
         supplier: { include: { account: true } },
@@ -28,12 +30,13 @@ export async function GET(request, context) {
 // Body: { supplierId?, receiptDate?, issueDate?, dueDate?, vat?, lines: [ { description, accountId, unitOfMeasure, quantity, unitPrice } ] }
 export async function PATCH(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await context.params;
     const body = await request.json();
     const { supplierId, receiptDate, issueDate, dueDate, vat, lines } = body || {};
 
-    const existing = await prisma.incomingInvoice.findUnique({
-      where: { id },
+    const existing = await prisma.incomingInvoice.findFirst({
+      where: { id, companyId },
       include: { transactions: true, lines: true, supplier: true }
     });
     if (!existing) return NextResponse.json({ error: 'Facture fournisseur introuvable' }, { status: 404 });
@@ -66,7 +69,9 @@ export async function PATCH(request, context) {
     const totalTtc = totalHt + vatAmount;
 
     const { vatDeductibleAccount } = await getSystemAccounts();
-    const supplier = supplierId ? await prisma.supplier.findUnique({ where: { id: supplierId } }) : existing.supplier;
+    const supplier = supplierId
+      ? await prisma.supplier.findFirst({ where: { id: supplierId, companyId } })
+      : existing.supplier;
     if (!supplier || !supplier.accountId) return NextResponse.json({ error: 'Fournisseur ou compte fournisseur invalide' }, { status: 400 });
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -89,9 +94,12 @@ export async function PATCH(request, context) {
 
       // Recréer lignes + transactions PURCHASE liées immédiatement
       for (const l of normLines) {
-        const lineRec = await tx.incomingInvoiceLine.create({ data: { ...l, incomingInvoiceId: id } });
+        const lineRec = await tx.incomingInvoiceLine.create({
+          data: { ...l, incomingInvoiceId: id, companyId },
+        });
         await tx.transaction.create({
           data: {
+            companyId,
             date: new Date(),
             nature: 'purchase',
             description: lineRec.description, // article
@@ -108,6 +116,7 @@ export async function PATCH(request, context) {
       if (vatAmount > 0 && vatDeductibleAccount) {
         await tx.transaction.create({
           data: {
+            companyId,
             date: new Date(),
             nature: 'purchase',
             description: `TVA déductible facture ${inv.entryNumber}`,
@@ -122,6 +131,7 @@ export async function PATCH(request, context) {
       }
       await tx.transaction.create({
         data: {
+          companyId,
           date: new Date(),
           nature: 'purchase',
           description: `Dette fournisseur facture ${inv.entryNumber}`,
@@ -135,8 +145,8 @@ export async function PATCH(request, context) {
       });
       return inv;
     });
-    const full = await prisma.incomingInvoice.findUnique({
-      where: { id },
+    const full = await prisma.incomingInvoice.findFirst({
+      where: { id, companyId },
       include: {
         lines: { include: { account: { select: { id: true, number: true, label: true } } } },
         supplier: true,
@@ -154,9 +164,10 @@ export async function PATCH(request, context) {
 // Conditions: pas de paiement (transactions kind=PAYMENT), pas de mouvements de trésorerie, statut non PAID/PARTIAL
 export async function DELETE(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await context.params;
-    const inv = await prisma.incomingInvoice.findUnique({
-      where: { id },
+    const inv = await prisma.incomingInvoice.findFirst({
+      where: { id, companyId },
       include: {
         transactions: true,
         moneyMovements: true,

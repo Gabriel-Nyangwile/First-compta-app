@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { finalizeBatchToJournal } from '@/lib/journal';
+import { requireCompanyId } from '@/lib/tenant';
 
 /*
   POST /api/invoices/:id/settle
@@ -15,6 +16,7 @@ import { finalizeBatchToJournal } from '@/lib/journal';
 */
 export async function POST(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const invoiceId = params.id;
     const { amount, paymentDate, bankAccountId } = await request.json();
 
@@ -22,8 +24,8 @@ export async function POST(request, { params }) {
     if (!amount || Number(amount) <= 0) return NextResponse.json({ error: 'Montant de paiement invalide.' }, { status: 400 });
     if (!bankAccountId) return NextResponse.json({ error: 'Compte banque requis.' }, { status: 400 });
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: { client: true, transactions: true }
     });
     if (!invoice) return NextResponse.json({ error: 'Facture introuvable.' }, { status: 404 });
@@ -45,6 +47,7 @@ export async function POST(request, { params }) {
       const createdTxs = [];
       const debitBank = await tx.transaction.create({
         data: {
+          companyId,
           date: paymentDateObj,
           nature: 'payment',
             description: `Règlement facture ${invoice.invoiceNumber} (banque)`,
@@ -58,6 +61,7 @@ export async function POST(request, { params }) {
       });
       const creditReceivable = await tx.transaction.create({
         data: {
+          companyId,
           date: paymentDateObj,
           nature: 'payment',
           description: `Règlement facture ${invoice.invoiceNumber} (créance)`,

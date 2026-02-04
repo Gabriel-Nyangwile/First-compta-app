@@ -3,6 +3,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import { computeVatRecap } from '@/lib/vatRecap';
 import { loadPrimaryFont, drawPageHeader, drawFooter, drawCompanyIdentity, formatDateFR } from '@/lib/pdf/utils';
 import { formatAmountPlain, formatRatePercent } from '@/lib/utils';
+import { requireCompanyId } from '@/lib/tenant';
 
 function envCompany() {
   return {
@@ -15,13 +16,20 @@ function envCompany() {
 
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const granularity = searchParams.get('granularity') || 'month';
     const includeZero = searchParams.get('includeZero') === 'true';
 
-    const recap = await computeVatRecap({ from, to, granularity, includeZero });
+    const recap = await computeVatRecap({
+      companyId,
+      from,
+      to,
+      granularity,
+      includeZero,
+    });
 
     const pdfDoc = await PDFDocument.create();
     const font = await loadPrimaryFont(pdfDoc);

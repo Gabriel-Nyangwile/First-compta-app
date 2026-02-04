@@ -4,12 +4,14 @@ import {
   listInventoryCounts,
 } from "@/lib/inventoryCount";
 import { requireInventoryPermission } from "@/app/api/_lib/auth";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || undefined;
-    const counts = await listInventoryCounts({ status });
+    const counts = await listInventoryCounts({ companyId, status });
     return NextResponse.json(counts);
   } catch (error) {
     console.error("GET /inventory-counts error", error);
@@ -23,6 +25,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     requireInventoryPermission(request);
+    const companyId = requireCompanyId(request);
     const body = await request.json().catch(() => ({}));
     const {
       productIds = null,
@@ -32,6 +35,7 @@ export async function POST(request) {
     } = body || {};
 
     const result = await createInventoryCount({
+      companyId,
       productIds: Array.isArray(productIds) ? productIds : null,
       countedAt,
       notes,

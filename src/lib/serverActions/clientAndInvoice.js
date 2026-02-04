@@ -234,10 +234,10 @@ export async function updateInvoiceStatus(formData) {
 }
 
 // Nouvelle méthode pour récupérer une facture par son ID, avec le statut calculé
-export async function fetchInvoiceById(id){
+export async function fetchInvoiceById(id, companyId = null){
   try {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: id },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: id, ...(companyId ? { companyId } : {}) },
       include: { 
         client: {
           select: {// Inclure uniquement les champs nécessaires

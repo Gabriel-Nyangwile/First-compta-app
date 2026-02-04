@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { getMoneyAccountLedger } from '@/lib/serverActions/money';
 import { embedLogo, loadPrimaryFont, drawFooter, drawCompanyIdentity, formatDateFR } from '@/lib/pdf/utils';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
+  const companyId = requireCompanyId(req);
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get('account');
   if (!accountId) return NextResponse.json({ error: 'Param account requis' }, { status: 400 });
@@ -11,7 +13,13 @@ export async function GET(req) {
   const to = searchParams.get('to') || undefined;
   const limit = parseInt(searchParams.get('limit') || '2000', 10);
   try {
-    const ledger = await getMoneyAccountLedger({ moneyAccountId: accountId, dateFrom: from, dateTo: to, limit });
+    const ledger = await getMoneyAccountLedger({
+      companyId,
+      moneyAccountId: accountId,
+      dateFrom: from,
+      dateTo: to,
+      limit,
+    });
     const pdfDoc = await PDFDocument.create();
     const font = await loadPrimaryFont(pdfDoc);
     const mono = await pdfDoc.embedFont(StandardFonts.Courier);

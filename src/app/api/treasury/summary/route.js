@@ -1,21 +1,24 @@
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
+import { requireCompanyId } from "@/lib/tenant";
 
 // Utilitaire conversion Decimal
 function toNumber(val) {
   return val?.toNumber?.() ?? 0;
 }
 
-export async function GET() {
+export async function GET(req) {
+  const companyId = requireCompanyId(req);
   // Récupère tous les comptes de trésorerie (MoneyAccount)
   const accounts = await prisma.moneyAccount.findMany({
+    where: { companyId },
     select: { id: true }
   });
   const accountIds = accounts.map(a => a.id);
 
   // Récupère tous les mouvements de trésorerie
   const movements = await prisma.moneyMovement.findMany({
-    where: { moneyAccountId: { in: accountIds } },
+    where: { moneyAccountId: { in: accountIds }, companyId },
     select: { amount: true, createdAt: true, moneyAccountId: true }
   });
 

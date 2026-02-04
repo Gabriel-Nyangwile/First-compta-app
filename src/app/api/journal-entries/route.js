@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -11,6 +12,7 @@ const toNumber = (value) => {
 // GET /api/journal-entries?page=&pageSize=&sourceType=&status=&dateFrom=&dateTo=&letterStatus=&accountId=&q=
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(
@@ -76,7 +78,9 @@ export async function GET(request) {
       });
     }
 
-    const where = filters.length ? { AND: filters } : undefined;
+    const where = filters.length
+      ? { AND: [{ companyId }, ...filters] }
+      : { companyId };
     const totalCount = await prisma.journalEntry.count({ where });
     const entries = await prisma.journalEntry.findMany({
       where,

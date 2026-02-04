@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 function toNumber(value) {
   return value?.toNumber?.() ?? Number(value ?? 0);
@@ -17,6 +18,7 @@ async function resolveParams(maybeCtx) {
 // Retourne uniquement les lignes avec quantité restante > 0 + résumé.
 export async function GET(_request, context) {
   try {
+    const companyId = requireCompanyId(_request);
     const params = await resolveParams(context);
     const id = params.id;
     if (!id)
@@ -26,7 +28,7 @@ export async function GET(_request, context) {
       );
 
     const po = await prisma.purchaseOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: { lines: { include: { product: true } } },
     });
     if (!po)

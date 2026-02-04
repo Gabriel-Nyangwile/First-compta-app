@@ -9,13 +9,16 @@ export class PurchaseOrderApprovalError extends Error {
   }
 }
 
-export async function approvePurchaseOrder(id) {
+export async function approvePurchaseOrder(id, companyId) {
   if (!id) {
     throw new PurchaseOrderApprovalError("Identifiant du bon de commande manquant.", 400);
   }
+  if (!companyId) {
+    throw new PurchaseOrderApprovalError("companyId manquant.", 400);
+  }
 
   const po = await prisma.purchaseOrder.findUnique({
-    where: { id },
+    where: { id, companyId },
     select: { id: true, status: true }
   });
 
@@ -29,12 +32,13 @@ export async function approvePurchaseOrder(id) {
 
   const updated = await prisma.$transaction(async (tx) => {
     const next = await tx.purchaseOrder.update({
-      where: { id },
+      where: { id, companyId },
       data: { status: 'APPROVED' }
     });
 
     await tx.purchaseOrderStatusLog.create({
       data: {
+        companyId,
         purchaseOrderId: id,
         oldStatus: po.status,
         newStatus: 'APPROVED',

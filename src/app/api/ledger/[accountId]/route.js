@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -11,6 +12,7 @@ const toNumber = (value) => {
 // GET /api/ledger/:accountId?page=&pageSize=&dateFrom=&dateTo=&letterStatus=&direction=&q=&format=
 export async function GET(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { accountId } = params;
     if (!accountId) {
       return NextResponse.json(
@@ -19,8 +21,8 @@ export async function GET(request, { params }) {
       );
     }
 
-    const account = await prisma.account.findUnique({
-      where: { id: accountId },
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, companyId },
       select: { id: true, number: true, label: true },
     });
     if (!account) {
@@ -43,7 +45,7 @@ export async function GET(request, { params }) {
     const q = searchParams.get("q")?.trim();
     const format = searchParams.get("format");
 
-    const filters = [{ accountId }];
+    const filters = [{ accountId }, { companyId }];
     if (dateFrom || dateTo) {
       const range = {};
       if (dateFrom) range.gte = new Date(dateFrom);

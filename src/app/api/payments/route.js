@@ -3,11 +3,13 @@ import { NextResponse } from 'next/server';
 import { finalizeBatchToJournal } from '@/lib/journal';
 import { nextSequence } from '@/lib/sequence';
 import { getSystemAccounts } from '@/lib/systemAccounts';
+import { requireCompanyId } from '@/lib/tenant';
 
 // POST /api/payments
 // Body: { date, amount, mode, reference, note, links: [{ invoiceId?, incomingInvoiceId?, amount }] }
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const { moneyAccountId, date, amount, mode, reference, note, links } = body;
     if (!moneyAccountId || !amount || !mode || !Array.isArray(links) || links.length === 0) {
@@ -21,6 +23,7 @@ export async function POST(req) {
       // Création du paiement
       const payment = await tx.payment.create({
         data: {
+          companyId,
           date: date ? new Date(date) : new Date(),
           amount,
           mode,
@@ -33,6 +36,9 @@ export async function POST(req) {
         where: { id: moneyAccountId },
         include: { ledgerAccount: true },
       });
+      if (moneyAccount && moneyAccount.companyId !== companyId) {
+        throw new Error('Compte banque/caisse hors société');
+      }
       if (!moneyAccount || !moneyAccount.ledgerAccountId) throw new Error('Compte banque/caisse introuvable ou non paramétré');
       // Comptes système
       const { vatAccount, vatDeductibleAccount } = await getSystemAccounts();
@@ -42,6 +48,7 @@ export async function POST(req) {
       for (const l of links) {
         await tx.paymentInvoiceLink.create({
           data: {
+            companyId,
             paymentId: payment.id,
             invoiceId: l.invoiceId || undefined,
             incomingInvoiceId: l.incomingInvoiceId || undefined,
@@ -50,7 +57,7 @@ export async function POST(req) {
         });
         // MAJ statuts et soldes factures
         if (l.invoiceId) {
-          const inv = await tx.invoice.findUnique({ where: { id: l.invoiceId }, include: { client: true } });
+          const inv = await tx.invoice.findFirst({ where: { id: l.invoiceId, companyId }, include: { client: true } });
           const paid = inv.paidAmount.plus(l.amount);
           const remaining = inv.totalAmount.minus(paid);
           await tx.invoice.update({
@@ -66,6 +73,7 @@ export async function POST(req) {
           transactions.push(
             await tx.transaction.create({
               data: {
+                companyId,
                 date: date ? new Date(date) : new Date(),
                 amount: l.amount,
                 direction: 'CREDIT',
@@ -77,7 +85,7 @@ export async function POST(req) {
           );
         }
         if (l.incomingInvoiceId) {
-          const inv = await tx.incomingInvoice.findUnique({ where: { id: l.incomingInvoiceId }, include: { supplier: true } });
+          const inv = await tx.incomingInvoice.findFirst({ where: { id: l.incomingInvoiceId, companyId }, include: { supplier: true } });
           const paid = inv.paidAmount.plus(l.amount);
           const remaining = inv.totalAmount.minus(paid);
           await tx.incomingInvoice.update({
@@ -93,6 +101,7 @@ export async function POST(req) {
           transactions.push(
             await tx.transaction.create({
               data: {
+                companyId,
                 date: date ? new Date(date) : new Date(),
                 amount: l.amount,
                 direction: 'DEBIT',
@@ -108,6 +117,7 @@ export async function POST(req) {
       transactions.push(
         await tx.transaction.create({
           data: {
+            companyId,
             date: date ? new Date(date) : new Date(),
             amount,
             direction: 'DEBIT',

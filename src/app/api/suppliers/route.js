@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/validation/client';
+import { requireCompanyId } from '@/lib/tenant';
 
 /*
   GET /api/suppliers
   Retourne la liste des fournisseurs (tri alpha)
 */
-export async function GET() {
+export async function GET(req) {
+  const companyId = requireCompanyId(req);
   // Récupération de base
   const suppliers = await prisma.supplier.findMany({
+    where: { companyId },
     orderBy: { name: 'asc' },
     select: {
       id: true,
@@ -23,6 +26,7 @@ export async function GET() {
   // Récupérer agrégats sur les factures reçues (incomingInvoices)
   const agg = await prisma.incomingInvoice.groupBy({
     by: ['supplierId'],
+    where: { companyId },
     _count: { id: true },
     _sum: { totalAmount: true }
   });
@@ -48,6 +52,7 @@ export async function GET() {
 */
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     let { name, email, address, phone, accountId } = body || {};
     if (!name || !name.trim()) {
@@ -58,14 +63,14 @@ export async function POST(req) {
 
     let linkedAccountId = null;
     if (accountId) {
-      const acc = await prisma.account.findUnique({ where: { id: accountId }, select: { id: true } });
+      const acc = await prisma.account.findFirst({ where: { id: accountId, companyId }, select: { id: true } });
       if (!acc) return NextResponse.json({ error: 'Compte introuvable' }, { status: 400 });
       linkedAccountId = acc.id;
     }
 
     // Tolérance: on n'impose pas l'unicité email, mais on peut prévenir l'utilisateur si duplicat exact
     if (email) {
-      const existing = await prisma.supplier.findFirst({ where: { email } });
+      const existing = await prisma.supplier.findFirst({ where: { companyId, email } });
       if (existing) {
         // On retourne quand même 409 pour signaler doublon volontairement
         return NextResponse.json({ error: 'Email déjà utilisé par un autre fournisseur' }, { status: 409 });
@@ -74,6 +79,7 @@ export async function POST(req) {
 
     const supplier = await prisma.supplier.create({
       data: {
+        companyId,
         name,
         email,
         address: address && String(address).trim() !== '' ? String(address).trim() : null,

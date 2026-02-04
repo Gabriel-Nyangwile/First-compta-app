@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { finalizeBatchToJournal } from '@/lib/journal';
+import { requireCompanyId } from '@/lib/tenant';
 
 /*
   POST /api/incoming-invoices/:id/settle
@@ -15,6 +16,7 @@ import { finalizeBatchToJournal } from '@/lib/journal';
 */
 export async function POST(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const incomingInvoiceId = params.id;
     const { amount, paymentDate, bankAccountId } = await request.json();
 
@@ -22,8 +24,8 @@ export async function POST(request, { params }) {
     if (!amount || Number(amount) <= 0) return NextResponse.json({ error: 'Montant de paiement invalide.' }, { status: 400 });
     if (!bankAccountId) return NextResponse.json({ error: 'Compte banque requis.' }, { status: 400 });
 
-    const invoice = await prisma.incomingInvoice.findUnique({
-      where: { id: incomingInvoiceId },
+    const invoice = await prisma.incomingInvoice.findFirst({
+      where: { id: incomingInvoiceId, companyId },
       include: { supplier: true, transactions: true }
     });
     if (!invoice) return NextResponse.json({ error: 'Facture fournisseur introuvable.' }, { status: 404 });
@@ -43,13 +45,17 @@ export async function POST(request, { params }) {
     const result = await prisma.$transaction(async(tx) => {
       // Résolution compte banque: bankAccountId peut être un Account ou un MoneyAccount
       let resolvedAccountId = bankAccountId;
-      let moneyAccount = await tx.moneyAccount.findUnique({ where: { id: bankAccountId }, include: { ledgerAccount: true } });
+      let moneyAccount = await tx.moneyAccount.findFirst({
+        where: { id: bankAccountId, companyId },
+        include: { ledgerAccount: true },
+      });
       if (moneyAccount && moneyAccount.ledgerAccount) {
         resolvedAccountId = moneyAccount.ledgerAccount.id;
       }
       // Créer un moneyMovement pour traçabilité trésorerie
       const movement = await tx.moneyMovement.create({
         data: {
+          companyId,
           date: paymentDateObj,
           amount: String(amount),
           direction: 'OUT',
@@ -64,6 +70,7 @@ export async function POST(request, { params }) {
       const createdTxs = [];
       const debitPayable = await tx.transaction.create({
         data: {
+          companyId,
           date: paymentDateObj,
           nature: 'payment',
           description: `Règlement facture fournisseur ${invoice.entryNumber} (dette)`,
@@ -78,6 +85,7 @@ export async function POST(request, { params }) {
       });
       const creditBank = await tx.transaction.create({
         data: {
+          companyId,
           date: paymentDateObj,
           nature: 'payment',
           description: `Règlement facture fournisseur ${invoice.entryNumber} (banque)`,

@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSystemAccounts } from '@/lib/systemAccounts';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/invoices/:id
 // Await context.params to satisfy Next.js dynamic route requirements
 export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await context.params;
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         invoiceLines: { include: { account: { select: { id: true, number: true, label: true } } } },
         client: { include: { account: true } },
@@ -27,12 +29,13 @@ export async function GET(request, context) {
 // Body: { clientId?, issueDate?, dueDate?, vat?, invoiceLines: [ { id?, description, accountId, unitOfMeasure, quantity, unitPrice } ] }
 export async function PATCH(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await context.params;
     const body = await request.json();
     const { clientId, issueDate, dueDate, vat, invoiceLines } = body || {};
 
-    const existing = await prisma.invoice.findUnique({
-      where: { id },
+    const existing = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: { transactions: true, invoiceLines: true }
     });
     if (!existing) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 });
@@ -78,9 +81,9 @@ export async function PATCH(request, context) {
     // IMPORTANT: si clientId non fourni on doit récupérer le client existant pour conserver la créance (411)
     let client = null;
     if (clientId) {
-      client = await prisma.client.findUnique({ where: { id: clientId } });
+      client = await prisma.client.findFirst({ where: { id: clientId, companyId } });
     } else if (existing.clientId) {
-      client = await prisma.client.findUnique({ where: { id: existing.clientId } });
+      client = await prisma.client.findFirst({ where: { id: existing.clientId, companyId } });
     }
     const clientAccountId = client?.accountId || null;
 
@@ -105,9 +108,12 @@ export async function PATCH(request, context) {
 
       // Recréer lignes et transactions SALE directement liées sans heuristique
       for (const l of normLines) {
-        const lineRec = await tx.invoiceLine.create({ data: { ...l, invoiceId: id } });
+        const lineRec = await tx.invoiceLine.create({
+          data: { ...l, invoiceId: id, companyId },
+        });
         await tx.transaction.create({
           data: {
+            companyId,
             nature: 'receipt',
             description: lineRec.description, // description article
             amount: l.lineTotal,
@@ -124,6 +130,7 @@ export async function PATCH(request, context) {
       if (clientAccountId) {
         await tx.transaction.create({
           data: {
+            companyId,
             nature: 'receipt',
             description: `Créance facture ${inv.invoiceNumber}`,
             amount: String(totalTtc),
@@ -139,6 +146,7 @@ export async function PATCH(request, context) {
       if (vatAmount > 0 && vatAccount) {
         await tx.transaction.create({
           data: {
+            companyId,
             nature: 'receipt',
             description: `TVA facture ${inv.invoiceNumber}`,
             amount: String(vatAmount),
@@ -152,8 +160,8 @@ export async function PATCH(request, context) {
       }
       return inv;
     });
-    const full = await prisma.invoice.findUnique({
-      where: { id },
+    const full = await prisma.invoice.findFirst({
+      where: { id, companyId },
       include: {
         invoiceLines: { include: { account: { select: { id: true, number: true, label: true } } } },
         client: true,

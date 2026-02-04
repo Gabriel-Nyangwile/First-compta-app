@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
+
+async function resolveParams(maybeCtx) {
+  let ctx = maybeCtx;
+  if (ctx && typeof ctx.then === "function") ctx = await ctx;
+  let p = ctx?.params ?? ctx;
+  if (p && typeof p.then === "function") p = await p;
+  return p || {};
+}
 
 function toNumber(value) {
   return value?.toNumber?.() ?? Number(value ?? 0);
@@ -8,15 +17,16 @@ function toNumber(value) {
 // GET /api/purchase-orders/[id]/export.csv
 export async function GET(_req, rawContext) {
   try {
-    const context = await rawContext;
-    const id = context?.params?.id;
+    const companyId = requireCompanyId(_req);
+    const params = await resolveParams(rawContext);
+    const id = params?.id;
     if (!id)
       return NextResponse.json(
         { error: "Paramètre id manquant." },
         { status: 400 }
       );
     const po = await prisma.purchaseOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: { supplier: true, lines: { include: { product: true } } },
     });
     if (!po)

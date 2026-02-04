@@ -2,11 +2,13 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import { NextResponse } from 'next/server';
 import { fetchInvoiceById } from '@/lib/serverActions/clientAndInvoice';
+import { requireCompanyId } from '@/lib/tenant';
 import { embedLogo, formatDateFR, drawLinesTable, drawRecapBreakdown, drawPageHeader, drawFooter, drawCompanyIdentity, drawDraftWatermark, loadPrimaryFont, computeVatBreakdown } from '@/lib/pdf/utils';
 
 export async function GET(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
-  const invoice = await fetchInvoiceById(id);
+  const invoice = await fetchInvoiceById(id, companyId);
   if (!invoice) {
     return new NextResponse('Facture non trouvée', { status: 404 });
   }

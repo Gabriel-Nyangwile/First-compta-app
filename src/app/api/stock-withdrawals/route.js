@@ -7,6 +7,7 @@ import {
   normalizeStockWithdrawal,
   toNumber,
 } from "@/lib/stockWithdrawal";
+import { requireCompanyId } from "@/lib/tenant";
 
 const BASE_INCLUDE = {
   requestedBy: { select: { id: true, username: true, email: true } },
@@ -92,13 +93,14 @@ function normalizeListResponse(withdrawals) {
 
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || undefined;
     const type = searchParams.get("type") || undefined;
     const salesOrderId = searchParams.get("salesOrderId") || undefined;
     const q = searchParams.get("q")?.trim();
 
-    const where = {};
+    const where = { companyId };
     if (status && STOCK_WITHDRAWAL_STATUSES.has(status)) {
       where.status = status;
     }
@@ -153,6 +155,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const type = sanitizeType(String(body.type || "").toUpperCase());
     const notes = body.notes ? String(body.notes).trim() : undefined;
@@ -190,7 +193,7 @@ export async function POST(request) {
       const productIds = [...new Set(lines.map((line) => line.productId))];
       if (productIds.length) {
         const products = await tx.product.findMany({
-          where: { id: { in: productIds } },
+          where: { id: { in: productIds }, companyId },
           select: { id: true },
         });
         if (products.length !== productIds.length) {
@@ -200,7 +203,7 @@ export async function POST(request) {
         }
       }
 
-      const number = await nextStockWithdrawalNumber(tx);
+      const number = await nextStockWithdrawalNumber(tx, companyId);
 
       if (type === "SALE") {
         if (lines.some((line) => !line.salesOrderLineId)) {
@@ -216,7 +219,7 @@ export async function POST(request) {
       let salesOrderLines = [];
       if (salesOrderLineIds.length) {
         salesOrderLines = await tx.salesOrderLine.findMany({
-          where: { id: { in: salesOrderLineIds } },
+          where: { id: { in: salesOrderLineIds }, companyId },
           include: {
             salesOrder: { select: { id: true, status: true } },
           },
@@ -263,6 +266,7 @@ export async function POST(request) {
       const withdrawal = await tx.stockWithdrawal.create({
         data: {
           number,
+          companyId,
           type,
           notes: notes || null,
           requestedById: requestedById || null,
@@ -270,6 +274,7 @@ export async function POST(request) {
           salesOrderRef: salesOrderRef || null,
           lines: {
             create: lines.map((line) => ({
+              companyId,
               productId: line.productId,
               quantity: line.quantity.toFixed(3),
               notes: line.notes || null,

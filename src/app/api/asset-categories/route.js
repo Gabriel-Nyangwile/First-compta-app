@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const categories = await prisma.assetCategory.findMany({
+      where: { companyId },
       orderBy: { code: 'asc' },
     });
     return NextResponse.json({ ok: true, categories });
@@ -16,6 +19,7 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const { code, label, durationMonths } = body;
     if (!code || !label || !durationMonths) {
@@ -26,6 +30,7 @@ export async function POST(req) {
     }
     const created = await prisma.assetCategory.create({
       data: {
+        companyId,
         code,
         label,
         durationMonths: Number(durationMonths),

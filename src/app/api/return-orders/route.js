@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { nextSequence } from "@/lib/sequence";
 import { applyOutMovement } from "@/lib/inventory";
+import { requireCompanyId } from "@/lib/tenant";
 import {
   recalcPurchaseOrderStatus,
   refreshGoodsReceiptStatus,
@@ -20,13 +21,14 @@ function toFixed(value, digits = 3) {
 
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const supplierId = searchParams.get("supplierId");
     const purchaseOrderId = searchParams.get("purchaseOrderId");
     const q = searchParams.get("q");
 
-    const where = {};
+    const where = { companyId };
     if (status) where.status = status;
     if (supplierId) where.supplierId = supplierId;
     if (purchaseOrderId) where.purchaseOrderId = purchaseOrderId;
@@ -99,6 +101,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const {
       supplierId,
@@ -123,7 +126,7 @@ export async function POST(request) {
       );
 
     const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
+      where: { id: supplierId, companyId },
       select: { id: true, accountId: true, name: true },
     });
     if (!supplier)
@@ -143,7 +146,7 @@ export async function POST(request) {
 
     const goodsReceiptLineIds = lines.map((l) => l.goodsReceiptLineId);
     const receiptLines = await prisma.goodsReceiptLine.findMany({
-      where: { id: { in: goodsReceiptLineIds } },
+      where: { id: { in: goodsReceiptLineIds }, companyId },
       include: {
         goodsReceipt: {
           select: {
@@ -275,9 +278,10 @@ export async function POST(request) {
     }
 
     const createdId = await prisma.$transaction(async (tx) => {
-      const number = await nextSequence(tx, "RETURN_ORDER", "RO-");
+      const number = await nextSequence(tx, "RETURN_ORDER", "RO-", companyId);
       const order = await tx.returnOrder.create({
         data: {
+          companyId,
           number,
           status: "DRAFT",
           supplier: { connect: { id: supplierId } },
@@ -312,6 +316,7 @@ export async function POST(request) {
 
         const returnLine = await tx.returnOrderLine.create({
           data: {
+            companyId,
             returnOrderId: order.id,
             productId,
             goodsReceiptLineId: line.id,
@@ -325,6 +330,7 @@ export async function POST(request) {
         const outResult = await applyOutMovement(tx, {
           productId,
           qty,
+          companyId,
         });
         const unitCostOut = Number.isFinite(outResult.unitCost)
           ? outResult.unitCost
@@ -333,6 +339,7 @@ export async function POST(request) {
 
         await tx.stockMovement.create({
           data: {
+            companyId,
             productId,
             movementType: "OUT",
             stage: "AVAILABLE",
@@ -359,7 +366,7 @@ export async function POST(request) {
 
         const currentReturned = toNumber(orderLine.returnedQty);
         await tx.purchaseOrderLine.update({
-          where: { id: orderLine.id },
+          where: { id: orderLine.id, companyId },
           data: { returnedQty: (currentReturned + qty).toFixed(3) },
         });
       }
@@ -368,11 +375,12 @@ export async function POST(request) {
         await recalcPurchaseOrderStatus(
           tx,
           inferredPurchaseOrderId,
-          "Retour fournisseur créé"
+          "Retour fournisseur créé",
+          companyId
         );
       }
       for (const id of affectedGoodsReceiptIds) {
-        await refreshGoodsReceiptStatus(tx, id);
+        await refreshGoodsReceiptStatus(tx, id, companyId);
       }
 
       if (accountSummaries.size) {
@@ -385,6 +393,7 @@ export async function POST(request) {
           }
           const ledgerTx = await tx.transaction.create({
             data: {
+              companyId,
               date: new Date(),
               nature: "purchase",
               description: descriptionParts.join(" "),
@@ -401,6 +410,7 @@ export async function POST(request) {
 
         const payableTx = await tx.transaction.create({
           data: {
+            companyId,
             date: new Date(),
             nature: "purchase",
             description: `Avoir à recevoir ${order.number}`,
@@ -427,7 +437,7 @@ export async function POST(request) {
     });
 
     const full = await prisma.returnOrder.findUnique({
-      where: { id: createdId },
+      where: { id: createdId, companyId },
       include: {
         supplier: { select: { id: true, name: true } },
         purchaseOrder: { select: { id: true, number: true } },

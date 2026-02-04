@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { moveStagedToAvailable, removeStaged } from "@/lib/inventory";
 import { finalizeBatchToJournal } from "@/lib/journal";
+import { requireCompanyId } from "@/lib/tenant";
 import {
   refreshGoodsReceiptStatus,
   recalcPurchaseOrderStatus,
@@ -53,6 +54,7 @@ function buildSummary(lines = []) {
 
 export async function GET(_request, rawContext) {
   try {
+    const companyId = requireCompanyId(_request);
     const params = await resolveParams(rawContext);
     const id = params?.id;
     if (!id) {
@@ -62,7 +64,7 @@ export async function GET(_request, rawContext) {
       );
     }
     const receipt = await prisma.goodsReceipt.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         supplier: { select: { id: true, name: true } },
         purchaseOrder: { select: { id: true, number: true, status: true } },
@@ -166,6 +168,7 @@ export async function GET(_request, rawContext) {
 }
 
 export async function PUT(request, rawContext) {
+  const companyId = requireCompanyId(request);
   const params = await resolveParams(rawContext);
   const id = params?.id;
   if (!id) {
@@ -186,7 +189,7 @@ export async function PUT(request, rawContext) {
         return NextResponse.json({ error: "lineId requis" }, { status: 400 });
       await prisma.$transaction(async (tx) => {
         const line = await tx.goodsReceiptLine.findUnique({
-          where: { id: lineId },
+          where: { id: lineId, companyId },
           include: { goodsReceipt: true },
         });
         if (!line || line.goodsReceiptId !== id) {
@@ -205,12 +208,13 @@ export async function PUT(request, rawContext) {
             qcNote: qcNote || null,
           },
         });
-        await refreshGoodsReceiptStatus(tx, id);
+        await refreshGoodsReceiptStatus(tx, id, companyId);
         if (line.goodsReceipt.purchaseOrderId) {
           await recalcPurchaseOrderStatus(
             tx,
             line.goodsReceipt.purchaseOrderId,
-            "Mise à jour QC réception"
+            "Mise à jour QC réception",
+            companyId
           );
         }
       });
@@ -227,7 +231,7 @@ export async function PUT(request, rawContext) {
       }
       await prisma.$transaction(async (tx) => {
         const line = await tx.goodsReceiptLine.findUnique({
-          where: { id: lineId },
+          where: { id: lineId, companyId },
           include: { goodsReceipt: true },
         });
         if (!line || line.goodsReceiptId !== id)
@@ -239,9 +243,14 @@ export async function PUT(request, rawContext) {
           throw new Error("Quantité rejetée dépasse le restant en contrôle");
         }
         if (rejectQty > 0) {
-          await removeStaged(tx, { productId: line.productId, qty: rejectQty });
+          await removeStaged(tx, {
+            productId: line.productId,
+            qty: rejectQty,
+            companyId,
+          });
           await tx.stockMovement.create({
             data: {
+              companyId,
               productId: line.productId,
               movementType: "ADJUST",
               stage: "STAGED",
@@ -263,7 +272,7 @@ export async function PUT(request, rawContext) {
         });
         if (line.purchaseOrderLineId) {
           const pol = await tx.purchaseOrderLine.findUnique({
-            where: { id: line.purchaseOrderLineId },
+            where: { id: line.purchaseOrderLineId, companyId },
           });
           if (pol) {
             const newReceived = Math.max(
@@ -271,17 +280,18 @@ export async function PUT(request, rawContext) {
               Number(pol.receivedQty) - rejectQty
             );
             await tx.purchaseOrderLine.update({
-              where: { id: pol.id },
+              where: { id: pol.id, companyId },
               data: { receivedQty: newReceived.toFixed(3) },
             });
           }
         }
-        await refreshGoodsReceiptStatus(tx, id);
+        await refreshGoodsReceiptStatus(tx, id, companyId);
         if (line.goodsReceipt.purchaseOrderId) {
           await recalcPurchaseOrderStatus(
             tx,
             line.goodsReceipt.purchaseOrderId,
-            "Mise à jour QC réception"
+            "Mise à jour QC réception",
+            companyId
           );
         }
       });
@@ -299,7 +309,7 @@ export async function PUT(request, rawContext) {
       }
       await prisma.$transaction(async (tx) => {
         const line = await tx.goodsReceiptLine.findUnique({
-          where: { id: lineId },
+          where: { id: lineId, companyId },
           include: {
             goodsReceipt: {
               select: {
@@ -337,6 +347,7 @@ export async function PUT(request, rawContext) {
           productId: line.productId,
           qty: qtyNum,
           unitCost: cost,
+          companyId,
         });
         const newPutAway = Number(line.qtyPutAway || 0) + qtyNum;
         const status =
@@ -347,7 +358,8 @@ export async function PUT(request, rawContext) {
         if (!storageLocationId && storageLocationCode) {
           storageLocation = await ensureStorageLocation(
             tx,
-            storageLocationCode
+            storageLocationCode,
+            companyId
           );
         }
         await tx.goodsReceiptLine.update({
@@ -362,6 +374,7 @@ export async function PUT(request, rawContext) {
         });
         await tx.stockMovement.create({
           data: {
+            companyId,
             productId: line.productId,
             movementType: "IN",
             stage: "AVAILABLE",
@@ -390,9 +403,10 @@ export async function PUT(request, rawContext) {
           const description = descriptionParts.filter(Boolean).join(" ");
 
           const transactions = [];
-          const inventoryTx = await tx.transaction.create({
-            data: {
-              date: postingDate,
+            const inventoryTx = await tx.transaction.create({
+              data: {
+                companyId,
+                date: postingDate,
               nature: "inventory",
               description,
               amount: amount.toFixed(2),
@@ -404,9 +418,10 @@ export async function PUT(request, rawContext) {
           });
           transactions.push(inventoryTx);
 
-          const variationTx = await tx.transaction.create({
-            data: {
-              date: postingDate,
+            const variationTx = await tx.transaction.create({
+              data: {
+                companyId,
+                date: postingDate,
               nature: "inventory",
               description,
               amount: amount.toFixed(2),
@@ -426,12 +441,13 @@ export async function PUT(request, rawContext) {
             transactions,
           });
         }
-        await refreshGoodsReceiptStatus(tx, id);
+        await refreshGoodsReceiptStatus(tx, id, companyId);
         if (line.goodsReceipt.purchaseOrderId) {
           await recalcPurchaseOrderStatus(
             tx,
             line.goodsReceipt.purchaseOrderId,
-            "Mise à jour put-away réception"
+            "Mise à jour put-away réception",
+            companyId
           );
         }
       });

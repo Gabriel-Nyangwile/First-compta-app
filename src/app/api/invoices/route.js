@@ -1,6 +1,8 @@
 // PATCH /api/invoices
 export async function PATCH(request) {
   try {
+    const { requireCompanyId } = await import('@/lib/tenant');
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const invoiceId = body?.invoiceId || body?.id;
     const status = body?.status;
@@ -11,8 +13,8 @@ export async function PATCH(request) {
       );
     }
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: { invoiceLines: true },
     });
     if (!invoice) {
@@ -58,15 +60,18 @@ import { applyOutMovement } from "@/lib/inventory";
 import { getSystemAccounts } from "@/lib/systemAccounts";
 import { finalizeBatchToJournal } from "@/lib/journal";
 import { toNumber } from "@/lib/salesOrder";
+import { requireCompanyId } from "@/lib/tenant";
 
 // GET /api/invoices
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const paymentFilter = searchParams.get("payment"); // paid|unpaid|partial|all
+  const companyId = requireCompanyId(request);
   // Mettre à jour à la volée les statuts OVERDUE (lazy update)
   const now = new Date();
   await prisma.invoice.updateMany({
     where: {
+      companyId,
       status: { in: ["PENDING", "OVERDUE"] },
       dueDate: { lt: now },
       transactions: { none: { kind: "PAYMENT" } },
@@ -78,8 +83,9 @@ export async function GET(request) {
     100,
     Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10))
   );
-  const totalCount = await prisma.invoice.count();
+  const totalCount = await prisma.invoice.count({ where: { companyId } });
   let invoices = await prisma.invoice.findMany({
+    where: { companyId },
     include: {
       client: true,
       moneyMovements: {
@@ -121,7 +127,10 @@ export async function GET(request) {
       }
     });
   }
-  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
+  const clients = await prisma.client.findMany({
+    where: { companyId },
+    orderBy: { name: "asc" },
+  });
   return new Response(
     JSON.stringify({ invoices, clients, page, pageSize, totalCount }),
     { status: 200, headers: { "Content-Type": "application/json" } }
@@ -131,6 +140,7 @@ export async function GET(request) {
 // POST /api/invoices
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const data = await request.json();
     const {
       clientId,
@@ -161,8 +171,8 @@ export async function POST(request) {
     let salesOrder = null;
     let salesOrderLineMap = null;
     if (salesOrderId) {
-      salesOrder = await prisma.salesOrder.findUnique({
-        where: { id: salesOrderId },
+      salesOrder = await prisma.salesOrder.findFirst({
+        where: { id: salesOrderId, companyId },
         include: {
           lines: {
             include: {
@@ -201,8 +211,8 @@ export async function POST(request) {
 
     let clientRecord = null;
     if (resolvedClientId) {
-      clientRecord = await prisma.client.findUnique({
-        where: { id: resolvedClientId },
+      clientRecord = await prisma.client.findFirst({
+        where: { id: resolvedClientId, companyId },
         select: { id: true, name: true, accountId: true },
       });
       if (clientRecord && !clientRecord.accountId) {
@@ -394,6 +404,7 @@ export async function POST(request) {
       // Créer la facture sans lignes/écritures dans un premier temps
       const inv = await tx.invoice.create({
         data: {
+          companyId,
           clientId: targetClientId,
           issueDate: issueDate ? new Date(issueDate) : undefined,
           dueDate: dueDate ? new Date(dueDate) : undefined,
@@ -414,6 +425,7 @@ export async function POST(request) {
       for (const l of normalizedLines) {
         const lineRecord = await tx.invoiceLine.create({
           data: {
+            companyId,
             description: l.description,
             accountId: l.accountId,
             unitOfMeasure: l.unitOfMeasure,
@@ -428,6 +440,7 @@ export async function POST(request) {
         });
         const saleTx = await tx.transaction.create({
           data: {
+            companyId,
             nature: "receipt",
             // Description = description de la ligne (article)
             description: lineRecord.description,
@@ -451,6 +464,7 @@ export async function POST(request) {
             });
             await tx.stockMovement.create({
               data: {
+                companyId,
                 productId: l.productId,
                 movementType: "OUT",
                 quantity: l.quantity,
@@ -472,6 +486,7 @@ export async function POST(request) {
       if (clientAccountId) {
         const receivableTx = await tx.transaction.create({
           data: {
+            companyId,
             nature: "receipt",
             description: `Créance facture ${inv.invoiceNumber}`,
             amount: String(totalAmount),
@@ -492,6 +507,7 @@ export async function POST(request) {
           const pct = (Number(rateStr) * 100).toFixed(2).replace(/\.00$/, "");
           const vatTx = await tx.transaction.create({
             data: {
+              companyId,
               nature: "receipt",
               description: `TVA ${pct}% facture ${inv.invoiceNumber}`,
               amount: bucket.vat.toString(),

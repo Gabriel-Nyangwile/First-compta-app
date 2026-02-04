@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { applyAdjustMovement } from '@/lib/inventory';
+import { requireCompanyId } from '@/lib/tenant';
 
 // POST /api/stock-adjustments { productId, qty, unitCost? }
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const productId = body.productId;
     const qty = Number(body.qty);
@@ -12,10 +14,23 @@ export async function POST(request) {
     if (!productId || isNaN(qty) || qty === 0) {
       return NextResponse.json({ error: 'productId et qty non nul requis.' }, { status: 400 });
     }
+    const product = await prisma.product.findFirst({
+      where: { id: productId, companyId },
+      select: { id: true },
+    });
+    if (!product) {
+      return NextResponse.json({ error: 'Produit introuvable.' }, { status: 404 });
+    }
     const movementId = await prisma.$transaction(async (tx) => {
-      const adj = await applyAdjustMovement(tx, { productId, qty, unitCost });
+      const adj = await applyAdjustMovement(tx, {
+        productId,
+        qty,
+        unitCost,
+        companyId,
+      });
       const mv = await tx.stockMovement.create({
         data: {
+          companyId,
           productId,
             movementType: 'ADJUST',
             quantity: qty.toFixed(3),

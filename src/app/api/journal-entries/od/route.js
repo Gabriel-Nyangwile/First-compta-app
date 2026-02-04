@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { nextSequence } from '@/lib/sequence';
+import { requireCompanyId } from '@/lib/tenant';
 
 // Helper: group orphan transactions using same heuristic as rebuild script
-async function loadOrphanGroups() {
-  const orphan = await prisma.transaction.findMany({ where: { journalEntryId: null }, orderBy: { date: 'asc' }, include: { account: { select: { number: true } } } });
+async function loadOrphanGroups(companyId) {
+  const orphan = await prisma.transaction.findMany({
+    where: { journalEntryId: null, companyId },
+    orderBy: { date: 'asc' },
+    include: { account: { select: { number: true } } },
+  });
   const map = new Map();
   for (const t of orphan) {
     const key = t.invoiceId || t.incomingInvoiceId || t.moneyMovementId || `MISC:${t.date.toISOString().slice(0,10)}:${t.nature}`;
@@ -24,9 +29,10 @@ async function loadOrphanGroups() {
 }
 
 // GET /api/journal-entries/od  -> list orphan groups with diff
-export async function GET() {
+export async function GET(request) {
   try {
-    const groups = await loadOrphanGroups();
+    const companyId = requireCompanyId(request);
+    const groups = await loadOrphanGroups(companyId);
     return NextResponse.json({ groups });
   } catch (e) {
     console.error('GET /api/journal-entries/od error', e);
@@ -43,6 +49,7 @@ export async function GET() {
 */
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const contentType = request.headers.get('content-type') || '';
     let body;
     if (contentType.includes('application/json')) {
@@ -56,31 +63,49 @@ export async function POST(request) {
     }
     const { groupKey, suspenseAccountId, description } = body || {};
     if (!groupKey) return NextResponse.json({ error: 'groupKey requis' }, { status: 400 });
-    const groups = await loadOrphanGroups();
+    const groups = await loadOrphanGroups(companyId);
     const group = groups.find(g => g.key === groupKey);
     if (!group) return NextResponse.json({ error: 'Groupe introuvable ou déjà traité.' }, { status: 404 });
 
     // Resolve suspense account
     let suspenseId = suspenseAccountId;
     if (!suspenseId) {
-      const suspense = await prisma.account.findFirst({ where: { number: { startsWith: '471' } }, select: { id: true } });
+      const suspense = await prisma.account.findFirst({
+        where: { number: { startsWith: '471' }, companyId },
+        select: { id: true },
+      });
       if (!suspense) return NextResponse.json({ error: 'Compte suspense (471) introuvable. Fournir suspenseAccountId.' }, { status: 400 });
       suspenseId = suspense.id;
     }
 
     const date = group.sampleDate || new Date();
-    const number = await nextSequence(prisma, 'JRN', 'JRN-');
+    const number = await nextSequence(prisma, 'JRN', 'JRN-', companyId);
     const sourceType = 'MANUAL';
-    const txs = await prisma.transaction.findMany({ where: { id: { in: group.transactionIds } } });
+    const txs = await prisma.transaction.findMany({
+      where: { id: { in: group.transactionIds }, companyId },
+    });
     // Safety: ensure all still orphan
     if (txs.some(t => t.journalEntryId)) return NextResponse.json({ error: 'Certaines transactions ne sont plus orphelines.' }, { status: 409 });
 
     const diff = group.diff; // debit - credit
     const adjustmentNeeded = diff !== 0;
     const result = await prisma.$transaction(async(tx) => {
-      const je = await tx.journalEntry.create({ data: { number, date, sourceType, sourceId: null, description: description || `OD ${groupKey}`, status: 'POSTED' } });
+      const je = await tx.journalEntry.create({
+        data: {
+          number,
+          date,
+          sourceType,
+          sourceId: null,
+          description: description || `OD ${groupKey}`,
+          status: 'POSTED',
+          companyId,
+        },
+      });
       // Attach existing tx
-      await tx.transaction.updateMany({ where: { id: { in: group.transactionIds } }, data: { journalEntryId: je.id } });
+      await tx.transaction.updateMany({
+        where: { id: { in: group.transactionIds }, companyId },
+        data: { journalEntryId: je.id },
+      });
       let adjustmentTx = null;
       if (adjustmentNeeded) {
         const amount = Math.abs(diff).toFixed(2);
@@ -95,7 +120,8 @@ export async function POST(request) {
             direction,
             kind: 'ADJUSTMENT',
             accountId: suspenseId,
-            journalEntryId: je.id
+            journalEntryId: je.id,
+            companyId,
           }
         });
       }

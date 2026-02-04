@@ -3,11 +3,11 @@ import { audit } from "@/lib/audit";
 
 const EPS = 1e-9;
 
-export async function refreshGoodsReceiptStatus(tx, receiptId) {
+export async function refreshGoodsReceiptStatus(tx, receiptId, companyId) {
   if (!receiptId) return;
   const [receipt, lines] = await Promise.all([
     tx.goodsReceipt.findUnique({
-      where: { id: receiptId },
+      where: companyId ? { id: receiptId, companyId } : { id: receiptId },
       select: {
         id: true,
         qcCompletedAt: true,
@@ -17,7 +17,9 @@ export async function refreshGoodsReceiptStatus(tx, receiptId) {
       },
     }),
     tx.goodsReceiptLine.findMany({
-      where: { goodsReceiptId: receiptId },
+      where: companyId
+        ? { goodsReceiptId: receiptId, companyId }
+        : { goodsReceiptId: receiptId },
       select: {
         status: true,
         qcStatus: true,
@@ -31,7 +33,7 @@ export async function refreshGoodsReceiptStatus(tx, receiptId) {
 
   if (!lines.length) {
     await tx.goodsReceipt.update({
-      where: { id: receiptId },
+      where: companyId ? { id: receiptId, companyId } : { id: receiptId },
       data: {
         status: "OPEN",
         qcCompletedAt: null,
@@ -68,17 +70,23 @@ export async function refreshGoodsReceiptStatus(tx, receiptId) {
     data.putAwayCompletedAt = null;
   }
 
-  await tx.goodsReceipt.update({ where: { id: receiptId }, data });
+  await tx.goodsReceipt.update({
+    where: companyId ? { id: receiptId, companyId } : { id: receiptId },
+    data,
+  });
 }
 
 export async function recalcPurchaseOrderStatus(
   tx,
   purchaseOrderId,
-  note = "Mise à jour quantités réception"
+  note = "Mise à jour quantités réception",
+  companyId
 ) {
   if (!purchaseOrderId) return;
   const po = await tx.purchaseOrder.findUnique({
-    where: { id: purchaseOrderId },
+    where: companyId
+      ? { id: purchaseOrderId, companyId }
+      : { id: purchaseOrderId },
     include: {
       lines: true,
       goodsReceipts: {
@@ -131,11 +139,12 @@ export async function recalcPurchaseOrderStatus(
   let currentStatus = po.status;
   if (targetStatus !== currentStatus) {
     await tx.purchaseOrder.update({
-      where: { id: po.id },
+      where: companyId ? { id: po.id, companyId } : { id: po.id },
       data: { status: targetStatus },
     });
     await tx.purchaseOrderStatusLog.create({
       data: {
+        companyId: po.companyId || companyId || null,
         purchaseOrderId: po.id,
         oldStatus: currentStatus,
         newStatus: targetStatus,
@@ -159,11 +168,12 @@ export async function recalcPurchaseOrderStatus(
       ? "Clôture auto (réception + facturation)"
       : "Clôture auto (réception complète)";
     await tx.purchaseOrder.update({
-      where: { id: po.id },
+      where: companyId ? { id: po.id, companyId } : { id: po.id },
       data: { status: "CLOSED" },
     });
     await tx.purchaseOrderStatusLog.create({
       data: {
+        companyId: po.companyId || companyId || null,
         purchaseOrderId: po.id,
         oldStatus: currentStatus,
         newStatus: "CLOSED",
@@ -179,13 +189,16 @@ export async function recalcPurchaseOrderStatus(
   }
 }
 
-export async function ensureStorageLocation(tx, code) {
+export async function ensureStorageLocation(tx, code, companyId) {
   if (!code) return null;
   const client = tx || prisma;
-  const existing = await client.storageLocation.findUnique({ where: { code } });
+  const existing = await client.storageLocation.findUnique({
+    where: { companyId_code: { companyId: companyId || null, code } },
+  });
   if (existing) return existing;
   return client.storageLocation.create({
     data: {
+      companyId: companyId || null,
       code,
       label: code,
     },

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 // GET /api/stock-alerts?min=5
 export async function GET(request) {
+  const companyId = requireCompanyId(request);
   const { searchParams } = new URL(request.url);
   const min = Number(searchParams.get("min") ?? "5");
   // Optionally support per-product minStockAlert in future
@@ -18,7 +20,7 @@ export async function GET(request) {
           select: { qtyOnHand: true, avgCost: true },
         },
       },
-      where: { isActive: true },
+      where: { isActive: true, companyId },
     });
     const result = products.map((p) => {
       const threshold = p.minStockAlert != null ? Number(p.minStockAlert) : min;

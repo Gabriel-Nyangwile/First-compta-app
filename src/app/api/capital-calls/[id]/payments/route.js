@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { postCapitalPayment } from "@/lib/capitalPosting";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function POST(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "call id requis" }, { status: 400 });
   try {
@@ -12,7 +14,9 @@ export async function POST(req, { params }) {
     if (!accountId) return NextResponse.json({ error: "accountId requis" }, { status: 400 });
 
     // Vérifier compte 52xx ou 57xx selon la méthode
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, companyId },
+    });
     if (!account) return NextResponse.json({ error: "Compte introuvable" }, { status: 400 });
     const num = account.number || "";
     const isBank = method === "BANK";
@@ -24,6 +28,11 @@ export async function POST(req, { params }) {
     }
 
     const payment = await prisma.$transaction(async (tx) => {
+      const call = await tx.capitalCall.findFirst({
+        where: { id, companyId },
+        include: { payments: true },
+      });
+      if (!call) throw new Error("Appel introuvable");
       const pay = await tx.capitalPayment.create({
         data: {
           callId: id,
@@ -32,15 +41,16 @@ export async function POST(req, { params }) {
           paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
           method,
           note,
+          companyId,
         },
       });
-      await postCapitalPayment(tx, { payment: pay, account });
+      await postCapitalPayment(tx, { payment: pay, account, companyId });
       // Recalcule le statut de l'appel
-      const call = await tx.capitalCall.findUnique({
-        where: { id },
-        include: { payments: true },
-      });
-      const totalPaid = (call?.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+      const previousPaid = (call?.payments || []).reduce(
+        (s, p) => s + Number(p.amount),
+        0
+      );
+      const totalPaid = previousPaid + Number(pay.amount || 0);
       const amountCalled = Number(call?.amountCalled || 0);
       const newStatus =
         totalPaid >= amountCalled && amountCalled > 0
@@ -48,8 +58,8 @@ export async function POST(req, { params }) {
           : totalPaid > 0
           ? "PARTIAL"
           : "OPEN";
-      await tx.capitalCall.update({
-        where: { id },
+      await tx.capitalCall.updateMany({
+        where: { id, companyId },
         data: { status: newStatus },
       });
       return pay;

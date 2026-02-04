@@ -28,9 +28,9 @@ export function canTransitionStatus(current, next) {
   return Boolean(allowed && allowed.has(next));
 }
 
-export async function nextStockWithdrawalNumber(client) {
+export async function nextStockWithdrawalNumber(client, companyId = null) {
   const prismaClient = client || prisma;
-  return nextSequence(prismaClient, "SW", "SW-");
+  return nextSequence(prismaClient, "SW", "SW-", companyId);
 }
 
 export function toNumber(value) {

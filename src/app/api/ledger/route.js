@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -11,6 +12,7 @@ const toNumber = (value) => {
 // GET /api/ledger?dateFrom=&dateTo=&letterStatus=&accountId=&includeZero=&q=
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -32,7 +34,9 @@ export async function GET(request) {
     }
     if (letterStatus) filters.push({ letterStatus });
     if (accountId) filters.push({ accountId });
-    const where = filters.length ? { AND: filters } : undefined;
+    const where = filters.length
+      ? { AND: [{ companyId }, ...filters] }
+      : { companyId };
 
     const transactions = await prisma.transaction.findMany({
       where,

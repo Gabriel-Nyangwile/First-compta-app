@@ -29,10 +29,15 @@ async function main() {
   const sheetName = argValue("--sheet");
   const openingDate =
     argValue("--date") || process.env.OPENING_DATE || "2026-01-01";
+  const companyId =
+    argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
 
   if (!file) {
     console.error("Usage: node --env-file=.env.local scripts/import-opening-balance.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
     process.exit(1);
+  }
+  if (!companyId) {
+    throw new Error("DEFAULT_COMPANY_ID requis (ou --company).");
   }
   const abs = path.resolve(file);
   if (!fs.existsSync(abs)) {
@@ -100,12 +105,13 @@ async function main() {
     const txns = [];
     for (const line of lines) {
       const account = await tx.account.findFirst({
-        where: { number: line.accountNumber },
+        where: { number: line.accountNumber, companyId },
       });
       if (!account) throw new Error(`Compte introuvable: ${line.accountNumber}`);
       if (line.debit > 0) {
         const t = await tx.transaction.create({
           data: {
+            companyId,
             date,
             description: `Ouverture ${openingDate} ${line.label || ""}`.trim(),
             amount: line.debit,
@@ -118,6 +124,7 @@ async function main() {
       } else if (line.credit > 0) {
         const t = await tx.transaction.create({
           data: {
+            companyId,
             date,
             description: `Ouverture ${openingDate} ${line.label || ""}`.trim(),
             amount: line.credit,

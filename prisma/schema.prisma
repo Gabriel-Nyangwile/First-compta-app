@@ -12,6 +12,8 @@ enum PaymentMode {
 
 model Payment {
   id          String    @id @default(uuid())
+  companyId   String?
+  company     Company?  @relation(fields: [companyId], references: [id])
   date        DateTime  @default(now())
   amount      Decimal   @db.Decimal(14, 2)
   mode        PaymentMode
@@ -25,6 +27,8 @@ model Payment {
 
 model PaymentInvoiceLink {
   id          String   @id @default(uuid())
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
   paymentId   String
   invoiceId   String?
   incomingInvoiceId String?
@@ -53,9 +57,13 @@ datasource db {
 // Generic sequence table for generating incremental numbers per scope (e.g., money movement voucher refs)
 model Sequence {
   id        String   @id @default(uuid())
-  name      String   @unique
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  name      String
   value     Int      @default(0)
   updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
 }
 
 // prisma/schema.prisma
@@ -66,6 +74,8 @@ model Sequence {
 
 model Lettering {
   id        String   @id @default(uuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
   matched   Boolean  @default(false)
   anomaly   Boolean  @default(false)
   invoiceId String?  // Facture client liée
@@ -95,12 +105,93 @@ enum UserRole {
   VIEWER
 }
 
+model Company {
+  id              String   @id @default(uuid())
+  name            String
+  legalForm       String?
+  currency        String   @default("XOF")
+  vatPolicy       String?
+  country         String?
+  timezone        String?
+  fiscalYearStart String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users                   User[]
+  accounts                Account[]
+  clients                 Client[]
+  suppliers               Supplier[]
+  sequences               Sequence[]
+  payments                Payment[]
+  paymentInvoiceLinks     PaymentInvoiceLink[]
+  letterings              Lettering[]
+  journalEntries          JournalEntry[]
+  invoices                Invoice[]
+  invoiceLines            InvoiceLine[]
+  salesOrders             SalesOrder[]
+  salesOrderLines         SalesOrderLine[]
+  purchaseOrders          PurchaseOrder[]
+  purchaseOrderLines      PurchaseOrderLine[]
+  assetPurchaseOrders     AssetPurchaseOrder[]
+  assetPurchaseOrderLines AssetPurchaseOrderLine[]
+  goodsReceipts           GoodsReceipt[]
+  goodsReceiptLines       GoodsReceiptLine[]
+  storageLocations        StorageLocation[]
+  products                Product[]
+  productInventories      ProductInventory[]
+  stockMovements          StockMovement[]
+  stockWithdrawals        StockWithdrawal[]
+  stockWithdrawalLines    StockWithdrawalLine[]
+  inventoryCounts         InventoryCount[]
+  inventoryCountLines     InventoryCountLine[]
+  transactions            Transaction[]
+  incomingInvoices        IncomingInvoice[]
+  incomingInvoiceLines    IncomingInvoiceLine[]
+  returnOrders            ReturnOrder[]
+  returnOrderLines        ReturnOrderLine[]
+  moneyAccounts           MoneyAccount[]
+  moneyMovements          MoneyMovement[]
+  purchaseOrderStatusLogs PurchaseOrderStatusLog[]
+  auditLogs               AuditLog[]
+  treasuryAuthorizations  TreasuryAuthorization[]
+  bankAdvices             BankAdvice[]
+  employees               Employee[]
+  positions               Position[]
+  employeeHistories       EmployeeHistory[]
+  baremes                 Bareme[]
+  payrollPeriods          PayrollPeriod[]
+  payslips                Payslip[]
+  payslipLines            PayslipLine[]
+  contributionSchemes     ContributionScheme[]
+  taxRules                TaxRule[]
+  costCenters             CostCenter[]
+  employeeCostAllocations EmployeeCostAllocation[]
+  payslipCostAllocations  PayslipCostAllocation[]
+  payrollAccountMappings  PayrollAccountMapping[]
+  fxRates                 FxRate[]
+  assetCategories         AssetCategory[]
+  assets                  Asset[]
+  depreciationLines       DepreciationLine[]
+  depreciationPeriodLocks DepreciationPeriodLock[]
+  assetDisposals          AssetDisposal[]
+  employeeAttendances     EmployeeAttendance[]
+  payrollVariables        PayrollVariable[]
+  shareholders            Shareholder[]
+  capitalOperations       CapitalOperation[]
+  capitalSubscriptions    CapitalSubscription[]
+  capitalCalls            CapitalCall[]
+  capitalPayments         CapitalPayment[]
+}
+
 model User {
   id                        String            @id @default(uuid())
   email                     String            @unique
   password                  String? // Hash du mot de passe (null si provider OAuth)
   username                  String?
   role                      UserRole          @default(VIEWER)
+  isDeveloper               Boolean           @default(false)
+  companyId                 String?
+  company                   Company?          @relation(fields: [companyId], references: [id])
   provider                  String? // ex: 'google', 'github', 'credentials'
   providerAccountId         String? // id du compte provider
   isActive                  Boolean           @default(true)
@@ -116,7 +207,9 @@ model User {
 
 model Account {
   id                     String                @id @default(uuid())
-  number                 String                @unique
+  companyId              String?
+  company                Company?              @relation(fields: [companyId], references: [id])
+  number                 String
   label                  String
   description            String?
   transactions           Transaction[]
@@ -137,6 +230,8 @@ model Account {
   assetCategoriesGainAccount    AssetCategory[] @relation("AssetCategoryGainAccount")
   assetCategoriesLossAccount    AssetCategory[] @relation("AssetCategoryLossAccount")
   capitalPayments        CapitalPayment[]      @relation("CapitalPaymentAccount")
+
+  @@unique([companyId, number])
 }
 
 enum ClientCategory {
@@ -149,10 +244,12 @@ enum ClientCategory {
 
 model Client {
   id           String         @id @default(uuid())
+  companyId    String?
+  company      Company?       @relation(fields: [companyId], references: [id])
   name         String
   address      String?
   phone        String?
-  email        String?        @unique
+  email        String?
   accountId    String?
   account      Account?       @relation("AccountToClients", fields: [accountId], references: [id])
   category     ClientCategory @default(DAYS_30)
@@ -162,10 +259,14 @@ model Client {
   // Relation inverse vers Transaction (pour l'écriture client)
   transactions Transaction[]
   salesOrders  SalesOrder[]
+
+  @@unique([companyId, email])
 }
 
 model Supplier {
   id               String            @id @default(uuid())
+  companyId        String?
+  company          Company?          @relation(fields: [companyId], references: [id])
   name             String
   address          String?
   phone            String?
@@ -266,7 +367,9 @@ enum JournalSourceType {
 
 model JournalEntry {
   id          String            @id @default(uuid())
-  number      String            @unique
+  companyId   String?
+  company     Company?          @relation(fields: [companyId], references: [id])
+  number      String
   date        DateTime          @default(now())
   sourceType  JournalSourceType @default(OTHER)
   sourceId    String?
@@ -284,6 +387,7 @@ model JournalEntry {
 
   @@index([sourceType, sourceId])
   @@index([date])
+  @@unique([companyId, number])
 }
 
 // =============================
@@ -366,7 +470,9 @@ enum BankAdviceType {
 
 model Invoice {
   id                     String                  @id @default(uuid())
-  invoiceNumber          String                  @unique
+  companyId              String?
+  company                Company?                @relation(fields: [companyId], references: [id])
+  invoiceNumber          String
   issueDate              DateTime                @default(now())
   dueDate                DateTime
   totalAmount            Decimal                 @default(0) @db.Decimal(10, 2)
@@ -390,10 +496,14 @@ model Invoice {
   treasuryAuthorizations TreasuryAuthorization[]
   bankAdvices            BankAdvice[]
   paymentLinks           PaymentInvoiceLink[]
+
+  @@unique([companyId, invoiceNumber])
 }
 
 model InvoiceLine {
   id               String          @id @default(uuid())
+  companyId        String?
+  company          Company?        @relation(fields: [companyId], references: [id])
   description      String
   unitOfMeasure    String
   quantity         Decimal         @db.Decimal(10, 2)
@@ -473,7 +583,9 @@ enum SalesOrderStatus {
 
 model SalesOrder {
   id                String           @id @default(uuid())
-  number            String           @unique
+  companyId         String?
+  company           Company?         @relation(fields: [companyId], references: [id])
+  number            String
   status            SalesOrderStatus @default(DRAFT)
   clientId          String?
   client            Client?          @relation(fields: [clientId], references: [id])
@@ -494,10 +606,13 @@ model SalesOrder {
 
   @@index([clientId])
   @@index([status])
+  @@unique([companyId, number])
 }
 
 model SalesOrderLine {
   id                   String                @id @default(uuid())
+  companyId            String?
+  company              Company?              @relation(fields: [companyId], references: [id])
   salesOrderId         String
   salesOrder           SalesOrder            @relation(fields: [salesOrderId], references: [id])
   productId            String
@@ -570,7 +685,9 @@ enum ReturnOrderStatus {
 
 model PurchaseOrder {
   id               String                   @id @default(uuid())
-  number           String                   @unique
+  companyId        String?
+  company          Company?                 @relation(fields: [companyId], references: [id])
+  number           String
   supplierId       String
   supplier         Supplier                 @relation(fields: [supplierId], references: [id])
   status           PurchaseOrderStatus      @default(DRAFT)
@@ -589,10 +706,13 @@ model PurchaseOrder {
 
   @@index([supplierId])
   @@index([status])
+  @@unique([companyId, number])
 }
 
 model PurchaseOrderLine {
   id                   String                @id @default(uuid())
+  companyId            String?
+  company              Company?              @relation(fields: [companyId], references: [id])
   purchaseOrderId      String
   purchaseOrder        PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
   productId            String
@@ -624,7 +744,9 @@ model PurchaseOrderLine {
 
 model AssetPurchaseOrder {
   id            String                     @id @default(uuid())
-  number        String                     @unique
+  companyId     String?
+  company       Company?                   @relation(fields: [companyId], references: [id])
+  number        String
   status        PurchaseOrderStatus        @default(DRAFT)
   supplierId    String
   supplier      Supplier                   @relation(fields: [supplierId], references: [id])
@@ -641,10 +763,13 @@ model AssetPurchaseOrder {
 
   @@index([supplierId])
   @@index([status])
+  @@unique([companyId, number])
 }
 
 model AssetPurchaseOrderLine {
   id                    String                @id @default(uuid())
+  companyId             String?
+  company               Company?              @relation(fields: [companyId], references: [id])
   assetPurchaseOrderId  String
   assetPurchaseOrder    AssetPurchaseOrder    @relation(fields: [assetPurchaseOrderId], references: [id])
   label                 String
@@ -661,7 +786,9 @@ model AssetPurchaseOrderLine {
 
 model GoodsReceipt {
   id                 String             @id @default(uuid())
-  number             String             @unique
+  companyId          String?
+  company            Company?           @relation(fields: [companyId], references: [id])
+  number             String
   supplierId         String?
   supplier           Supplier?          @relation(fields: [supplierId], references: [id])
   receiptDate        DateTime           @default(now())
@@ -682,10 +809,13 @@ model GoodsReceipt {
   @@index([supplierId])
   @@index([status])
   @@index([createdById])
+  @@unique([companyId, number])
 }
 
 model GoodsReceiptLine {
   id                   String                 @id @default(uuid())
+  companyId            String?
+  company              Company?               @relation(fields: [companyId], references: [id])
   goodsReceiptId       String
   goodsReceipt         GoodsReceipt           @relation(fields: [goodsReceiptId], references: [id])
   purchaseOrderLineId  String?
@@ -714,18 +844,24 @@ model GoodsReceiptLine {
 
 model StorageLocation {
   id                String             @id @default(uuid())
-  code              String             @unique
+  companyId         String?
+  company           Company?           @relation(fields: [companyId], references: [id])
+  code              String
   label             String?
   description       String?
   isActive          Boolean            @default(true)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   goodsReceiptLines GoodsReceiptLine[]
+
+  @@unique([companyId, code])
 }
 
 model Product {
   id                      String                @id @default(uuid())
-  sku                     String                @unique
+  companyId               String?
+  company                 Company?              @relation(fields: [companyId], references: [id])
+  sku                     String
   name                    String
   description             String?
   unit                    String                @default("PCS")
@@ -755,11 +891,14 @@ model Product {
   @@index([name])
   @@index([inventoryAccountId])
   @@index([stockVariationAccountId])
+  @@unique([companyId, sku])
 }
 
 // Agrégat courant de stock (pour valorisation moyenne pondérée - CUMP)
 model ProductInventory {
   productId String   @id
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
   qtyOnHand Decimal  @default(0) @db.Decimal(18, 3)
   qtyStaged Decimal  @default(0) @db.Decimal(18, 3)
@@ -770,6 +909,8 @@ model ProductInventory {
 
 model StockMovement {
   id                    String               @id @default(uuid())
+  companyId             String?
+  company               Company?             @relation(fields: [companyId], references: [id])
   date                  DateTime             @default(now())
   productId             String
   product               Product              @relation(fields: [productId], references: [id])
@@ -783,7 +924,7 @@ model StockMovement {
   invoiceLine           InvoiceLine?         @relation(fields: [invoiceLineId], references: [id])
   // Provenance reception (entree)
   // Reference justificative unique (generee via Sequence). Optionnel pour backfill.
-  voucherRef            String?              @unique
+  voucherRef            String?
   goodsReceiptLineId    String?
   goodsReceiptLine      GoodsReceiptLine?    @relation(fields: [goodsReceiptLineId], references: [id])
   returnOrderLineId     String?
@@ -801,11 +942,14 @@ model StockMovement {
   @@index([returnOrderLineId])
   @@index([stockWithdrawalLineId])
   @@index([inventoryCountLineId])
+  @@unique([companyId, voucherRef])
 }
 
 model StockWithdrawal {
   id                    String                @id @default(uuid())
-  number                String                @unique
+  companyId             String?
+  company               Company?              @relation(fields: [companyId], references: [id])
+  number                String
   type                  StockWithdrawalType
   status                StockWithdrawalStatus @default(DRAFT)
   requestedById         String?
@@ -823,10 +967,13 @@ model StockWithdrawal {
   @@index([status])
   @@index([type])
   @@index([requestedById])
+  @@unique([companyId, number])
 }
 
 model StockWithdrawalLine {
   id                String          @id @default(uuid())
+  companyId         String?
+  company           Company?        @relation(fields: [companyId], references: [id])
   stockWithdrawalId String
   stockWithdrawal   StockWithdrawal @relation(fields: [stockWithdrawalId], references: [id])
   productId         String
@@ -848,7 +995,9 @@ model StockWithdrawalLine {
 
 model InventoryCount {
   id          String               @id @default(uuid())
-  number      String               @unique
+  companyId   String?
+  company     Company?             @relation(fields: [companyId], references: [id])
+  number      String
   status      InventoryCountStatus @default(DRAFT)
   countedAt   DateTime?
   postedAt    DateTime?
@@ -861,10 +1010,13 @@ model InventoryCount {
 
   @@index([status])
   @@index([createdById])
+  @@unique([companyId, number])
 }
 
 model InventoryCountLine {
   id               String                  @id @default(uuid())
+  companyId        String?
+  company          Company?                @relation(fields: [companyId], references: [id])
   inventoryCountId String
   inventoryCount   InventoryCount          @relation(fields: [inventoryCountId], references: [id])
   productId        String
@@ -887,6 +1039,8 @@ model InventoryCountLine {
 }
 model Transaction {
   id                    String                  @id @default(uuid())
+  companyId             String?
+  company               Company?                @relation(fields: [companyId], references: [id])
   date                  DateTime                @default(now())
   nature                String                  @default("payment") // 'payment' ou 'receipt'
   description           String?
@@ -948,7 +1102,9 @@ model Transaction {
 
 model IncomingInvoice {
   id                     String                  @id @default(uuid())
-  entryNumber            String                  @unique
+  companyId              String?
+  company                Company?                @relation(fields: [companyId], references: [id])
+  entryNumber            String
   receiptDate            DateTime                @default(now())
   supplierInvoiceNumber  String
   issueDate              DateTime?
@@ -976,11 +1132,14 @@ model IncomingInvoice {
   // Optionnel: empêcher doublon du même numéro fournisseur pour un même supplier
   // @@unique([supplierId, supplierInvoiceNumber])  // (commenté car supplierId nullable)
   @@index([purchaseOrderId])
-    paymentLinks           PaymentInvoiceLink[]
+  paymentLinks           PaymentInvoiceLink[]
+  @@unique([companyId, entryNumber])
 }
 
 model IncomingInvoiceLine {
   id                  String             @id @default(uuid())
+  companyId           String?
+  company             Company?           @relation(fields: [companyId], references: [id])
   description         String
   unitOfMeasure       String
   quantity            Decimal            @db.Decimal(10, 2)
@@ -1009,7 +1168,9 @@ model IncomingInvoiceLine {
 
 model ReturnOrder {
   id              String            @id @default(uuid())
-  number          String            @unique
+  companyId       String?
+  company         Company?          @relation(fields: [companyId], references: [id])
+  number          String
   status          ReturnOrderStatus @default(DRAFT)
   supplierId      String
   supplier        Supplier          @relation(fields: [supplierId], references: [id])
@@ -1033,10 +1194,13 @@ model ReturnOrder {
   @@index([purchaseOrderId])
   @@index([goodsReceiptId])
   @@index([status])
+  @@unique([companyId, number])
 }
 
 model ReturnOrderLine {
   id                  String             @id @default(uuid())
+  companyId           String?
+  company             Company?           @relation(fields: [companyId], references: [id])
   returnOrderId       String
   returnOrder         ReturnOrder        @relation(fields: [returnOrderId], references: [id])
   productId           String
@@ -1063,10 +1227,12 @@ model ReturnOrderLine {
 
 model MoneyAccount {
   id              String           @id @default(uuid())
+  companyId       String?
+  company         Company?         @relation(fields: [companyId], references: [id])
   type            MoneyAccountType
   label           String
-  code            String?          @unique
-  iban            String?          @unique
+  code            String?
+  iban            String?
   bic             String?
   bankName        String?
   currency        String           @default("EUR")
@@ -1080,10 +1246,14 @@ model MoneyAccount {
   ledgerAccount   Account?         @relation(fields: [ledgerAccountId], references: [id])
 
   @@index([ledgerAccountId])
+  @@unique([companyId, code])
+  @@unique([companyId, iban])
 }
 
 model MoneyMovement {
   id                String                 @id @default(uuid())
+  companyId          String?
+  company            Company?               @relation(fields: [companyId], references: [id])
   date              DateTime               @default(now())
   amount            Decimal                @db.Decimal(14, 2)
   direction         MovementDirection
@@ -1098,7 +1268,7 @@ model MoneyMovement {
   supplier          Supplier?              @relation(fields: [supplierId], references: [id])
   description       String?
   // Référence justificative unique (générée via Sequence) (désormais obligatoire après backfill)
-  voucherRef        String                 @unique
+  voucherRef        String
   // Lot1 linking to authorization & bank advice
   authorizationId   String?
   authorization     TreasuryAuthorization? @relation(fields: [authorizationId], references: [id])
@@ -1113,10 +1283,13 @@ model MoneyMovement {
   @@index([supplierId])
   @@index([authorizationId])
   @@index([bankAdviceId])
+  @@unique([companyId, voucherRef])
 }
 
 model PurchaseOrderStatusLog {
   id              String               @id @default(uuid())
+  companyId       String?
+  company         Company?             @relation(fields: [companyId], references: [id])
   purchaseOrderId String
   purchaseOrder   PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id])
   oldStatus       PurchaseOrderStatus?
@@ -1130,6 +1303,8 @@ model PurchaseOrderStatusLog {
 // Journalisation générique multi-entités (action fonctionnelle)
 model AuditLog {
   id         String   @id @default(uuid())
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id])
   entityType String
   entityId   String
   action     String
@@ -1142,11 +1317,13 @@ model AuditLog {
 
 model TreasuryAuthorization {
   id                   String               @id @default(uuid())
+  companyId            String?
+  company              Company?             @relation(fields: [companyId], references: [id])
   docType              AuthorizationDocType
   scope                AuthorizationScope
   flow                 FlowDirection
   status               AuthorizationStatus  @default(DRAFT)
-  docNumber            String               @unique
+  docNumber            String
   issueDate            DateTime
   amount               Decimal              @db.Decimal(14, 2)
   currency             String               @default("EUR")
@@ -1168,10 +1345,13 @@ model TreasuryAuthorization {
 
   @@index([docType, issueDate])
   @@index([status])
+  @@unique([companyId, docNumber])
 }
 
 model BankAdvice {
   id                String                 @id @default(uuid())
+  companyId         String?
+  company           Company?               @relation(fields: [companyId], references: [id])
   adviceType        BankAdviceType
   refNumber         String?
   adviceDate        DateTime
@@ -1222,15 +1402,17 @@ model BankAdvice {
 
   model Employee {
     id            String    @id @default(uuid())
+    companyId     String?
+    company       Company?  @relation(fields: [companyId], references: [id])
     firstName     String
     lastName      String
-    email         String?   @unique
+    email         String?
     phone         String?
     address       String?
     birthDate     DateTime?
     hireDate      DateTime?
     endDate       DateTime?
-    employeeNumber String?  @unique // matricule
+    employeeNumber String?  // matricule
     gender        Gender?
     maritalStatus MaritalStatus?
     childrenUnder18 Int? @default(0)
@@ -1250,10 +1432,15 @@ model BankAdvice {
     variables     PayrollVariable[]
     createdAt     DateTime  @default(now())
     updatedAt     DateTime  @updatedAt
+
+    @@unique([companyId, email])
+    @@unique([companyId, employeeNumber])
   }
 
   model Position {
     id          String     @id @default(uuid())
+    companyId   String?
+    company     Company?   @relation(fields: [companyId], references: [id])
     title       String
     description String?
     baremeId    String?
@@ -1266,6 +1453,8 @@ model BankAdvice {
 
   model EmployeeHistory {
     id          String    @id @default(uuid())
+    companyId   String?
+    company     Company?  @relation(fields: [companyId], references: [id])
     employeeId  String
     employee    Employee  @relation(fields: [employeeId], references: [id])
     changeDate  DateTime  @default(now())
@@ -1276,6 +1465,8 @@ model BankAdvice {
   // Barème salarial de référence (catégorie, tension, salaire légal)
   model Bareme {
     id          String     @id @default(uuid())
+    companyId   String?
+    company     Company?   @relation(fields: [companyId], references: [id])
     category    String
     categoryDescription String?
     tension     String?
@@ -1283,6 +1474,8 @@ model BankAdvice {
     positions   Position[]
     createdAt   DateTime   @default(now())
     updatedAt   DateTime   @updatedAt
+
+    @@unique([companyId, category])
   }
 
   // =============================
@@ -1320,7 +1513,9 @@ model BankAdvice {
 
   model PayrollPeriod {
     id       String               @id @default(uuid())
-    ref      String               @unique
+    companyId String?
+    company   Company?            @relation(fields: [companyId], references: [id])
+    ref      String
     month    Int
     year     Int
     status   PayrollPeriodStatus  @default(OPEN)
@@ -1333,11 +1528,15 @@ model BankAdvice {
     variables   PayrollVariable[]
 
     @@index([year, month])
+    @@unique([companyId, ref])
+    @@index([companyId, year, month])
   }
 
   model Payslip {
     id         String          @id @default(uuid())
-    ref        String          @unique
+    companyId  String?
+    company    Company?        @relation(fields: [companyId], references: [id])
+    ref        String
     employeeId String
     employee   Employee        @relation(fields: [employeeId], references: [id])
     periodId   String
@@ -1353,10 +1552,13 @@ model BankAdvice {
 
     @@index([employeeId])
     @@index([periodId])
+    @@unique([companyId, ref])
   }
 
   model PayslipLine {
     id         String          @id @default(uuid())
+    companyId  String?
+    company    Company?        @relation(fields: [companyId], references: [id])
     payslipId  String
     payslip    Payslip         @relation(fields: [payslipId], references: [id])
     kind       PayslipLineKind
@@ -1370,7 +1572,9 @@ model BankAdvice {
 
   model ContributionScheme {
     id            String               @id @default(uuid())
-    code          String               @unique
+    companyId     String?
+    company       Company?             @relation(fields: [companyId], references: [id])
+    code          String
     label         String
     employeeRate  Decimal              @db.Decimal(8, 6) // 0-1
     employerRate  Decimal              @db.Decimal(8, 6) // 0-1
@@ -1381,11 +1585,15 @@ model BankAdvice {
     meta          Json?
     createdAt     DateTime             @default(now())
     updatedAt     DateTime             @updatedAt
+
+    @@unique([companyId, code])
   }
 
   model TaxRule {
     id           String           @id @default(uuid())
-    code         String           @unique
+    companyId    String?
+    company      Company?         @relation(fields: [companyId], references: [id])
+    code         String
     label        String
     brackets     Json             // [{max:null|number, rate, deduction?}]
     roundingMode TaxRoundingMode  @default(BANKERS)
@@ -1393,11 +1601,15 @@ model BankAdvice {
     meta         Json?
     createdAt    DateTime         @default(now())
     updatedAt    DateTime         @updatedAt
+
+    @@unique([companyId, code])
   }
 
   model CostCenter {
     id       String  @id @default(uuid())
-    code     String  @unique
+    companyId String?
+    company   Company? @relation(fields: [companyId], references: [id])
+    code     String
     label    String
     active   Boolean @default(true)
     createdAt DateTime @default(now())
@@ -1408,10 +1620,14 @@ model BankAdvice {
     transactions       Transaction[]
     // Phase A back-relations
     payrollVariables   PayrollVariable[]
+
+    @@unique([companyId, code])
   }
 
   model EmployeeCostAllocation {
     id           String   @id @default(uuid())
+    companyId    String?
+    company      Company? @relation(fields: [companyId], references: [id])
     employeeId   String
     employee     Employee @relation(fields: [employeeId], references: [id])
     costCenterId String
@@ -1424,6 +1640,8 @@ model BankAdvice {
 
   model PayslipCostAllocation {
     id           String     @id @default(uuid())
+    companyId    String?
+    company      Company?   @relation(fields: [companyId], references: [id])
     payslipId    String
     payslip      Payslip    @relation(fields: [payslipId], references: [id])
     costCenterId String
@@ -1437,17 +1655,23 @@ model BankAdvice {
 
 model PayrollAccountMapping {
   id            String  @id @default(uuid())
-  code          String  @unique
+  companyId     String?
+  company       Company? @relation(fields: [companyId], references: [id])
+  code          String
   accountId     String?
   accountNumber String?
   label         String
   active        Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, code])
 }
 
 model FxRate {
   id            String   @id @default(uuid())
+  companyId     String?
+  company       Company? @relation(fields: [companyId], references: [id])
   date          DateTime
   baseCurrency  String
   quoteCurrency String
@@ -1455,7 +1679,7 @@ model FxRate {
   source        String?
   createdAt     DateTime @default(now())
 
-  @@unique([date, baseCurrency, quoteCurrency])
+  @@unique([companyId, date, baseCurrency, quoteCurrency])
 }
 
 // =============================
@@ -1479,7 +1703,9 @@ enum DepreciationLineStatus {
 
 model AssetCategory {
   id                         String   @id @default(uuid())
-  code                       String   @unique
+  companyId                  String?
+  company                    Company? @relation(fields: [companyId], references: [id])
+  code                       String
   label                      String
   durationMonths             Int
   method                     DepreciationMethod @default(LINEAR)
@@ -1504,11 +1730,15 @@ model AssetCategory {
   assetPurchaseOrderLines    AssetPurchaseOrderLine[]
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
+
+  @@unique([companyId, code])
 }
 
 model Asset {
   id               String            @id @default(uuid())
-  ref              String            @unique
+  companyId         String?
+  company           Company?         @relation(fields: [companyId], references: [id])
+  ref              String
   label            String
   categoryId       String
   category         AssetCategory     @relation(fields: [categoryId], references: [id])
@@ -1527,10 +1757,13 @@ model Asset {
 
   @@index([categoryId])
   @@index([status])
+  @@unique([companyId, ref])
 }
 
 model DepreciationLine {
   id             String                 @id @default(uuid())
+  companyId      String?
+  company        Company?               @relation(fields: [companyId], references: [id])
   assetId        String
   asset          Asset                  @relation(fields: [assetId], references: [id])
   year           Int
@@ -1549,16 +1782,20 @@ model DepreciationLine {
 
 model DepreciationPeriodLock {
   id       String   @id @default(uuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
   year     Int
   month    Int
   lockedAt DateTime @default(now())
   note     String?
 
-  @@unique([year, month], name: "year_month")
+  @@unique([companyId, year, month], name: "year_month")
 }
 
 model AssetDisposal {
   id             String       @id @default(uuid())
+  companyId      String?
+  company        Company?     @relation(fields: [companyId], references: [id])
   assetId        String
   asset          Asset        @relation(fields: [assetId], references: [id])
   date           DateTime
@@ -1586,6 +1823,8 @@ model AssetDisposal {
 
   model EmployeeAttendance {
     id           String        @id @default(uuid())
+    companyId    String?
+    company      Company?      @relation(fields: [companyId], references: [id])
     periodId     String
     period       PayrollPeriod @relation(fields: [periodId], references: [id])
     employeeId   String
@@ -1604,6 +1843,8 @@ model AssetDisposal {
 
 model PayrollVariable {
     id           String              @id @default(uuid())
+    companyId    String?
+    company      Company?            @relation(fields: [companyId], references: [id])
     periodId     String
     period       PayrollPeriod       @relation(fields: [periodId], references: [id])
     employeeId   String
@@ -1660,6 +1901,8 @@ enum CapitalPaymentMethod {
 
 model Shareholder {
   id          String   @id @default(uuid())
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
   name        String
   type        ShareholderType
   email       String?
@@ -1673,7 +1916,9 @@ model Shareholder {
 
 model CapitalOperation {
   id             String                @id @default(uuid())
-  ref            String                @unique
+  companyId      String?
+  company        Company?              @relation(fields: [companyId], references: [id])
+  ref            String
   type           CapitalOperationType
   form           CapitalForm
   status         CapitalStatus         @default(DRAFT)
@@ -1687,10 +1932,14 @@ model CapitalOperation {
   updatedAt      DateTime              @updatedAt
   subscriptions  CapitalSubscription[]
   calls          CapitalCall[]
+
+  @@unique([companyId, ref])
 }
 
 model CapitalSubscription {
   id               String           @id @default(uuid())
+  companyId         String?
+  company           Company?         @relation(fields: [companyId], references: [id])
   capitalOperationId String
   capitalOperation CapitalOperation @relation(fields: [capitalOperationId], references: [id])
   shareholderId    String
@@ -1710,6 +1959,8 @@ model CapitalSubscription {
 
 model CapitalCall {
   id                 String               @id @default(uuid())
+  companyId          String?
+  company            Company?             @relation(fields: [companyId], references: [id])
   capitalOperationId String
   capitalOperation   CapitalOperation     @relation(fields: [capitalOperationId], references: [id])
   subscriptionId     String?
@@ -1729,6 +1980,8 @@ model CapitalCall {
 
 model CapitalPayment {
   id             String               @id @default(uuid())
+  companyId      String?
+  company        Company?             @relation(fields: [companyId], references: [id])
   callId         String
   call           CapitalCall          @relation(fields: [callId], references: [id])
   amount         Decimal              @db.Decimal(16, 2)

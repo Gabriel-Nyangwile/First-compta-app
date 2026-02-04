@@ -13,8 +13,10 @@ function asNumber(v) {
   return Number(v || 0);
 }
 
-async function resolveAccountIdByNumber(tx, accountNumber) {
-  const acc = await tx.account.findFirst({ where: { number: accountNumber } });
+async function resolveAccountIdByNumber(tx, accountNumber, companyId) {
+  const acc = await tx.account.findFirst({
+    where: { number: accountNumber, ...(companyId ? { companyId } : {}) },
+  });
   if (!acc) throw new Error(`Compte ${accountNumber} introuvable`);
   return acc.id;
 }
@@ -23,9 +25,13 @@ async function resolveAccountIdByNumber(tx, accountNumber) {
  * Posting de paiement d'appel de fonds (libération) :
  * Dr 52/57 (accountId choisi) / Cr 4612
  */
-export async function postCapitalPayment(tx, { payment, account }) {
+export async function postCapitalPayment(tx, { payment, account, companyId }) {
   const amount = asNumber(payment.amount);
-  const creditAccId = await resolveAccountIdByNumber(tx, ACCOUNT_4612);
+  const creditAccId = await resolveAccountIdByNumber(
+    tx,
+    ACCOUNT_4612,
+    companyId
+  );
   const debit = await tx.transaction.create({
     data: {
       date: new Date(payment.paymentDate || new Date()),
@@ -34,6 +40,7 @@ export async function postCapitalPayment(tx, { payment, account }) {
       direction: "DEBIT",
       kind: "CAPITAL_PAYMENT",
       accountId: account.id,
+      companyId: companyId || null,
     },
   });
   const credit = await tx.transaction.create({
@@ -44,6 +51,7 @@ export async function postCapitalPayment(tx, { payment, account }) {
       direction: "CREDIT",
       kind: "CAPITAL_PAYMENT",
       accountId: creditAccId,
+      companyId: companyId || null,
     },
   });
   const je = await finalizeBatchToJournal(tx, {
@@ -64,13 +72,13 @@ export async function postCapitalPayment(tx, { payment, account }) {
  * Dr 4612 / Cr 109
  * Dr 1011 / Cr 1012
  */
-export async function postCapitalCall(tx, { call }) {
+export async function postCapitalCall(tx, { call, companyId }) {
   const amt = asNumber(call.amountCalled);
   if (!(amt > 0)) return null;
-  const acc4612 = await resolveAccountIdByNumber(tx, ACCOUNT_4612);
-  const acc109 = await resolveAccountIdByNumber(tx, ACCOUNT_109);
-  const acc1011 = await resolveAccountIdByNumber(tx, ACCOUNT_1011);
-  const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012);
+  const acc4612 = await resolveAccountIdByNumber(tx, ACCOUNT_4612, companyId);
+  const acc109 = await resolveAccountIdByNumber(tx, ACCOUNT_109, companyId);
+  const acc1011 = await resolveAccountIdByNumber(tx, ACCOUNT_1011, companyId);
+  const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012, companyId);
   const date = call.dueDate ? new Date(call.dueDate) : new Date();
   const txs = [];
   txs.push(
@@ -82,6 +90,7 @@ export async function postCapitalCall(tx, { call }) {
       direction: "DEBIT",
       kind: "CAPITAL_CALL",
       accountId: acc4612,
+      companyId: companyId || null,
     },
   }),
   await tx.transaction.create({
@@ -92,6 +101,7 @@ export async function postCapitalCall(tx, { call }) {
       direction: "CREDIT",
       kind: "CAPITAL_CALL",
       accountId: acc109,
+      companyId: companyId || null,
     },
   }),
   await tx.transaction.create({
@@ -102,6 +112,7 @@ export async function postCapitalCall(tx, { call }) {
       direction: "DEBIT",
       kind: "CAPITAL_CALL",
       accountId: acc1011,
+      companyId: companyId || null,
     },
   }),
   await tx.transaction.create({
@@ -112,6 +123,7 @@ export async function postCapitalCall(tx, { call }) {
       direction: "CREDIT",
       kind: "CAPITAL_CALL",
       accountId: acc1012,
+      companyId: companyId || null,
     },
   })
   );
@@ -132,14 +144,17 @@ export async function postCapitalCall(tx, { call }) {
  * Cr 1011 (contrepartie du 109)
  * amountCalled: part appelée immédiatement, amountNotCalled: solde non appelé
  */
-export async function postCapitalSubscription(tx, { subscription, amountCalled, amountNotCalled }) {
+export async function postCapitalSubscription(
+  tx,
+  { subscription, amountCalled, amountNotCalled, companyId }
+) {
   const called = asNumber(amountCalled);
   const notCalled = asNumber(amountNotCalled);
   const txs = [];
-  const acc4612 = await resolveAccountIdByNumber(tx, ACCOUNT_4612);
-  const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012);
-  const acc109 = await resolveAccountIdByNumber(tx, ACCOUNT_109);
-  const acc1011 = await resolveAccountIdByNumber(tx, ACCOUNT_1011);
+  const acc4612 = await resolveAccountIdByNumber(tx, ACCOUNT_4612, companyId);
+  const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012, companyId);
+  const acc109 = await resolveAccountIdByNumber(tx, ACCOUNT_109, companyId);
+  const acc1011 = await resolveAccountIdByNumber(tx, ACCOUNT_1011, companyId);
   const date = new Date();
   if (called > 0) {
     txs.push(
@@ -151,6 +166,7 @@ export async function postCapitalSubscription(tx, { subscription, amountCalled, 
           direction: "DEBIT",
           kind: "CAPITAL_SUBSCRIPTION",
           accountId: acc4612,
+          companyId: companyId || null,
         },
       }),
       await tx.transaction.create({
@@ -161,6 +177,7 @@ export async function postCapitalSubscription(tx, { subscription, amountCalled, 
           direction: "CREDIT",
           kind: "CAPITAL_SUBSCRIPTION",
           accountId: acc1012,
+          companyId: companyId || null,
         },
       })
     );
@@ -175,6 +192,7 @@ export async function postCapitalSubscription(tx, { subscription, amountCalled, 
           direction: "DEBIT",
           kind: "CAPITAL_SUBSCRIPTION",
           accountId: acc109,
+          companyId: companyId || null,
         },
       }),
       await tx.transaction.create({
@@ -185,6 +203,7 @@ export async function postCapitalSubscription(tx, { subscription, amountCalled, 
           direction: "CREDIT",
           kind: "CAPITAL_SUBSCRIPTION",
           accountId: acc1011,
+          companyId: companyId || null,
         },
       })
     );
@@ -202,11 +221,14 @@ export async function postCapitalSubscription(tx, { subscription, amountCalled, 
 /**
  * Régularisation finale : Dr 1012 / Cr 1013
  */
-export async function postCapitalRegularization(tx, { capitalOperationId, amount }) {
+export async function postCapitalRegularization(
+  tx,
+  { capitalOperationId, amount, companyId }
+) {
   const amt = asNumber(amount);
   if (!(amt > 0)) return null;
-  const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012);
-  const acc1013 = await resolveAccountIdByNumber(tx, ACCOUNT_1013);
+  const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012, companyId);
+  const acc1013 = await resolveAccountIdByNumber(tx, ACCOUNT_1013, companyId);
   const date = new Date();
   const txs = [
     await tx.transaction.create({
@@ -217,6 +239,7 @@ export async function postCapitalRegularization(tx, { capitalOperationId, amount
       direction: "DEBIT",
       kind: "CAPITAL_REGULARIZATION",
       accountId: acc1012,
+      companyId: companyId || null,
     },
   }),
   await tx.transaction.create({
@@ -227,6 +250,7 @@ export async function postCapitalRegularization(tx, { capitalOperationId, amount
       direction: "CREDIT",
       kind: "CAPITAL_REGULARIZATION",
       accountId: acc1013,
+      companyId: companyId || null,
     },
   }),
 ];

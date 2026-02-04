@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/accounts?q= | prefix=
 // Simple listing used for auto-fill (id, number, label)
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q');
     const prefix = searchParams.get('prefix');
-    const where = {};
+    const where = { companyId };
     if (q) {
       where.OR = [
         { number: { contains: q } },

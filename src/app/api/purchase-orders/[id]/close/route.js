@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { audit } from "@/lib/audit";
+import { requireCompanyId } from "@/lib/tenant";
+
+async function resolveParams(maybeCtx) {
+  let ctx = maybeCtx;
+  if (ctx && typeof ctx.then === "function") ctx = await ctx;
+  let p = ctx?.params ?? ctx;
+  if (p && typeof p.then === "function") p = await p;
+  return p || {};
+}
 
 // POST /api/purchase-orders/[id]/close
 // Force manuelle de clôture: passe à CLOSED si statut actuel est RECEIVED ou APPROVED/PARTIAL sans reste.
 export async function POST(request, rawContext) {
   try {
-    const context = await rawContext;
-    const id = context?.params?.id;
+    const companyId = requireCompanyId(request);
+    const params = await resolveParams(rawContext);
+    const id = params?.id;
     if (!id)
       return NextResponse.json(
         { error: "Paramètre id manquant." },
@@ -18,7 +28,7 @@ export async function POST(request, rawContext) {
     const expectsHtml = acceptHeader.includes("text/html");
 
     const po = await prisma.purchaseOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: { lines: true },
     });
     if (!po)
@@ -51,11 +61,12 @@ export async function POST(request, rawContext) {
     }
     const updated = await prisma.$transaction(async (tx) => {
       const up = await tx.purchaseOrder.update({
-        where: { id },
+        where: { id, companyId },
         data: { status: "CLOSED" },
       });
       await tx.purchaseOrderStatusLog.create({
         data: {
+          companyId,
           purchaseOrderId: id,
           oldStatus: po.status,
           newStatus: "CLOSED",

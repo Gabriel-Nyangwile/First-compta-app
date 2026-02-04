@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireInventoryPermission } from "@/app/api/_lib/auth";
+import { requireCompanyId } from "@/lib/tenant";
 
 function toNumber(value) {
   if (value == null) return 0;
@@ -28,7 +29,9 @@ function csvEscape(value) {
 export async function GET(request) {
   try {
     requireInventoryPermission(request);
+    const companyId = requireCompanyId(request);
     const counts = await prisma.inventoryCount.findMany({
+      where: { companyId },
       orderBy: { createdAt: "asc" },
       include: {
         lines: {

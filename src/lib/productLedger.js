@@ -10,7 +10,7 @@ export const VARIATION_ACCOUNT_PREFIX = {
 
 export async function validateProductLedgerAccounts(
   client,
-  { stockNature, inventoryAccountId, stockVariationAccountId }
+  { stockNature, inventoryAccountId, stockVariationAccountId, companyId }
 ) {
   const prismaClient = client || prisma;
   if (!inventoryAccountId || !stockVariationAccountId) {
@@ -20,7 +20,10 @@ export async function validateProductLedgerAccounts(
   }
 
   const accounts = await prismaClient.account.findMany({
-    where: { id: { in: [inventoryAccountId, stockVariationAccountId] } },
+    where: {
+      id: { in: [inventoryAccountId, stockVariationAccountId] },
+      ...(companyId ? { companyId } : {}),
+    },
     select: { id: true, number: true, label: true },
   });
 

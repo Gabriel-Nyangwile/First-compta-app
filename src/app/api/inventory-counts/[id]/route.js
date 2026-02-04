@@ -7,6 +7,7 @@ import {
   recordInventoryCountLine,
 } from "@/lib/inventoryCount";
 import { requireInventoryPermission } from "@/app/api/_lib/auth";
+import { requireCompanyId } from "@/lib/tenant";
 
 async function resolveParams(context) {
   if (context?.params) {
@@ -18,8 +19,9 @@ async function resolveParams(context) {
   return context ?? {};
 }
 
-export async function GET(_request, context) {
+export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const params = await resolveParams(context);
     const { id } = params;
     if (!id) {
@@ -28,7 +30,7 @@ export async function GET(_request, context) {
         { status: 400 }
       );
     }
-    const count = await getInventoryCount(id);
+    const count = await getInventoryCount(id, companyId);
     return NextResponse.json(count);
   } catch (error) {
     if (error?.message === "INVENTORY_COUNT_NOT_FOUND") {
@@ -48,6 +50,7 @@ export async function GET(_request, context) {
 export async function PUT(request, context) {
   try {
     requireInventoryPermission(request);
+    const companyId = requireCompanyId(request);
     const params = await resolveParams(context);
     const { id } = params;
     if (!id) {
@@ -80,22 +83,23 @@ export async function PUT(request, context) {
         inventoryCountId: id,
         lineId,
         countedQty,
+        companyId,
       });
       return NextResponse.json(updated);
     }
 
     if (action === "COMPLETE") {
-      const updated = await completeInventoryCount(id);
+      const updated = await completeInventoryCount(id, companyId);
       return NextResponse.json(updated);
     }
 
     if (action === "POST") {
-      const updated = await postInventoryCount(id);
+      const updated = await postInventoryCount(id, companyId);
       return NextResponse.json(updated);
     }
 
     if (action === "CANCEL") {
-      const updated = await cancelInventoryCount(id);
+      const updated = await cancelInventoryCount(id, companyId);
       return NextResponse.json(updated);
     }
 

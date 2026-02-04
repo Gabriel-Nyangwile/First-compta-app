@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { nextSequence } from "@/lib/sequence";
+import { requireCompanyId } from "@/lib/tenant";
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const ops = await prisma.capitalOperation.findMany({
+      where: { companyId },
       orderBy: { createdAt: "desc" },
       include: {
         subscriptions: {
@@ -26,6 +29,7 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const { type, form, nominalTarget, premiumTarget, resolutionDate, decisionRef, note } = body;
     if (!type || !form) {
@@ -35,10 +39,11 @@ export async function POST(req) {
       return NextResponse.json({ error: "nominalTarget requis" }, { status: 400 });
     }
     const op = await prisma.$transaction(async (tx) => {
-      const ref = await nextSequence(tx, "CAPITAL_OP", "CAP-");
+      const ref = await nextSequence(tx, "CAPITAL_OP", "CAP-", companyId);
       return tx.capitalOperation.create({
         data: {
           ref,
+          companyId,
           type,
           form,
           nominalTarget: nominalTarget.toString(),

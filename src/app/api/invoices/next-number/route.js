@@ -1,13 +1,16 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/invoices/next-number
-export async function GET() {
+export async function GET(req) {
+  const companyId = requireCompanyId(req);
   const now = new Date();
   const year = now.getFullYear();
   // Chercher la dernière facture de l'année en cours
   const lastInvoice = await prisma.invoice.findFirst({
     where: {
+      companyId,
       invoiceNumber: {
         startsWith: `Numero-${year}/`,
       },

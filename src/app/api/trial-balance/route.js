@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 export const revalidate = 60; // cache hint
 export const dynamic = "force-dynamic"; // uses request.url (searchParams)
@@ -14,6 +15,7 @@ const toNumber = (value) => {
 // GET /api/trial-balance?dateFrom=&dateTo=&format=csv&includeZero=
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -31,7 +33,9 @@ export async function GET(request) {
       }
       filters.push({ date: range });
     }
-    const where = filters.length ? { AND: filters } : undefined;
+    const where = filters.length
+      ? { AND: [{ companyId }, ...filters] }
+      : { companyId };
 
     const transactions = await prisma.transaction.findMany({
       where,

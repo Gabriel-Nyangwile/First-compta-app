@@ -1,9 +1,11 @@
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = params;
-  const entry = await prisma.journalEntry.findUnique({
-    where: { id },
+  const entry = await prisma.journalEntry.findFirst({
+    where: { id, companyId },
     include: { lines: { orderBy: { date: 'asc' }, include: { account: { select: { number: true, label: true } } } } }
   });
   if (!entry) return new Response('Not found', { status: 404 });

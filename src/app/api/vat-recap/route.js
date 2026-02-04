@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { computeVatRecap } from '@/lib/vatRecap';
 import { formatAmountPlain, formatRatePercent } from '@/lib/utils';
+import { requireCompanyId } from '@/lib/tenant';
 
 function toCSV(data) {
   const header = ['period','direction','rate','ratePercent','base','vat'];
@@ -16,6 +17,7 @@ function toCSV(data) {
 
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
@@ -23,7 +25,13 @@ export async function GET(req) {
     const includeZero = searchParams.get('includeZero') === 'true';
     const format = searchParams.get('format') || 'json';
 
-    const recap = await computeVatRecap({ from, to, granularity, includeZero });
+    const recap = await computeVatRecap({
+      companyId,
+      from,
+      to,
+      granularity,
+      includeZero,
+    });
 
     if (format === 'csv') {
       const csv = toCSV(recap);

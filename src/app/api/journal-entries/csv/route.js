@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -8,9 +9,11 @@ const toNumber = (value) => {
   return value.toNumber?.() ?? Number(value) ?? 0;
 };
 
-export async function GET(_req) {
+export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const entries = await prisma.journalEntry.findMany({
+      where: { companyId },
       orderBy: [{ date: "asc" }, { number: "asc" }],
       include: {
         lines: {

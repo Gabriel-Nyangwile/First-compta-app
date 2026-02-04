@@ -1,11 +1,13 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { Decimal } from '@prisma/client/runtime/library';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/invoices/search-unpaid?query=...&limit=20
 // Retourne les factures client non soldées (PENDING ou PARTIAL)
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('query')?.trim() || '';
     const limit = Math.min(parseInt(searchParams.get('limit') || '40', 10), 100);
@@ -16,6 +18,7 @@ export async function GET(req) {
       FROM "Invoice" i
       LEFT JOIN "Client" c ON c."id" = i."clientId"
       WHERE i."status" IN ('PENDING','PARTIAL','OVERDUE')
+        AND i."companyId" = ${companyId}
       ORDER BY i."issueDate" DESC
       LIMIT ${Math.min(limit * 5, 500)}
     `;

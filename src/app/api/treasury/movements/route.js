@@ -3,9 +3,11 @@ import {
   createMoneyMovement,
   listMoneyMovements,
 } from "@/lib/serverActions/money";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const moneyAccountId = searchParams.get("moneyAccountId");
     if (!moneyAccountId) {
@@ -28,6 +30,7 @@ export async function GET(req) {
     const kind = searchParams.get("kind") || undefined;
 
     const { rows, nextCursor } = await listMoneyMovements({
+      companyId,
       moneyAccountId,
       supplierId,
       incomingInvoiceId,
@@ -49,6 +52,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const normalizedDirection = body.direction
       ? String(body.direction).toUpperCase()
@@ -80,6 +84,7 @@ export async function POST(req) {
       );
     }
     const movement = await createMoneyMovement({
+      companyId,
       moneyAccountId: body.moneyAccountId,
       amount: body.amount,
       direction: normalizedDirection,

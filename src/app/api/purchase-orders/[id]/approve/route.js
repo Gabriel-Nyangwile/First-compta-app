@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 async function resolveParams(maybeCtx) {
   let ctx = maybeCtx;
@@ -13,6 +14,7 @@ async function resolveParams(maybeCtx) {
 // Approve a purchase order currently in DRAFT status.
 export async function POST(request, rawContext) {
   try {
+    const companyId = requireCompanyId(request);
     const params = await resolveParams(rawContext);
     const id = params?.id;
     if (!id) {
@@ -24,7 +26,7 @@ export async function POST(request, rawContext) {
     }
     // Inline approval to avoid any module resolution issues
     const po = await prisma.purchaseOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       select: { id: true, status: true },
     });
     if (!po) {
@@ -41,11 +43,12 @@ export async function POST(request, rawContext) {
     }
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.purchaseOrder.update({
-        where: { id },
+        where: { id, companyId },
         data: { status: "APPROVED" },
       });
       await tx.purchaseOrderStatusLog.create({
         data: {
+          companyId,
           purchaseOrderId: id,
           oldStatus: po.status,
           newStatus: "APPROVED",

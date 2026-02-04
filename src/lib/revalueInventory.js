@@ -1,13 +1,24 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-export async function revalueProducts({ productIds = null, strict = false } = {}) {
-  const where = productIds && productIds.length ? { id: { in: productIds } } : {};
-  const products = await prisma.product.findMany({ where, select: { id: true, sku: true, name: true } });
+export async function revalueProducts({
+  companyId = null,
+  productIds = null,
+  strict = false,
+} = {}) {
+  if (!companyId) throw new Error("companyId requis");
+  const where =
+    productIds && productIds.length
+      ? { id: { in: productIds }, companyId }
+      : { companyId };
+  const products = await prisma.product.findMany({
+    where,
+    select: { id: true, sku: true, name: true },
+  });
   const results = [];
   for (const p of products) {
     const movements = await prisma.stockMovement.findMany({
-      where: { productId: p.id },
+      where: { productId: p.id, companyId },
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }]
     });
     let qty = 0; // numeric
@@ -77,8 +88,16 @@ export async function revalueProducts({ productIds = null, strict = false } = {}
     }
     await prisma.productInventory.upsert({
       where: { productId: p.id },
-      update: { qtyOnHand: qty.toFixed(3), avgCost: avg != null ? avg.toFixed(4) : null },
-      create: { productId: p.id, qtyOnHand: qty.toFixed(3), avgCost: avg != null ? avg.toFixed(4) : null }
+      update: {
+        qtyOnHand: qty.toFixed(3),
+        avgCost: avg != null ? avg.toFixed(4) : null,
+      },
+      create: {
+        productId: p.id,
+        companyId,
+        qtyOnHand: qty.toFixed(3),
+        avgCost: avg != null ? avg.toFixed(4) : null,
+      }
     });
     results.push({ productId: p.id, sku: p.sku, name: p.name, qtyOnHand: qty, avgCost: avg, updatedMovements: changes.length, warnings });
   }
@@ -88,7 +107,8 @@ export async function revalueProducts({ productIds = null, strict = false } = {}
 // Allow script execution
 if (process.argv[1] && process.argv[1].includes('revalueInventory')) {
   (async () => {
-    const res = await revalueProducts();
+    const companyId = process.env.DEFAULT_COMPANY_ID || null;
+    const res = await revalueProducts({ companyId });
     console.table(res.map(r => ({ sku: r.sku, qty: r.qtyOnHand, avg: r.avgCost, updates: r.updatedMovements })));
     process.exit(0);
   })();

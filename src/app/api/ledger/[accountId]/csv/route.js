@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -8,21 +9,22 @@ const toNumber = (value) => {
   return value.toNumber?.() ?? Number(value) ?? 0;
 };
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   try {
+    const companyId = requireCompanyId(req);
     const { accountId } = params;
     if (!accountId) {
       return new Response("Paramètre accountId manquant", { status: 400 });
     }
-    const account = await prisma.account.findUnique({
-      where: { id: accountId },
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, companyId },
       select: { id: true, number: true, label: true },
     });
     if (!account) {
       return new Response("Compte introuvable", { status: 404 });
     }
     const transactions = await prisma.transaction.findMany({
-      where: { accountId },
+      where: { accountId, companyId },
       orderBy: [{ date: "asc" }, { id: "asc" }],
       include: {
         journalEntry: { select: { number: true } },

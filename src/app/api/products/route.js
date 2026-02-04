@@ -4,20 +4,23 @@ import {
   STOCK_NATURES,
   validateProductLedgerAccounts,
 } from "@/lib/productLedger";
+import { requireCompanyId } from "@/lib/tenant";
 
 // GET /api/products?q=term&active=1
 export async function GET(request) {
+  const companyId = requireCompanyId(request);
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
   const active = searchParams.get("active");
   const where = q
     ? {
+        companyId,
         OR: [
           { sku: { contains: q, mode: "insensitive" } },
           { name: { contains: q, mode: "insensitive" } },
         ],
       }
-    : undefined;
+    : { companyId };
   try {
     let products = await prisma.product.findMany({
       where,
@@ -47,6 +50,7 @@ export async function GET(request) {
 // POST /api/products { sku, name, description?, unit?, stockNature?, inventoryAccountId, stockVariationAccountId }
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const sku = String(body.sku || "").trim();
     const name = String(body.name || "").trim();
@@ -77,6 +81,7 @@ export async function POST(request) {
         stockNature,
         inventoryAccountId,
         stockVariationAccountId,
+        companyId,
       });
     } catch (validationError) {
       return NextResponse.json(
@@ -87,6 +92,7 @@ export async function POST(request) {
 
     const product = await prisma.product.create({
       data: {
+        companyId,
         sku,
         name,
         description,

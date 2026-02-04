@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createMoneyAccount } from '@/lib/serverActions/money';
+import { requireCompanyId } from '@/lib/tenant';
 
 // POST /api/treasury/accounts/create  { type: 'BANK'|'CASH', label, code?, currency?, openingBalance? }
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const { type, label, code, currency, openingBalance } = body || {};
-    const acc = await createMoneyAccount({ type, label, code, currency, openingBalance });
+    const acc = await createMoneyAccount({
+      companyId,
+      type,
+      label,
+      code,
+      currency,
+      openingBalance,
+    });
     return NextResponse.json({ ok: true, account: acc });
   } catch (e) {
     console.error('create money account error', e);

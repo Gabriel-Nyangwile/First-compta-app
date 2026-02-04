@@ -2,11 +2,13 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { embedLogo, formatDateFR, drawLinesTable, drawRecapBreakdown, drawPageHeader, drawFooter, drawCompanyIdentity, drawDraftWatermark, loadPrimaryFont, computeVatBreakdown } from '@/lib/pdf/utils';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
-  const invoice = await prisma.incomingInvoice.findUnique({
-    where: { id },
+  const invoice = await prisma.incomingInvoice.findFirst({
+    where: { id, companyId },
     include: {
       supplier: true,
       purchaseOrder: { select: { id: true, number: true } },

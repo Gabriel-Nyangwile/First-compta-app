@@ -1,14 +1,17 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/incoming-invoices/search-unpaid?query=...&limit=20
 // Retourne factures fournisseurs non soldées (PENDING / PARTIAL / OVERDUE)
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('query')?.trim() || '';
     const limit = Math.min(parseInt(searchParams.get('limit') || '40', 10), 100);
     const where = {
+      companyId,
       status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
       ...(q
         ? {

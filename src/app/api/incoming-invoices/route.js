@@ -2,18 +2,19 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSystemAccounts } from "@/lib/systemAccounts";
 import { finalizeBatchToJournal } from "@/lib/journal";
+import { requireCompanyId } from "@/lib/tenant";
 // Avoid top-level import from app route helpers to reduce edge bundling issues; import dynamically when needed.
 
 const EPS = 1e-9;
 
 // Génère le prochain numéro d'entrée séquentiel EI-YYYY-0001
-async function generateNextEntryNumber(tx) {
+async function generateNextEntryNumber(tx, companyId) {
   const now = new Date();
   const year = now.getFullYear();
   const startOfYear = new Date(year, 0, 1);
   const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999);
   const count = await tx.incomingInvoice.count({
-    where: { receiptDate: { gte: startOfYear, lte: endOfYear } },
+    where: { receiptDate: { gte: startOfYear, lte: endOfYear }, companyId },
   });
   const seq = count + 1; // prochain
   const seqPadded = String(seq).padStart(4, "0");
@@ -22,6 +23,7 @@ async function generateNextEntryNumber(tx) {
 
 // GET /api/incoming-invoices  (simple listing with supplier & lines basic aggregation)
 export async function GET(request) {
+  const companyId = requireCompanyId(request);
   const { searchParams } = new URL(request.url);
   const paymentFilter = searchParams.get("payment");
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -33,14 +35,16 @@ export async function GET(request) {
   // Mettre à jour OVERDUE pour factures fournisseurs non payées échéances dépassées
   await prisma.incomingInvoice.updateMany({
     where: {
+      companyId,
       status: { in: ["PENDING", "OVERDUE"] },
       dueDate: { lt: now },
       transactions: { none: { kind: "PAYMENT" } },
     },
     data: { status: "OVERDUE" },
   });
-  const totalCount = await prisma.incomingInvoice.count();
+  const totalCount = await prisma.incomingInvoice.count({ where: { companyId } });
   let invoices = await prisma.incomingInvoice.findMany({
+    where: { companyId },
     orderBy: { receiptDate: "desc" },
     include: {
       supplier: { select: { id: true, name: true } },
@@ -91,6 +95,7 @@ export async function GET(request) {
 */
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     let {
       supplierId,
@@ -119,8 +124,8 @@ export async function POST(req) {
     // Validation purchaseOrderId si fourni (et cohérence du fournisseur)
     let po = null;
     if (purchaseOrderId) {
-      po = await prisma.purchaseOrder.findUnique({
-        where: { id: purchaseOrderId },
+      po = await prisma.purchaseOrder.findFirst({
+        where: { id: purchaseOrderId, companyId },
         select: {
           id: true,
           number: true,
@@ -159,7 +164,7 @@ export async function POST(req) {
 
     // Vérification fournisseur (après court-circuit PO non reçu)
     const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
+      where: { id: supplierId, companyId },
     });
     if (!supplier)
       return NextResponse.json(
@@ -242,9 +247,10 @@ export async function POST(req) {
     const { vatDeductibleAccount } = await getSystemAccounts();
 
     const invoice = await prisma.$transaction(async (tx) => {
-      const entryNumber = await generateNextEntryNumber(tx);
+      const entryNumber = await generateNextEntryNumber(tx, companyId);
       const created = await tx.incomingInvoice.create({
         data: {
+          companyId,
           entryNumber,
           supplierInvoiceNumber: String(supplierInvoiceNumber).trim(),
           receiptDate: receiptDate ? new Date(receiptDate) : undefined,
@@ -270,10 +276,12 @@ export async function POST(req) {
             ...l,
             vatRate: l.vatRate.toFixed(2),
             incomingInvoiceId: created.id,
+            companyId,
           },
         });
         const purchaseTx = await tx.transaction.create({
           data: {
+            companyId,
             date: new Date(),
             nature: "purchase",
             // Description = article de la ligne
@@ -297,6 +305,7 @@ export async function POST(req) {
           const pct = (Number(rateStr) * 100).toFixed(2).replace(/\.00$/, "");
           const vatTx = await tx.transaction.create({
             data: {
+              companyId,
               date: new Date(),
               nature: "purchase",
               description: `TVA déductible ${pct}% facture ${created.entryNumber}`,
@@ -314,6 +323,7 @@ export async function POST(req) {
 
       const payableTx = await tx.transaction.create({
         data: {
+          companyId,
           date: new Date(),
           nature: "purchase",
           description: `Dette fournisseur facture ${created.entryNumber}`,
@@ -365,8 +375,8 @@ export async function POST(req) {
       return created.id;
     });
 
-    const full = await prisma.incomingInvoice.findUnique({
-      where: { id: invoice },
+    const full = await prisma.incomingInvoice.findFirst({
+      where: { id: invoice, companyId },
       include: {
         supplier: true,
         lines: true,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { nextSequence } from "@/lib/sequence";
+import { requireCompanyId } from "@/lib/tenant";
 
 function toNumber(value) {
   return value?.toNumber?.() ?? Number(value ?? 0);
@@ -12,11 +13,12 @@ export async function GET(request) {
   const status = searchParams.get("status");
   const supplierId = searchParams.get("supplierId");
   const q = searchParams.get("q");
-  const where = {};
-  if (status) where.status = status;
-  if (supplierId) where.supplierId = supplierId;
-  if (q) where.number = { contains: q, mode: "insensitive" };
   try {
+    const companyId = requireCompanyId(request);
+    const where = { companyId };
+    if (status) where.status = status;
+    if (supplierId) where.supplierId = supplierId;
+    if (q) where.number = { contains: q, mode: "insensitive" };
     const pos = await prisma.purchaseOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -61,6 +63,7 @@ export async function GET(request) {
 // { supplierId, expectedDate?, currency?, notes?, lines:[{ productId, orderedQty, unitPrice, vatRate?, assetCategoryId? }] }
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const { supplierId, expectedDate, currency = "EUR", notes, lines } = body;
     if (!supplierId)
@@ -86,6 +89,7 @@ export async function POST(request) {
       if (vatRate != null && (isNaN(vatRate) || vatRate < 0))
         throw new Error(`Taux TVA invalide ligne ${idx + 1}`);
       return {
+        companyId,
         productId,
         orderedQty: orderedQty.toString(),
         unitPrice: unitPrice.toString(),
@@ -95,9 +99,10 @@ export async function POST(request) {
     });
 
     const poId = await prisma.$transaction(async (tx) => {
-      const number = await nextSequence(tx, "PO", "PO-");
+      const number = await nextSequence(tx, "PO", "PO-", companyId);
       const po = await tx.purchaseOrder.create({
         data: {
+          companyId,
           number,
           supplierId,
           expectedDate: expectedDate ? new Date(expectedDate) : undefined,

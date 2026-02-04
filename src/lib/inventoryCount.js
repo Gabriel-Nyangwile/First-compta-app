@@ -119,8 +119,9 @@ export function normalizeInventoryCount(count) {
   };
 }
 
-export async function listInventoryCounts({ status } = {}) {
-  const where = {};
+export async function listInventoryCounts({ companyId, status } = {}) {
+  if (!companyId) throw new Error("companyId requis");
+  const where = { companyId };
   if (status) where.status = status;
   const counts = await prisma.inventoryCount.findMany({
     where,
@@ -130,21 +131,24 @@ export async function listInventoryCounts({ status } = {}) {
   return counts.map(normalizeInventoryCount);
 }
 
-async function nextInventoryCountNumber(tx) {
-  return nextSequence(tx, "INVENTORY_COUNT", "IC-");
+async function nextInventoryCountNumber(tx, companyId) {
+  return nextSequence(tx, "INVENTORY_COUNT", "IC-", companyId);
 }
 
 export async function createInventoryCount({
+  companyId,
   productIds = null,
   countedAt = null,
   notes = null,
   createdById = null,
 } = {}) {
+  if (!companyId) throw new Error("companyId requis");
   return prisma.$transaction(async (tx) => {
-    const number = await nextInventoryCountNumber(tx);
+    const number = await nextInventoryCountNumber(tx, companyId);
     const productWhere = productIds?.length
       ? { id: { in: productIds } }
       : { isActive: true };
+    productWhere.companyId = companyId;
 
     const products = await tx.product.findMany({
       where: productWhere,
@@ -170,12 +174,14 @@ export async function createInventoryCount({
         productId: product.id,
         snapshotQty,
         snapshotAvgCost,
+        companyId,
       };
     });
 
     const created = await tx.inventoryCount.create({
       data: {
         number,
+        companyId,
         status: "DRAFT",
         countedAt: countedAt ? new Date(countedAt) : null,
         notes: notes ? String(notes).trim() : null,
@@ -191,9 +197,10 @@ export async function createInventoryCount({
   });
 }
 
-export async function getInventoryCount(id) {
-  const count = await prisma.inventoryCount.findUnique({
-    where: { id },
+export async function getInventoryCount(id, companyId) {
+  if (!companyId) throw new Error("companyId requis");
+  const count = await prisma.inventoryCount.findFirst({
+    where: { id, companyId },
     include: COUNT_INCLUDE,
   });
   if (!count) throw new Error("INVENTORY_COUNT_NOT_FOUND");
@@ -212,17 +219,19 @@ export async function recordInventoryCountLine({
   inventoryCountId,
   lineId,
   countedQty,
+  companyId,
 }) {
+  if (!companyId) throw new Error("companyId requis");
   return prisma.$transaction(async (tx) => {
-    const count = await tx.inventoryCount.findUnique({
-      where: { id: inventoryCountId },
+    const count = await tx.inventoryCount.findFirst({
+      where: { id: inventoryCountId, companyId },
       include: { status: true },
     });
     if (!count) throw new Error("INVENTORY_COUNT_NOT_FOUND");
     assertEditable(count);
 
-    const line = await tx.inventoryCountLine.findUnique({
-      where: { id: lineId },
+    const line = await tx.inventoryCountLine.findFirst({
+      where: { id: lineId, companyId },
       include: { inventoryCount: { select: { status: true } } },
     });
     if (!line || line.inventoryCountId !== inventoryCountId) {
@@ -245,19 +254,20 @@ export async function recordInventoryCountLine({
       include: COUNT_INCLUDE.lines.include,
     });
 
-    const refreshed = await tx.inventoryCount.findUnique({
-      where: { id: inventoryCountId },
+    const refreshed = await tx.inventoryCount.findFirst({
+      where: { id: inventoryCountId, companyId },
       include: COUNT_INCLUDE,
     });
     return normalizeInventoryCount(refreshed);
   });
 }
 
-export async function completeInventoryCount(id) {
+export async function completeInventoryCount(id, companyId) {
   let normalized = null;
+  if (!companyId) throw new Error("companyId requis");
   await prisma.$transaction(async (tx) => {
-    const count = await tx.inventoryCount.findUnique({
-      where: { id },
+    const count = await tx.inventoryCount.findFirst({
+      where: { id, companyId },
       include: { lines: true },
     });
     if (!count) throw new Error("INVENTORY_COUNT_NOT_FOUND");
@@ -272,8 +282,8 @@ export async function completeInventoryCount(id) {
       where: { id },
       data: { status: "COMPLETED" },
     });
-    const refreshed = await tx.inventoryCount.findUnique({
-      where: { id },
+    const refreshed = await tx.inventoryCount.findFirst({
+      where: { id, companyId },
       include: COUNT_INCLUDE,
     });
     normalized = normalizeInventoryCount(refreshed);
@@ -288,13 +298,18 @@ export async function completeInventoryCount(id) {
   return normalized;
 }
 
-export async function cancelInventoryCount(id) {
-  const updated = await prisma.inventoryCount.update({
-    where: { id },
+export async function cancelInventoryCount(id, companyId) {
+  if (!companyId) throw new Error("companyId requis");
+  const updated = await prisma.inventoryCount.updateMany({
+    where: { id, companyId },
     data: { status: "CANCELLED" },
+  });
+  if (!updated.count) throw new Error("INVENTORY_COUNT_NOT_FOUND");
+  const refreshed = await prisma.inventoryCount.findFirst({
+    where: { id, companyId },
     include: COUNT_INCLUDE,
   });
-  return normalizeInventoryCount(updated);
+  return normalizeInventoryCount(refreshed);
 }
 
 function buildAdjustmentDescription(count, line) {
@@ -311,6 +326,7 @@ async function createAdjustmentJournal({
   deltaValue,
   deltaDate,
   description,
+  companyId,
 }) {
   const amount = Math.abs(deltaValue);
   if (amount < 1e-6) return null;
@@ -328,6 +344,7 @@ async function createAdjustmentJournal({
       kind: "INVENTORY_ASSET",
       accountId: inventoryAccountId,
       date: deltaDate,
+      companyId: companyId || null,
     },
   });
 
@@ -340,6 +357,7 @@ async function createAdjustmentJournal({
       kind: "STOCK_VARIATION",
       accountId: variationAccountId,
       date: deltaDate,
+      companyId: companyId || null,
     },
   });
 
@@ -354,11 +372,12 @@ async function createAdjustmentJournal({
   return journalEntry;
 }
 
-export async function postInventoryCount(id) {
+export async function postInventoryCount(id, companyId = null) {
   let normalized = null;
+  if (!id) throw new Error("INVENTORY_COUNT_NOT_FOUND");
   await prisma.$transaction(async (tx) => {
-    const count = await tx.inventoryCount.findUnique({
-      where: { id },
+    const count = await tx.inventoryCount.findFirst({
+      where: { id, ...(companyId ? { companyId } : {}) },
       include: {
         lines: {
           orderBy: { product: { sku: "asc" } },
@@ -377,13 +396,17 @@ export async function postInventoryCount(id) {
       },
     });
     if (!count) throw new Error("INVENTORY_COUNT_NOT_FOUND");
+    const scopedCompanyId = count.companyId || null;
+    if (companyId && scopedCompanyId && companyId !== scopedCompanyId) {
+      throw new Error("INVENTORY_COUNT_NOT_FOUND");
+    }
 
     if (count.status === "CANCELLED") {
       throw new Error("Inventaire annulé.");
     }
     if (count.status === "POSTED") {
-      const refreshed = await tx.inventoryCount.findUnique({
-        where: { id },
+      const refreshed = await tx.inventoryCount.findFirst({
+        where: { id, companyId: scopedCompanyId },
         include: COUNT_INCLUDE,
       });
       return normalizeInventoryCount(refreshed);
@@ -424,10 +447,12 @@ export async function postInventoryCount(id) {
                 ? toNumber(line.snapshotAvgCost)
                 : undefined
               : undefined,
+          companyId: scopedCompanyId,
         });
 
         const movement = await tx.stockMovement.create({
           data: {
+            companyId: scopedCompanyId,
             productId: line.productId,
             movementType: deltaQty >= 0 ? "ADJUST" : "ADJUST",
             stage: "AVAILABLE",
@@ -460,6 +485,7 @@ export async function postInventoryCount(id) {
           deltaValue,
           deltaDate: postedAt,
           description,
+          companyId: scopedCompanyId,
         });
 
         journalEntryId = journalEntry?.id ?? null;
@@ -491,8 +517,8 @@ export async function postInventoryCount(id) {
       data: { status: "POSTED", postedAt },
     });
 
-    const refreshed = await tx.inventoryCount.findUnique({
-      where: { id },
+    const refreshed = await tx.inventoryCount.findFirst({
+      where: { id, companyId: scopedCompanyId },
       include: COUNT_INCLUDE,
     });
     normalized = normalizeInventoryCount(refreshed);

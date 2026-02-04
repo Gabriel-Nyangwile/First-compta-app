@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getMoneyAccountLedger } from '@/lib/serverActions/money';
 import { formatAmountPlain } from '@/lib/utils';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
+  const companyId = requireCompanyId(req);
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get('account');
   if (!accountId) {
@@ -12,7 +14,13 @@ export async function GET(req) {
   const to = searchParams.get('to') || undefined;
   const limit = parseInt(searchParams.get('limit') || '2000', 10);
   try {
-    const ledger = await getMoneyAccountLedger({ moneyAccountId: accountId, limit, dateFrom: from, dateTo: to });
+    const ledger = await getMoneyAccountLedger({
+      companyId,
+      moneyAccountId: accountId,
+      limit,
+      dateFrom: from,
+      dateTo: to,
+    });
     // Build CSV
     const headers = [
       'date','kind','direction','amount','invoice','incomingInvoice','description','voucherRef','balanceAfter','lineType','accountNumber','accountLabel','debit','credit'

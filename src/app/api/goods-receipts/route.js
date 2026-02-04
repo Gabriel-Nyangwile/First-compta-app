@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { nextSequence } from "@/lib/sequence";
 import { applyInMovement } from "@/lib/inventory";
+import { requireCompanyId } from "@/lib/tenant";
 import {
   refreshGoodsReceiptStatus,
   recalcPurchaseOrderStatus,
@@ -14,7 +15,8 @@ export async function GET(request) {
   const supplierId = searchParams.get("supplierId");
   const purchaseOrderId = searchParams.get("purchaseOrderId");
   const q = searchParams.get("q");
-  const where = {};
+  const companyId = requireCompanyId(request);
+  const where = { companyId };
   if (status) where.status = status;
   if (supplierId) where.supplierId = supplierId;
   if (purchaseOrderId) where.purchaseOrderId = purchaseOrderId;
@@ -43,6 +45,7 @@ export async function GET(request) {
 // { supplierId?, purchaseOrderId?, lines:[{ productId, qtyReceived, unitCost, purchaseOrderLineId? }] }
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json();
     const { supplierId, purchaseOrderId, lines } = body;
     if (!supplierId && !purchaseOrderId) {
@@ -53,6 +56,18 @@ export async function POST(request) {
     }
     if (!Array.isArray(lines) || !lines.length)
       return NextResponse.json({ error: "lines requises." }, { status: 400 });
+    if (supplierId) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: supplierId, companyId },
+        select: { id: true },
+      });
+      if (!supplier) {
+        return NextResponse.json(
+          { error: "Fournisseur introuvable pour cette société." },
+          { status: 404 }
+        );
+      }
+    }
 
     const normLines = lines.map((l, idx) => {
       const productId = l.productId;
@@ -95,7 +110,7 @@ export async function POST(request) {
       let po = null;
       if (purchaseOrderId) {
         po = await tx.purchaseOrder.findUnique({
-          where: { id: purchaseOrderId },
+          where: { id: purchaseOrderId, companyId },
           include: { lines: true },
         });
         if (!po) throw new Error("PurchaseOrder introuvable.");
@@ -134,13 +149,14 @@ export async function POST(request) {
         }
       }
 
-      const number = await nextSequence(tx, "GR", "GR-");
+      const number = await nextSequence(tx, "GR", "GR-", companyId);
       const gr = await tx.goodsReceipt.create({
         data: {
+          companyId,
           number,
           supplierId: effectiveSupplierId,
           purchaseOrderId: purchaseOrderId || undefined,
-          lines: { create: normLines.map((n) => n.data) },
+          lines: { create: normLines.map((n) => ({ ...n.data, companyId })) },
         },
         include: { lines: true },
       });
@@ -154,9 +170,11 @@ export async function POST(request) {
           qty: qtyNum,
           unitCost: unitCostNum,
           stage: "STAGED",
+          companyId,
         });
         await tx.stockMovement.create({
           data: {
+            companyId,
             productId: line.productId,
             movementType: qtyNum >= 0 ? "IN" : "ADJUST",
             stage: "STAGED",
@@ -172,7 +190,7 @@ export async function POST(request) {
           );
           // Lecture actuelle (sans champ version si non défini dans le client Prisma actuel)
           const currentPOL = await tx.purchaseOrderLine.findUnique({
-            where: { id: line.purchaseOrderLineId },
+            where: { id: line.purchaseOrderLineId, companyId },
             select: { id: true, orderedQty: true, receivedQty: true }, // version retiré (schema/client ne l'expose pas)
           });
           if (!currentPOL) throw new Error("purchaseOrderLine introuvable.");
@@ -199,7 +217,7 @@ export async function POST(request) {
             );
           }
           const updated = await tx.purchaseOrderLine.update({
-            where: { id: currentPOL.id },
+            where: { id: currentPOL.id, companyId },
             data: { receivedQty: newReceived.toFixed(3) },
             select: {
               id: true,
@@ -214,18 +232,19 @@ export async function POST(request) {
         }
       }
 
-      await refreshGoodsReceiptStatus(tx, gr.id);
+      await refreshGoodsReceiptStatus(tx, gr.id, companyId);
       if (po) {
         await recalcPurchaseOrderStatus(
           tx,
           po.id,
-          "Mise à jour suite réception"
+          "Mise à jour suite réception",
+          companyId
         );
       }
       return gr.id;
     });
     const full = await prisma.goodsReceipt.findUnique({
-      where: { id: receiptId },
+      where: { id: receiptId, companyId },
       include: {
         supplier: true,
         purchaseOrder: true,

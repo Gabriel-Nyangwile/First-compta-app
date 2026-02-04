@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createAsset } from '@/lib/assets';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const assets = await prisma.asset.findMany({
+      where: { companyId },
       include: {
         category: true,
         depreciationLines: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
@@ -23,6 +26,7 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const required = ['label', 'categoryId', 'acquisitionDate', 'cost', 'usefulLifeMonths'];
     for (const key of required) {
@@ -31,6 +35,7 @@ export async function POST(req) {
       }
     }
     const asset = await createAsset({
+      companyId,
       label: body.label,
       categoryId: body.categoryId,
       acquisitionDate: body.acquisitionDate,

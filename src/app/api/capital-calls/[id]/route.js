@@ -1,17 +1,26 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { postCapitalCall } from "@/lib/capitalPosting";
+import { requireCompanyId } from "@/lib/tenant";
 
 // Mise à jour d'un appel de fonds (montant, échéance, libellé, souscription cible)
 export async function PATCH(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
     const body = await req.json();
     const { amountCalled, dueDate, label, subscriptionId } = body;
     const updated = await prisma.$transaction(async (tx) => {
-      const call = await tx.capitalCall.update({
-        where: { id },
+      if (subscriptionId) {
+        const sub = await tx.capitalSubscription.findFirst({
+          where: { id: subscriptionId, companyId },
+          select: { id: true },
+        });
+        if (!sub) throw new Error("Souscription introuvable");
+      }
+      const updatedCall = await tx.capitalCall.updateMany({
+        where: { id, companyId },
         data: {
           amountCalled: amountCalled != null ? amountCalled.toString() : undefined,
           dueDate: dueDate ? new Date(dueDate) : undefined,
@@ -19,10 +28,14 @@ export async function PATCH(req, { params }) {
           subscriptionId: subscriptionId || null,
         },
       });
+      if (!updatedCall.count) throw new Error("Appel introuvable");
+      const call = await tx.capitalCall.findFirst({ where: { id, companyId } });
       // Optional: re-poster si souhaité (ici, on reposte si aucun paiement)
-      const payments = await tx.capitalPayment.count({ where: { callId: id } });
+      const payments = await tx.capitalPayment.count({
+        where: { callId: id, companyId },
+      });
       if (payments === 0 && amountCalled != null) {
-        await postCapitalCall(tx, { call });
+        await postCapitalCall(tx, { call, companyId });
       }
       return call;
     });
@@ -34,13 +47,14 @@ export async function PATCH(req, { params }) {
 }
 
 // Suppression d'un appel de fonds (interdit si paiements liés)
-export async function DELETE(_req, { params }) {
+export async function DELETE(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
     const deleted = await prisma.$transaction(async (tx) => {
-      const call = await tx.capitalCall.findUnique({
-        where: { id },
+      const call = await tx.capitalCall.findFirst({
+        where: { id, companyId },
         include: { payments: true },
       });
       if (!call) return NextResponse.json({ error: "Appel introuvable" }, { status: 404 });
@@ -54,6 +68,7 @@ export async function DELETE(_req, { params }) {
       const txns = await tx.transaction.findMany({
         where: {
           kind: "CAPITAL_CALL",
+          companyId,
           OR: [
             { description: { contains: call.id } },
             { description: { contains: String(call.callNumber ?? "") } },
@@ -67,9 +82,11 @@ export async function DELETE(_req, { params }) {
         await tx.transaction.deleteMany({ where: { id: { in: txnIds } } });
       }
       if (jeIds.length) {
-        await tx.journalEntry.deleteMany({ where: { id: { in: jeIds } } });
+        await tx.journalEntry.deleteMany({
+          where: { id: { in: jeIds }, companyId },
+        });
       }
-      await tx.capitalCall.delete({ where: { id } });
+      await tx.capitalCall.deleteMany({ where: { id, companyId } });
       return { ok: true };
     });
     if (deleted instanceof NextResponse) return deleted;

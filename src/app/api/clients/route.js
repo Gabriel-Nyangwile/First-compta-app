@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { normalizeEmail, validateCategory } from '@/lib/validation/client';
+import { requireCompanyId } from '@/lib/tenant';
 
-export async function GET() {
+export async function GET(req) {
   // Retourne tous les clients avec leur compte associé
+  const companyId = requireCompanyId(req);
   const clients = await prisma.client.findMany({
+    where: { companyId },
     select: {
       id: true,
       name: true,
@@ -26,6 +29,7 @@ export async function GET() {
 // POST /api/clients
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
   let { name, email, accountId, category, address } = body || {};
     if (!name || !name.trim()) {
@@ -36,7 +40,7 @@ export async function POST(req) {
     email = normalizeEmail(email);
     // Vérifier unicité email si fourni (normalisé)
     if (email) {
-      const existingEmail = await prisma.client.findFirst({ where: { email } });
+      const existingEmail = await prisma.client.findFirst({ where: { companyId, email } });
       if (existingEmail) {
         return NextResponse.json({ error: 'Email déjà utilisé' }, { status: 409 });
       }
@@ -44,13 +48,14 @@ export async function POST(req) {
     // Vérifier compte si fourni
     let linkedAccount = null;
     if (accountId) {
-      linkedAccount = await prisma.account.findUnique({ where: { id: accountId }, select: { id: true, number: true, label: true } });
+      linkedAccount = await prisma.account.findFirst({ where: { id: accountId, companyId }, select: { id: true, number: true, label: true } });
       if (!linkedAccount) {
         return NextResponse.json({ error: 'Compte introuvable' }, { status: 400 });
       }
     }
     const client = await prisma.client.create({
       data: {
+        companyId,
         name,
         email, // peut être null
         accountId: linkedAccount ? linkedAccount.id : null,

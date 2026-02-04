@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 // GET /api/inventory/[productId]
 // NOTE (Next.js 15): context.params can be a Promise and must be awaited before property access.
-export async function GET(_request, context) {
+export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const { productId } = await context.params;
     if (!productId || typeof productId !== "string" || productId.length < 10) {
       return NextResponse.json(
@@ -12,8 +14,8 @@ export async function GET(_request, context) {
         { status: 400 }
       );
     }
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    const product = await prisma.product.findFirst({
+      where: { id: productId, companyId },
       select: { id: true, sku: true, name: true },
     });
     if (!product)
@@ -23,7 +25,9 @@ export async function GET(_request, context) {
       );
     let inv = null;
     try {
-      inv = await prisma.productInventory.findUnique({ where: { productId } });
+      inv = await prisma.productInventory.findFirst({
+        where: { productId, companyId },
+      });
     } catch {}
     // Si pas d'inventaire, retourner qtyOnHand: '0', avgCost: null
     return NextResponse.json({

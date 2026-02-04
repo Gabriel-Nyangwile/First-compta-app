@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { postCapitalSubscription } from "@/lib/capitalPosting";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function PATCH(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
     const body = await req.json();
     const { nominalAmount, premiumAmount, sharesCount, note } = body;
-    const sub = await prisma.capitalSubscription.update({
-      where: { id },
+    const updated = await prisma.capitalSubscription.updateMany({
+      where: { id, companyId },
       data: {
         nominalAmount: nominalAmount != null ? nominalAmount.toString() : undefined,
         premiumAmount: premiumAmount != null ? premiumAmount.toString() : undefined,
@@ -17,6 +19,10 @@ export async function PATCH(req, { params }) {
         note: note ?? undefined,
       },
     });
+    if (!updated.count) {
+      return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+    }
+    const sub = await prisma.capitalSubscription.findFirst({ where: { id, companyId } });
     return NextResponse.json(sub);
   } catch (e) {
     const msg = e.message || "Erreur mise à jour souscription";
@@ -26,15 +32,23 @@ export async function PATCH(req, { params }) {
 
 // (Re)poster la promesse de souscription : Dr 4612 / Cr 1012 sur le nominal
 export async function POST(_req, { params }) {
+  const companyId = requireCompanyId(_req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
-    const sub = await prisma.capitalSubscription.findUnique({ where: { id } });
+    const sub = await prisma.capitalSubscription.findFirst({
+      where: { id, companyId },
+    });
     if (!sub) return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
     await prisma.$transaction(async (tx) => {
       const called = Number(sub.nominalAmount || 0);
       const notCalled = 0;
-      await postCapitalSubscription(tx, { subscription: sub, amountCalled: called, amountNotCalled: notCalled });
+      await postCapitalSubscription(tx, {
+        subscription: sub,
+        amountCalled: called,
+        amountNotCalled: notCalled,
+        companyId,
+      });
     });
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -43,13 +57,16 @@ export async function POST(_req, { params }) {
   }
 }
 
-export async function DELETE(_req, { params }) {
+export async function DELETE(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
     const deleted = await prisma.$transaction(async (tx) => {
       // Bloque si des appels ou paiements existent
-      const calls = await tx.capitalCall.count({ where: { subscriptionId: id } });
+      const calls = await tx.capitalCall.count({
+        where: { subscriptionId: id, companyId },
+      });
       if (calls > 0) {
         return NextResponse.json(
           { error: "Suppression impossible : appels de fonds liés présents" },
@@ -61,6 +78,7 @@ export async function DELETE(_req, { params }) {
         where: {
           kind: "CAPITAL_SUBSCRIPTION",
           description: { contains: id },
+          companyId,
         },
       });
       const jeIds = [...new Set(txns.map((t) => t.journalEntryId).filter(Boolean))];
@@ -69,9 +87,11 @@ export async function DELETE(_req, { params }) {
         await tx.transaction.deleteMany({ where: { id: { in: txnIds } } });
       }
       if (jeIds.length) {
-        await tx.journalEntry.deleteMany({ where: { id: { in: jeIds } } });
+        await tx.journalEntry.deleteMany({
+          where: { id: { in: jeIds }, companyId },
+        });
       }
-      await tx.capitalSubscription.delete({ where: { id } });
+      await tx.capitalSubscription.deleteMany({ where: { id, companyId } });
       return { ok: true, txDeleted: txnIds.length, jeDeleted: jeIds.length };
     });
     if (deleted instanceof NextResponse) return deleted;

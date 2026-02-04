@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 function toNumber(value) {
   return value?.toNumber?.() ?? Number(value ?? 0);
 }
 
+async function resolveParams(maybeCtx) {
+  let ctx = maybeCtx;
+  if (ctx && typeof ctx.then === "function") ctx = await ctx;
+  let p = ctx?.params ?? ctx;
+  if (p && typeof p.then === "function") p = await p;
+  return p || {};
+}
+
 export async function GET(request, context) {
   try {
-    const { id } = await context.params;
+    const companyId = requireCompanyId(request);
+    const { id } = await resolveParams(context);
     const order = await prisma.returnOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         supplier: { select: { id: true, name: true } },
         purchaseOrder: { select: { id: true, number: true } },
@@ -95,7 +105,8 @@ export async function GET(request, context) {
 
 export async function PATCH(request, context) {
   try {
-    const { id } = await context.params;
+    const companyId = requireCompanyId(request);
+    const { id } = await resolveParams(context);
     const body = await request.json();
     const { status, sentAt, closedAt, notes } = body || {};
 
@@ -109,7 +120,7 @@ export async function PATCH(request, context) {
     }
 
     const order = await prisma.returnOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       select: { id: true },
     });
     if (!order)
@@ -119,7 +130,7 @@ export async function PATCH(request, context) {
       );
 
     const updated = await prisma.returnOrder.update({
-      where: { id },
+      where: { id, companyId },
       data: {
         status,
         sentAt: sentAt

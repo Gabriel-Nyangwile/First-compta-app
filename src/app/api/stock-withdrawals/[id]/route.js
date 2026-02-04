@@ -8,6 +8,7 @@ import {
   toNumber,
 } from "@/lib/stockWithdrawal";
 import { applyOutMovement } from "@/lib/inventory";
+import { requireCompanyId } from "@/lib/tenant";
 
 const BASE_INCLUDE = {
   requestedBy: { select: { id: true, username: true, email: true } },
@@ -70,10 +71,10 @@ function aggregateLineQuantities(lines) {
   return map;
 }
 
-async function fetchSalesOrderLines(tx, ids) {
+async function fetchSalesOrderLines(tx, ids, companyId) {
   if (!ids.length) return new Map();
   const rows = await tx.salesOrderLine.findMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, ...(companyId ? { companyId } : {}) },
     include: {
       salesOrder: { select: { id: true, status: true } },
     },
@@ -84,9 +85,9 @@ async function fetchSalesOrderLines(tx, ids) {
   return new Map(rows.map((row) => [row.id, row]));
 }
 
-async function loadWithdrawal(tx, id) {
-  const withdrawal = await tx.stockWithdrawal.findUnique({
-    where: { id },
+async function loadWithdrawal(tx, id, companyId) {
+  const withdrawal = await tx.stockWithdrawal.findFirst({
+    where: { id, ...(companyId ? { companyId } : {}) },
     include: BASE_INCLUDE,
   });
   if (!withdrawal) {
@@ -95,8 +96,9 @@ async function loadWithdrawal(tx, id) {
   return withdrawal;
 }
 
-export async function GET(_request, context) {
+export async function GET(request, context) {
   try {
+    const companyId = requireCompanyId(request);
     const params = await Promise.resolve(context?.params ?? context);
     const id = params?.id;
     if (!id) {
@@ -106,8 +108,8 @@ export async function GET(_request, context) {
       );
     }
 
-    const withdrawal = await prisma.stockWithdrawal.findUnique({
-      where: { id },
+    const withdrawal = await prisma.stockWithdrawal.findFirst({
+      where: { id, companyId },
       include: BASE_INCLUDE,
     });
     if (!withdrawal) {
@@ -144,6 +146,7 @@ export async function PUT(request, context) {
   }
 
   try {
+    const companyId = requireCompanyId(request);
     const body = await request.json().catch(() => ({}));
     const action = body?.action ? String(body.action).toUpperCase() : null;
     if (!action) {
@@ -151,7 +154,7 @@ export async function PUT(request, context) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const withdrawal = await loadWithdrawal(tx, id);
+      const withdrawal = await loadWithdrawal(tx, id, companyId);
 
       if (action === "UPDATE") {
         if (withdrawal.status !== "DRAFT") {
@@ -212,7 +215,7 @@ export async function PUT(request, context) {
         const productIds = [...new Set(sanitizedLines.map((l) => l.productId))];
         if (productIds.length) {
           const products = await tx.product.findMany({
-            where: { id: { in: productIds } },
+            where: { id: { in: productIds }, companyId },
             select: { id: true },
           });
           if (products.length !== productIds.length) {
@@ -229,7 +232,8 @@ export async function PUT(request, context) {
         if (salesOrderLineIds.length) {
           salesOrderLineMap = await fetchSalesOrderLines(
             tx,
-            salesOrderLineIds
+            salesOrderLineIds,
+            companyId
           );
 
           const aggregated = new Map();
@@ -274,13 +278,14 @@ export async function PUT(request, context) {
         }
 
         await tx.stockWithdrawalLine.deleteMany({
-          where: { stockWithdrawalId: id },
+          where: { stockWithdrawalId: id, companyId },
         });
 
         for (const line of sanitizedLines) {
           await tx.stockWithdrawalLine.create({
             data: {
               stockWithdrawalId: id,
+              companyId,
               productId: line.productId,
               quantity: line.quantity.toFixed(3),
               notes: line.notes,
@@ -290,8 +295,8 @@ export async function PUT(request, context) {
           });
         }
 
-        await tx.stockWithdrawal.update({
-          where: { id },
+        await tx.stockWithdrawal.updateMany({
+          where: { id, companyId },
           data: {
             type: nextType,
             notes,
@@ -301,7 +306,7 @@ export async function PUT(request, context) {
           },
         });
 
-        const refreshed = await loadWithdrawal(tx, id);
+        const refreshed = await loadWithdrawal(tx, id, companyId);
         return refreshed;
       }
 
@@ -316,7 +321,11 @@ export async function PUT(request, context) {
         if (withdrawal.type === "SALE") {
           const aggregated = aggregateLineQuantities(withdrawal.lines);
           const ids = Array.from(aggregated.keys());
-          const salesOrderLineMap = await fetchSalesOrderLines(tx, ids);
+          const salesOrderLineMap = await fetchSalesOrderLines(
+            tx,
+            ids,
+            companyId
+          );
 
           for (const [lineId, qty] of aggregated.entries()) {
             const related = salesOrderLineMap.get(lineId);
@@ -341,18 +350,18 @@ export async function PUT(request, context) {
             }
 
             const nextAllocated = toNumber(related.quantityAllocated) + qty;
-            await tx.salesOrderLine.update({
-              where: { id: lineId },
+            await tx.salesOrderLine.updateMany({
+              where: { id: lineId, companyId },
               data: { quantityAllocated: nextAllocated.toFixed(3) },
             });
           }
         }
 
-        await tx.stockWithdrawal.update({
-          where: { id },
+        await tx.stockWithdrawal.updateMany({
+          where: { id, companyId },
           data: { status: "CONFIRMED", confirmedAt: new Date() },
         });
-        const refreshed = await loadWithdrawal(tx, id);
+        const refreshed = await loadWithdrawal(tx, id, companyId);
         return refreshed;
       }
 
@@ -389,6 +398,7 @@ export async function PUT(request, context) {
           const outResult = await applyOutMovement(tx, {
             productId: line.productId,
             qty,
+            companyId,
           });
           const unitCost = Number.isFinite(outResult.unitCost)
             ? outResult.unitCost
@@ -409,6 +419,7 @@ export async function PUT(request, context) {
           await tx.stockMovement.create({
             data: {
               date: postingDate,
+              companyId,
               productId: line.productId,
               movementType: "OUT",
               stage: "AVAILABLE",
@@ -422,7 +433,11 @@ export async function PUT(request, context) {
 
         if (withdrawal.type === "SALE" && salesOrderAggregates.size) {
           const ids = Array.from(salesOrderAggregates.keys());
-          const salesOrderLineMap = await fetchSalesOrderLines(tx, ids);
+          const salesOrderLineMap = await fetchSalesOrderLines(
+            tx,
+            ids,
+            companyId
+          );
           const impactedOrderIds = new Set();
 
           for (const [lineId, qty] of salesOrderAggregates.entries()) {
@@ -443,8 +458,8 @@ export async function PUT(request, context) {
             const updatedAllocated = Math.max(0, nextAllocated);
             const updatedShipped = currentShipped + qty;
 
-            await tx.salesOrderLine.update({
-              where: { id: lineId },
+            await tx.salesOrderLine.updateMany({
+              where: { id: lineId, companyId },
               data: {
                 quantityAllocated: updatedAllocated.toFixed(3),
                 quantityShipped: updatedShipped.toFixed(3),
@@ -456,7 +471,7 @@ export async function PUT(request, context) {
 
           for (const orderId of impactedOrderIds.values()) {
             const orderLines = await tx.salesOrderLine.findMany({
-              where: { salesOrderId: orderId },
+              where: { salesOrderId: orderId, companyId },
               select: {
                 quantityOrdered: true,
                 quantityShipped: true,
@@ -469,7 +484,7 @@ export async function PUT(request, context) {
             );
             if (allFulfilled) {
               await tx.salesOrder.updateMany({
-                where: { id: orderId, status: { not: "FULFILLED" } },
+                where: { id: orderId, companyId, status: { not: "FULFILLED" } },
                 data: {
                   status: "FULFILLED",
                   fulfilledAt: new Date(),
@@ -479,8 +494,8 @@ export async function PUT(request, context) {
           }
         }
 
-        await tx.stockWithdrawal.update({
-          where: { id },
+        await tx.stockWithdrawal.updateMany({
+          where: { id, companyId },
           data: {
             status: "POSTED",
             postedAt: postingDate,
@@ -488,7 +503,7 @@ export async function PUT(request, context) {
           },
         });
 
-        const refreshed = await loadWithdrawal(tx, id);
+        const refreshed = await loadWithdrawal(tx, id, companyId);
         return refreshed;
       }
 
@@ -503,24 +518,28 @@ export async function PUT(request, context) {
         if (withdrawal.type === "SALE" && withdrawal.status === "CONFIRMED") {
           const aggregated = aggregateLineQuantities(withdrawal.lines);
           const ids = Array.from(aggregated.keys());
-          const salesOrderLineMap = await fetchSalesOrderLines(tx, ids);
+          const salesOrderLineMap = await fetchSalesOrderLines(
+            tx,
+            ids,
+            companyId
+          );
           for (const [lineId, qty] of aggregated.entries()) {
             const related = salesOrderLineMap.get(lineId);
             if (!related) continue;
             const currentAllocated = toNumber(related.quantityAllocated);
             const nextAllocated = Math.max(0, currentAllocated - qty);
-            await tx.salesOrderLine.update({
-              where: { id: lineId },
+            await tx.salesOrderLine.updateMany({
+              where: { id: lineId, companyId },
               data: { quantityAllocated: nextAllocated.toFixed(3) },
             });
           }
         }
 
-        await tx.stockWithdrawal.update({
-          where: { id },
+        await tx.stockWithdrawal.updateMany({
+          where: { id, companyId },
           data: { status: "CANCELLED" },
         });
-        const refreshed = await loadWithdrawal(tx, id);
+        const refreshed = await loadWithdrawal(tx, id, companyId);
         return refreshed;
       }
 
@@ -532,11 +551,11 @@ export async function PUT(request, context) {
         throw new Error("Transition de statut invalide.");
       }
 
-      await tx.stockWithdrawal.update({
-        where: { id },
+      await tx.stockWithdrawal.updateMany({
+        where: { id, companyId },
         data: { status: action },
       });
-      const refreshed = await loadWithdrawal(tx, id);
+      const refreshed = await loadWithdrawal(tx, id, companyId);
       return refreshed;
     });
 

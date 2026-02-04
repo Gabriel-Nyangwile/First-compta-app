@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 /*
   GET /api/transactions
@@ -17,6 +18,7 @@ import prisma from '@/lib/prisma';
 */
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const dateStart = searchParams.get('dateStart');
     const dateEnd = searchParams.get('dateEnd');
@@ -28,7 +30,7 @@ export async function GET(request) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '50', 10)));
 
-    const where = {};
+    const where = { companyId };
     if (dateStart || dateEnd) {
       where.date = {};
       if (dateStart) where.date.gte = new Date(dateStart);

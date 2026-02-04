@@ -24,8 +24,8 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function resolveAccountId(tx, number) {
-  const acc = await tx.account.findFirst({ where: { number } });
+async function resolveAccountId(tx, number, companyId) {
+  const acc = await tx.account.findFirst({ where: { number, companyId } });
   if (!acc) throw new Error(`Compte introuvable: ${number}`);
   return acc.id;
 }
@@ -35,10 +35,15 @@ async function main() {
   const sheetName = argValue("--sheet");
   const openingDate =
     argValue("--date") || process.env.OPENING_DATE || "2026-01-01";
+  const companyId =
+    argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
 
   if (!file) {
     console.error("Usage: node --env-file=.env.local scripts/import-opening-stock.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
     process.exit(1);
+  }
+  if (!companyId) {
+    throw new Error("DEFAULT_COMPANY_ID requis (ou --company).");
   }
   const abs = path.resolve(file);
   if (!fs.existsSync(abs)) {
@@ -93,17 +98,18 @@ async function main() {
   for (const line of rows) {
     if (line.qty === 0) continue;
     await prisma.$transaction(async (tx) => {
-      let product = await tx.product.findUnique({ where: { sku: line.sku } });
+      let product = await tx.product.findFirst({ where: { sku: line.sku, companyId } });
       if (!product) {
         if (!line.name || !line.inventoryAccountNumber || !line.stockVariationAccountNumber) {
           throw new Error(
             `Produit ${line.sku} introuvable. Fournir name, inventoryAccountNumber et stockVariationAccountNumber.`
           );
         }
-        const invAccId = await resolveAccountId(tx, line.inventoryAccountNumber);
-        const varAccId = await resolveAccountId(tx, line.stockVariationAccountNumber);
+        const invAccId = await resolveAccountId(tx, line.inventoryAccountNumber, companyId);
+        const varAccId = await resolveAccountId(tx, line.stockVariationAccountNumber, companyId);
         product = await tx.product.create({
           data: {
+            companyId,
             sku: line.sku,
             name: line.name,
             inventoryAccountId: invAccId,
@@ -119,6 +125,7 @@ async function main() {
       });
       await tx.stockMovement.create({
         data: {
+          companyId,
           date,
           productId: product.id,
           movementType: "ADJUST",

@@ -29,6 +29,7 @@ function formatVoucher(prefix, date, num) {
  * Validates: amount>0, account exists, direction consistent.
  */
 export async function createMoneyMovement({
+  companyId = null,
   moneyAccountId,
   amount,
   direction, // 'IN' | 'OUT'
@@ -62,8 +63,8 @@ export async function createMoneyMovement({
     );
   }
 
-  let moneyAccount = await prisma.moneyAccount.findUnique({
-    where: { id: moneyAccountId },
+  let moneyAccount = await prisma.moneyAccount.findFirst({
+    where: { id: moneyAccountId, ...(companyId ? { companyId } : {}) },
     include: { ledgerAccount: true },
   });
   if (!moneyAccount) throw new Error("MoneyAccount introuvable");
@@ -71,7 +72,8 @@ export async function createMoneyMovement({
   // Auto-provision du compte comptable support si absent
   if (!moneyAccount.ledgerAccountId) {
     const { account: createdLedger } = await ensureLedgerAccountForMoneyAccount(
-      moneyAccount
+      moneyAccount,
+      companyId
     );
     moneyAccount.ledgerAccountId = createdLedger.id;
     moneyAccount.ledgerAccount = createdLedger;
@@ -79,7 +81,7 @@ export async function createMoneyMovement({
 
   // Pré-validation simple : empêcher solde négatif caisse (option – ici activé)
   if (moneyAccount.type === "CASH" && direction === "OUT") {
-    const bal = await computeMoneyAccountBalance(moneyAccountId);
+    const bal = await computeMoneyAccountBalance(moneyAccountId, companyId);
     if (bal.minus(amount).lt(0)) throw new Error("Solde caisse insuffisant");
   }
 
@@ -106,8 +108,8 @@ export async function createMoneyMovement({
     if (kind === "SUPPLIER_PAYMENT") {
       if (!incomingInvoiceId)
         throw new Error("incomingInvoiceId requis pour SUPPLIER_PAYMENT");
-      resolvedIncomingInvoice = await tx.incomingInvoice.findUnique({
-        where: { id: incomingInvoiceId },
+      resolvedIncomingInvoice = await tx.incomingInvoice.findFirst({
+        where: { id: incomingInvoiceId, ...(companyId ? { companyId } : {}) },
         include: { supplier: true },
       });
       if (!resolvedIncomingInvoice)
@@ -119,6 +121,7 @@ export async function createMoneyMovement({
 
     const movement = await tx.moneyMovement.create({
       data: {
+        companyId,
         moneyAccountId,
         amount: new Prisma.Decimal(amount),
         direction,
@@ -144,10 +147,16 @@ export async function createMoneyMovement({
         counterpartAccountId,
         vatBreakdown,
         incomingInvoice: resolvedIncomingInvoice,
+        companyId,
       });
-      if (invoiceId) await updateInvoiceSettlementStatus(tx, invoiceId);
+      if (invoiceId)
+        await updateInvoiceSettlementStatus(tx, invoiceId, companyId);
       if (incomingInvoiceId)
-        await updateIncomingInvoiceSettlementStatus(tx, incomingInvoiceId);
+        await updateIncomingInvoiceSettlementStatus(
+          tx,
+          incomingInvoiceId,
+          companyId
+        );
     }
     return movement;
   });
@@ -157,12 +166,15 @@ export async function createMoneyMovement({
 // Convention simple:
 //  - Banque: prefix 512 + compteur sur 3 digits (512001, 512002 ...)
 //  - Caisse: prefix 53  + compteur sur 3 digits (53001, 53002 ...) => mais pour homogénéité on garde 53001 style (prefix '53').
-export async function ensureLedgerAccountForMoneyAccount(moneyAccount) {
+export async function ensureLedgerAccountForMoneyAccount(
+  moneyAccount,
+  companyId = null
+) {
   const isBank = moneyAccount.type === "BANK";
   const prefix = isBank ? "521" : "571";
   // Récupère tous les comptes existants qui matchent le prefix exact 6 digits style 521100 / 571100 etc.
   const existing = await prisma.account.findMany({
-    where: { number: { startsWith: prefix } },
+    where: { number: { startsWith: prefix }, ...(companyId ? { companyId } : {}) },
     select: { id: true, number: true },
   });
   // Extract trailing 3 digits if pattern matches prefix + 3 digits.
@@ -198,7 +210,9 @@ export async function ensureLedgerAccountForMoneyAccount(moneyAccount) {
   } else {
     label = "Banque " + (moneyAccount.label || tailStr);
   }
-  const account = await prisma.account.create({ data: { number, label } });
+  const account = await prisma.account.create({
+    data: { number, label, companyId: companyId || null },
+  });
   await prisma.moneyAccount.update({
     where: { id: moneyAccount.id },
     data: { ledgerAccountId: account.id },
@@ -208,6 +222,7 @@ export async function ensureLedgerAccountForMoneyAccount(moneyAccount) {
 
 // Création d'un compte de trésorerie avec auto-provision du ledgerAccount.
 export async function createMoneyAccount({
+  companyId = null,
   type,
   label,
   code,
@@ -216,8 +231,10 @@ export async function createMoneyAccount({
 }) {
   if (!["BANK", "CASH"].includes(type)) throw new Error("type invalide");
   if (!label) throw new Error("label requis");
+  if (!companyId) throw new Error("companyId requis");
   const created = await prisma.moneyAccount.create({
     data: {
+      companyId,
       type,
       label,
       code: code || null,
@@ -226,7 +243,7 @@ export async function createMoneyAccount({
     },
   });
   // Auto ledger account
-  await ensureLedgerAccountForMoneyAccount(created);
+  await ensureLedgerAccountForMoneyAccount(created, companyId);
   return created;
 }
 
@@ -242,6 +259,7 @@ export async function autoPostTransactions({
   counterpartAccountId,
   vatBreakdown,
   incomingInvoice,
+  companyId = null,
 }) {
   const entries = [];
   const amt = new Prisma.Decimal(amount);
@@ -269,8 +287,8 @@ export async function autoPostTransactions({
   switch (kind) {
     case "CLIENT_RECEIPT": {
       if (!invoiceId) throw new Error("invoiceId requis pour CLIENT_RECEIPT");
-      const invoice = await tx.invoice.findUnique({
-        where: { id: invoiceId },
+      const invoice = await tx.invoice.findFirst({
+        where: { id: invoiceId, ...(companyId ? { companyId } : {}) },
         include: { client: { include: { account: true } } },
       });
       if (!invoice) throw new Error("Facture introuvable");
@@ -292,8 +310,11 @@ export async function autoPostTransactions({
     case "SUPPLIER_PAYMENT": {
       const inc =
         incomingInvoice ||
-        (await tx.incomingInvoice.findUnique({
-          where: { id: incomingInvoiceId },
+        (await tx.incomingInvoice.findFirst({
+          where: {
+            id: incomingInvoiceId,
+            ...(companyId ? { companyId } : {}),
+          },
           include: { supplier: true },
         }));
       if (!inc) throw new Error("IncomingInvoice introuvable");
@@ -358,7 +379,7 @@ export async function autoPostTransactions({
           });
           if (!rate.isZero()) {
             // TVA déductible - TODO: sélectionner compte TVA déductible générique (ex: via param)
-            const vatAccount = await ensureVatDeductibleAccount(tx);
+            const vatAccount = await ensureVatDeductibleAccount(tx, companyId);
             entries.push({
               date: movement.date,
               amount: vat,
@@ -405,7 +426,8 @@ export async function autoPostTransactions({
       await ensureClass4Account(
         tx,
         counterpartAccountId,
-        "ASSOCIATE_CONTRIBUTION"
+        "ASSOCIATE_CONTRIBUTION",
+        companyId
       );
       entries.push({
         date: movement.date,
@@ -426,7 +448,8 @@ export async function autoPostTransactions({
       await ensureClass4Account(
         tx,
         counterpartAccountId,
-        "ASSOCIATE_WITHDRAWAL"
+        "ASSOCIATE_WITHDRAWAL",
+        companyId
       );
       entries.push({
         date: movement.date,
@@ -442,7 +465,12 @@ export async function autoPostTransactions({
     case "SALARY_PAYMENT": {
       if (!counterpartAccountId)
         throw new Error("counterpartAccountId requis (compte 421 ou assimilé)");
-      await ensureClass4Account(tx, counterpartAccountId, "SALARY_PAYMENT");
+      await ensureClass4Account(
+        tx,
+        counterpartAccountId,
+        "SALARY_PAYMENT",
+        companyId
+      );
       entries.push({
         date: movement.date,
         amount: amt,
@@ -457,7 +485,12 @@ export async function autoPostTransactions({
     case "SALARY_ADVANCE": {
       if (!counterpartAccountId)
         throw new Error("counterpartAccountId requis (compte 425 / 467)");
-      await ensureClass4Account(tx, counterpartAccountId, "SALARY_ADVANCE");
+      await ensureClass4Account(
+        tx,
+        counterpartAccountId,
+        "SALARY_ADVANCE",
+        companyId
+      );
       entries.push({
         date: movement.date,
         amount: amt,
@@ -486,15 +519,30 @@ export async function autoPostTransactions({
   }
 
   if (entries.length) {
+    if (companyId) {
+      entries.forEach((e) => {
+        if (!e.companyId) e.companyId = companyId;
+      });
+    }
     await tx.transaction.createMany({ data: entries });
   }
 }
 
-export async function updateInvoiceSettlementStatus(tx, invoiceId) {
-  const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
+export async function updateInvoiceSettlementStatus(
+  tx,
+  invoiceId,
+  companyId = null
+) {
+  const invoice = await tx.invoice.findFirst({
+    where: { id: invoiceId, ...(companyId ? { companyId } : {}) },
+  });
   if (!invoice) return;
   const paidIn = await tx.moneyMovement.aggregate({
-    where: { invoiceId, direction: "IN" },
+    where: {
+      invoiceId,
+      direction: "IN",
+      ...(companyId ? { companyId } : {}),
+    },
     _sum: { amount: true },
   });
   const paid = paidIn._sum.amount || new Prisma.Decimal(0);
@@ -515,14 +563,19 @@ export async function updateInvoiceSettlementStatus(tx, invoiceId) {
 
 export async function updateIncomingInvoiceSettlementStatus(
   tx,
-  incomingInvoiceId
+  incomingInvoiceId,
+  companyId = null
 ) {
-  const inc = await tx.incomingInvoice.findUnique({
-    where: { id: incomingInvoiceId },
+  const inc = await tx.incomingInvoice.findFirst({
+    where: { id: incomingInvoiceId, ...(companyId ? { companyId } : {}) },
   });
   if (!inc) return;
   const paidOut = await tx.moneyMovement.aggregate({
-    where: { incomingInvoiceId, direction: "OUT" },
+    where: {
+      incomingInvoiceId,
+      direction: "OUT",
+      ...(companyId ? { companyId } : {}),
+    },
     _sum: { amount: true },
   });
   const paid = paidOut._sum.amount || new Prisma.Decimal(0);
@@ -541,22 +594,37 @@ export async function updateIncomingInvoiceSettlementStatus(
   });
 }
 
-async function ensureVatDeductibleAccount(tx) {
+async function ensureVatDeductibleAccount(tx, companyId = null) {
   // Simpliste: recherche premier compte TVA déductible (pattern 44566). Améliorer avec config.
   let acc = await tx.account.findFirst({
-    where: { number: { startsWith: "44566" } },
+    where: {
+      number: { startsWith: "44566" },
+      ...(companyId ? { companyId } : {}),
+    },
   });
   if (!acc) {
     acc = await tx.account.create({
-      data: { number: "445660AUTO", label: "TVA déductible auto" },
+      data: {
+        number: "445660AUTO",
+        label: "TVA déductible auto",
+        companyId: companyId || null,
+      },
     });
   }
   return acc;
 }
 
-async function ensureClass4Account(tx, accountId, context) {
+async function ensureClass4Account(
+  tx,
+  accountId,
+  context,
+  companyId = null
+) {
   const acc = await tx.account.findUnique({ where: { id: accountId } });
   if (!acc) throw new Error("Compte contrepartie introuvable");
+  if (companyId && acc.companyId !== companyId) {
+    throw new Error("Compte contrepartie hors société");
+  }
   if (!acc.number || !acc.number.startsWith("4")) {
     throw new Error(
       `Le compte ${
@@ -567,9 +635,9 @@ async function ensureClass4Account(tx, accountId, context) {
   return acc;
 }
 
-export async function computeMoneyAccountBalance(moneyAccountId) {
-  const account = await prisma.moneyAccount.findUnique({
-    where: { id: moneyAccountId },
+export async function computeMoneyAccountBalance(moneyAccountId, companyId = null) {
+  const account = await prisma.moneyAccount.findFirst({
+    where: { id: moneyAccountId, ...(companyId ? { companyId } : {}) },
     include: { movements: { select: { amount: true, direction: true } } },
   });
   if (!account) throw new Error("MoneyAccount introuvable");
@@ -580,15 +648,16 @@ export async function computeMoneyAccountBalance(moneyAccountId) {
   return opening.plus(delta);
 }
 
-export async function listMoneyAccountsWithBalance() {
+export async function listMoneyAccountsWithBalance(companyId = null) {
   const accounts = await prisma.moneyAccount.findMany({
+    where: companyId ? { companyId } : undefined,
     include: { ledgerAccount: true },
   });
   const result = [];
   for (const acc of accounts) {
     const sums = await prisma.moneyMovement.groupBy({
       by: ["direction"],
-      where: { moneyAccountId: acc.id },
+      where: { moneyAccountId: acc.id, ...(companyId ? { companyId } : {}) },
       _sum: { amount: true },
     });
     let bal = new Prisma.Decimal(acc.openingBalance || 0);
@@ -605,6 +674,7 @@ export async function listMoneyAccountsWithBalance() {
 }
 
 export async function listMoneyMovements({
+  companyId = null,
   moneyAccountId,
   supplierId,
   incomingInvoiceId,
@@ -615,7 +685,8 @@ export async function listMoneyMovements({
   cursor,
 }) {
   if (!moneyAccountId) throw new Error("moneyAccountId requis");
-  const where = { moneyAccountId };
+  if (!companyId) throw new Error("companyId requis");
+  const where = { moneyAccountId, ...(companyId ? { companyId } : {}) };
   if (supplierId) where.supplierId = supplierId;
   if (incomingInvoiceId) where.incomingInvoiceId = incomingInvoiceId;
   if (invoiceId) where.invoiceId = invoiceId;
@@ -664,9 +735,10 @@ export async function getMoneyAccountLedger({
   limit = 200,
   dateFrom,
   dateTo,
+  companyId = null,
 }) {
-  const account = await prisma.moneyAccount.findUnique({
-    where: { id: moneyAccountId },
+  const account = await prisma.moneyAccount.findFirst({
+    where: { id: moneyAccountId, ...(companyId ? { companyId } : {}) },
     include: { ledgerAccount: true },
   });
   if (!account) throw new Error("Compte trésorerie introuvable");
@@ -689,7 +761,7 @@ export async function getMoneyAccountLedger({
   if (fromDate) {
     const beforeGrouped = await prisma.moneyMovement.groupBy({
       by: ["direction"],
-      where: { moneyAccountId, date: { lt: fromDate } },
+      where: { moneyAccountId, date: { lt: fromDate }, ...(companyId ? { companyId } : {}) },
       _sum: { amount: true },
     });
     for (const g of beforeGrouped) {
@@ -702,7 +774,7 @@ export async function getMoneyAccountLedger({
   }
 
   // Period filter for totals
-  const periodWhere = { moneyAccountId };
+  const periodWhere = { moneyAccountId, ...(companyId ? { companyId } : {}) };
   if (fromDate || toDate) {
     periodWhere.date = {};
     if (fromDate) periodWhere.date.gte = fromDate;
@@ -800,12 +872,14 @@ export async function getMoneyAccountLedger({
 }
 
 export async function createTransfer({
+  companyId = null,
   fromMoneyAccountId,
   toMoneyAccountId,
   amount,
   description,
   voucherRef,
 }) {
+  if (!companyId) throw new Error("companyId requis");
   if (fromMoneyAccountId === toMoneyAccountId)
     throw new Error("Comptes identiques");
   if (!amount || Number(amount) <= 0) throw new Error("Montant > 0 requis");
@@ -823,6 +897,9 @@ export async function createTransfer({
     });
     if (!from || !to)
       throw new Error("Compte source ou destination introuvable");
+    if (from.companyId !== companyId || to.companyId !== companyId) {
+      throw new Error("Comptes trésorerie hors société");
+    }
     if (!from.ledgerAccountId || !to.ledgerAccountId)
       throw new Error("ledgerAccountId manquant sur un compte");
 
@@ -837,6 +914,7 @@ export async function createTransfer({
     // Sortie
     const outMv = await tx.moneyMovement.create({
       data: {
+        companyId,
         moneyAccountId: fromMoneyAccountId,
         amount: new Prisma.Decimal(amount),
         direction: "OUT",
@@ -848,6 +926,7 @@ export async function createTransfer({
     // Entrée
     const inMv = await tx.moneyMovement.create({
       data: {
+        companyId,
         moneyAccountId: toMoneyAccountId,
         amount: new Prisma.Decimal(amount),
         direction: "IN",
@@ -868,6 +947,7 @@ export async function createTransfer({
           accountId: from.ledgerAccountId,
           moneyMovementId: outMv.id,
           description: description || "Transfert sortant",
+          companyId,
         },
         {
           date: inMv.date,
@@ -877,6 +957,7 @@ export async function createTransfer({
           accountId: to.ledgerAccountId,
           moneyMovementId: inMv.id,
           description: description || "Transfert entrant",
+          companyId,
         },
       ],
     });
@@ -891,7 +972,12 @@ export async function createTransfer({
   });
 }
 
-export async function getSupplierTreasuryOverview({ search, limit = 25 } = {}) {
+export async function getSupplierTreasuryOverview({
+  companyId = null,
+  search,
+  limit = 25,
+} = {}) {
+  if (!companyId) throw new Error("companyId requis");
   const where = search
     ? {
         OR: [
@@ -901,13 +987,16 @@ export async function getSupplierTreasuryOverview({ search, limit = 25 } = {}) {
       }
     : {};
   const suppliers = await prisma.supplier.findMany({
-    where,
+    where: { ...where, companyId },
     orderBy: { name: "asc" },
     take: limit,
     include: {
       account: { select: { number: true } },
       incomingInvoices: {
-        where: { status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
+        where: {
+          status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
+          companyId,
+        },
         orderBy: { dueDate: "asc" },
         select: {
           id: true,
@@ -920,7 +1009,7 @@ export async function getSupplierTreasuryOverview({ search, limit = 25 } = {}) {
         },
       },
       moneyMovements: {
-        where: { kind: "SUPPLIER_PAYMENT" },
+        where: { kind: "SUPPLIER_PAYMENT", companyId },
         orderBy: { date: "desc" },
         take: 5,
         select: {
@@ -994,10 +1083,12 @@ export async function getSupplierTreasuryOverview({ search, limit = 25 } = {}) {
 }
 
 export async function getSupplierTreasuryDetail({
+  companyId = null,
   supplierId,
   paymentLimit = 100,
 } = {}) {
   if (!supplierId) throw new Error("supplierId requis");
+  if (!companyId) throw new Error("companyId requis");
   const supplier = await prisma.supplier.findUnique({
     where: { id: supplierId },
     include: {
@@ -1007,7 +1098,7 @@ export async function getSupplierTreasuryDetail({
   if (!supplier) return null;
 
   const invoices = await prisma.incomingInvoice.findMany({
-    where: { supplierId },
+    where: { supplierId, companyId },
     orderBy: [{ status: "desc" }, { dueDate: "asc" }],
     select: {
       id: true,
@@ -1023,7 +1114,7 @@ export async function getSupplierTreasuryDetail({
   });
 
   const payments = await prisma.moneyMovement.findMany({
-    where: { supplierId, kind: "SUPPLIER_PAYMENT" },
+    where: { supplierId, kind: "SUPPLIER_PAYMENT", companyId },
     orderBy: { date: "desc" },
     take: paymentLimit,
     include: {

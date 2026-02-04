@@ -24,10 +24,12 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function resolveAccountId(tx, number, label) {
-  let acc = await tx.account.findFirst({ where: { number } });
+async function resolveAccountId(tx, number, label, companyId) {
+  let acc = await tx.account.findFirst({ where: { number, companyId } });
   if (!acc) {
-    acc = await tx.account.create({ data: { number, label: label || number } });
+    acc = await tx.account.create({
+      data: { number, label: label || number, companyId },
+    });
   }
   return acc.id;
 }
@@ -39,10 +41,15 @@ async function main() {
     argValue("--date") || process.env.OPENING_DATE || "2026-01-01";
   const offsetAccount =
     process.env.OPENING_OFFSET_ACCOUNT || "471000";
+  const companyId =
+    argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
 
   if (!file) {
     console.error("Usage: node --env-file=.env.local scripts/import-opening-ar.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
     process.exit(1);
+  }
+  if (!companyId) {
+    throw new Error("DEFAULT_COMPANY_ID requis (ou --company).");
   }
   const abs = path.resolve(file);
   if (!fs.existsSync(abs)) {
@@ -98,9 +105,10 @@ async function main() {
     if (!line.accountNumber) throw new Error(`Compte client manquant pour ${line.name}`);
     if (line.openingBalance === 0) continue;
     await prisma.$transaction(async (tx) => {
-      const accId = await resolveAccountId(tx, line.accountNumber, `Client ${line.name}`);
+      const accId = await resolveAccountId(tx, line.accountNumber, `Client ${line.name}`, companyId);
       const client = await tx.client.create({
         data: {
+          companyId,
           name: line.name,
           email: line.email || null,
           phone: line.phone || null,
@@ -112,6 +120,7 @@ async function main() {
 
       const receivable = await tx.transaction.create({
         data: {
+          companyId,
           date,
           description: `Ouverture client ${client.name}`,
           amount: line.openingBalance,
@@ -121,9 +130,10 @@ async function main() {
           clientId: client.id,
         },
       });
-      const offsetAccId = await resolveAccountId(tx, offsetAccount, "Compte d'attente ouverture");
+      const offsetAccId = await resolveAccountId(tx, offsetAccount, "Compte d'attente ouverture", companyId);
       const offset = await tx.transaction.create({
         data: {
+          companyId,
           date,
           description: `Contrepartie ouverture client ${client.name}`,
           amount: line.openingBalance,

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { listMoneyAccountsWithBalance } from '@/lib/serverActions/money';
+import { requireCompanyId } from '@/lib/tenant';
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const data = await listMoneyAccountsWithBalance();
+    const companyId = requireCompanyId(req);
+    const data = await listMoneyAccountsWithBalance(companyId);
     return NextResponse.json({ ok: true, accounts: data.map(a => ({
       id: a.id,
       type: a.type,

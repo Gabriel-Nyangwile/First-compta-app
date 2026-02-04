@@ -45,10 +45,15 @@ async function main() {
   const sheetName = argValue("--sheet");
   const openingDate =
     argValue("--date") || process.env.OPENING_DATE || "2026-01-01";
+  const companyId =
+    argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
 
   if (!file) {
     console.error("Usage: node --env-file=.env.local scripts/import-opening-assets.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
     process.exit(1);
+  }
+  if (!companyId) {
+    throw new Error("DEFAULT_COMPANY_ID requis (ou --company).");
   }
   const abs = path.resolve(file);
   if (!fs.existsSync(abs)) {
@@ -118,13 +123,14 @@ async function main() {
       throw new Error(`remainingLifeMonths invalide pour ${line.assetCode}`);
     }
     await prisma.$transaction(async (tx) => {
-      const category = await tx.assetCategory.findUnique({
-        where: { code: line.categoryCode },
+      const category = await tx.assetCategory.findFirst({
+        where: { code: line.categoryCode, companyId },
       });
       if (!category) throw new Error(`Categorie introuvable: ${line.categoryCode}`);
-      const ref = await nextSequence(tx, "ASSET", "AS-");
+      const ref = await nextSequence(tx, "ASSET", "AS-", companyId);
       const asset = await tx.asset.create({
         data: {
+          companyId,
           ref,
           label: line.name,
           categoryId: category.id,
@@ -147,6 +153,7 @@ async function main() {
       if (line.accumulatedDepreciation > 0) {
         await tx.depreciationLine.create({
           data: {
+            companyId,
             assetId: asset.id,
             year: openingPrev.year,
             month: openingPrev.month,

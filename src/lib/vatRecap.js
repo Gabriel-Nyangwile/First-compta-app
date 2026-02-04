@@ -22,18 +22,34 @@ function normalizeDate(d, end=false) {
 }
 
 // rows: { period, direction, rate, base, vat }
-export async function computeVatRecap({ from, to, granularity='month', includeZero=false }) {
+export async function computeVatRecap({
+  companyId = null,
+  from,
+  to,
+  granularity = 'month',
+  includeZero = false
+}) {
+  if (!companyId) {
+    throw new Error('companyId requis');
+  }
   const fromDate = normalizeDate(from) || new Date(new Date().getFullYear(), 0, 1);
   const toDate = normalizeDate(to, true) || new Date();
 
   // Récupérer lignes de factures clients
   const invoiceLines = await prisma.invoiceLine.findMany({
-    where: { invoice: { issueDate: { gte: fromDate, lte: toDate } } },
+    where: {
+      invoice: { issueDate: { gte: fromDate, lte: toDate }, companyId }
+    },
     include: { invoice: { select: { issueDate: true, vat: true } } }
   });
   // Lignes factures fournisseurs
   const incomingLines = await prisma.incomingInvoiceLine.findMany({
-    where: { incomingInvoice: { receiptDate: { gte: fromDate, lte: toDate } } },
+    where: {
+      incomingInvoice: {
+        receiptDate: { gte: fromDate, lte: toDate },
+        companyId
+      }
+    },
     include: { incomingInvoice: { select: { receiptDate: true, vat: true } } }
   });
 

@@ -78,7 +78,8 @@
     "smoke:payroll:settlement": "node --env-file=.env.local scripts/smoke-payroll-settlement.js",
     "smoke:personnel": "node --env-file=.env.local scripts/test-personnel-summary.js && node --env-file=.env.local scripts/test-personnel-trend.js",
     "seed:cost-centers:nat-exp": "node --env-file=.env.local scripts/seed-cost-centers-nat-exp.js",
-    "seed:fx": "node --env-file=.env.local scripts/seed-fx-rates.js"
+    "seed:fx": "node --env-file=.env.local scripts/seed-fx-rates.js",
+    "backfill:company": "node --env-file=.env.local scripts/backfill-company.js"
   },
   "type": "module",
   "dependencies": {

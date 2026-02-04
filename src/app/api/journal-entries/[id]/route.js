@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -8,11 +9,12 @@ const toNumber = (value) => {
   return value.toNumber?.() ?? Number(value) ?? 0;
 };
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   try {
+    const companyId = requireCompanyId(req);
     const { id } = params;
-    const entry = await prisma.journalEntry.findUnique({
-      where: { id },
+    const entry = await prisma.journalEntry.findFirst({
+      where: { id, companyId },
       include: {
         lines: {
           orderBy: [{ date: "asc" }, { id: "asc" }],

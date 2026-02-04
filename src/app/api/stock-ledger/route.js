@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 // GET /api/stock-ledger?productId=&dateFrom=&dateTo=&limit=100
 export async function GET(request) {
+  const companyId = requireCompanyId(request);
   const { searchParams } = new URL(request.url);
   const productId = searchParams.get("productId");
   const dateFrom = searchParams.get("dateFrom");
@@ -14,6 +16,7 @@ export async function GET(request) {
     // Export global : tous les produits avec stock final et coût moyen
     try {
       const products = await prisma.product.findMany({
+        where: { companyId },
         select: {
           sku: true,
           name: true,
@@ -39,7 +42,7 @@ export async function GET(request) {
   }
 
   // ...existing code for productId and movements...
-  const filters = {};
+  const filters = { companyId };
   if (productId) filters.productId = productId;
   if (dateFrom || dateTo) {
     filters.date = {};
@@ -60,8 +63,8 @@ export async function GET(request) {
     // Calcul soldes début/fin et coût moyen
     let openingQty = null, closingQty = null, openingCost = null, closingCost = null;
     if (productId) {
-      const product = await prisma.product.findUnique({
-        where: { id: productId },
+      const product = await prisma.product.findFirst({
+        where: { id: productId, companyId },
         select: { inventory: { select: { qtyOnHand: true, avgCost: true } } }
       });
       openingQty = product?.inventory?.qtyOnHand ?? null;

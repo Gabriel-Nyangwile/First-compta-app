@@ -1,7 +1,10 @@
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
-export async function GET() {
+export async function GET(req) {
+  const companyId = requireCompanyId(req);
   const invoices = await prisma.incomingInvoice.findMany({
+    where: { companyId },
     include: { supplier: true, moneyMovements: { select: { id: true, date: true, voucherRef: true }, orderBy: { date: 'asc' } } },
     orderBy: { receiptDate: 'desc' }
   });

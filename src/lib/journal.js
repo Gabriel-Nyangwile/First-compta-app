@@ -31,15 +31,20 @@ export async function createJournalEntry(tx, {
 }) {
   if (!transactionIds.length) throw new Error('createJournalEntry: no transactionIds provided');
   // Fetch transactions to compute totals
-  const transactions = await tx.transaction.findMany({ where: { id: { in: transactionIds } }, select: { id: true, amount: true, direction: true } });
+  const transactions = await tx.transaction.findMany({
+    where: { id: { in: transactionIds } },
+    select: { id: true, amount: true, direction: true, companyId: true },
+  });
+  const companyId = transactions.find((t) => t.companyId)?.companyId || null;
   const { debit, credit } = computeDebitCredit(transactions);
   const balanced = Math.abs(debit - credit) < 0.01;
   if (!balanced && !allowUnbalanced) {
     throw new Error(`Journal entry unbalanced (debit=${debit} credit=${credit})`);
   }
-  const number = await nextSequence(tx, 'JRN', 'JRN-');
+  const number = await nextSequence(tx, 'JRN', 'JRN-', companyId);
   const je = await tx.journalEntry.create({
     data: {
+      companyId,
       number,
       date,
       sourceType,
