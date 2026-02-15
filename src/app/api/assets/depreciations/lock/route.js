@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { checkPerm, getUserRole } from '@/lib/authz';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,9 @@ export async function GET(req) {
   const role = await getUserRole(req);
   if (!checkPerm('lockDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
+    const companyId = requireCompanyId(req);
     const locks = await prisma.depreciationPeriodLock.findMany({
+      where: { companyId },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
     });
     return NextResponse.json({ ok: true, locks });
@@ -21,23 +24,35 @@ export async function POST(req) {
   const role = await getUserRole(req);
   if (!checkPerm('lockDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const year = Number(body.year);
     const month = Number(body.month);
     const action = body.action || 'lock';
     if (!year || !month) return NextResponse.json({ ok: false, error: 'year/month requis' }, { status: 400 });
+
     if (action === 'lock') {
-      const lock = await prisma.depreciationPeriodLock.upsert({
-        where: { year_month: { year, month } },
-        create: { year, month, note: body.note || null },
-        update: { note: body.note || null },
-      });
+      const existing = await prisma.depreciationPeriodLock.findFirst({ where: { companyId, year, month } });
+      let lock;
+      if (existing) {
+        lock = await prisma.depreciationPeriodLock.update({
+          where: { id: existing.id, companyId },
+          data: { note: body.note || null },
+        });
+      } else {
+        lock = await prisma.depreciationPeriodLock.create({
+          data: { companyId, year, month, note: body.note || null },
+        });
+      }
       return NextResponse.json({ ok: true, lock });
     }
+
     if (action === 'unlock') {
-      await prisma.depreciationPeriodLock.delete({ where: { year_month: { year, month } } });
+      const existing = await prisma.depreciationPeriodLock.findFirst({ where: { companyId, year, month } });
+      if (existing) await prisma.depreciationPeriodLock.delete({ where: { id: existing.id, companyId } });
       return NextResponse.json({ ok: true, unlocked: true });
     }
+
     return NextResponse.json({ ok: false, error: 'action invalide' }, { status: 400 });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e.message || 'Lock/unlock failed' }, { status: 500 });

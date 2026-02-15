@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { nextSequence } from '@/lib/sequence';
+import { requireCompanyId } from '@/lib/tenant';
 
 function toNumber(v) { return v?.toNumber?.() ?? Number(v ?? 0); }
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const pos = await prisma.assetPurchaseOrder.findMany({
+      where: { companyId },
       orderBy: { createdAt: 'desc' },
       include: { supplier: true, lines: { include: { assetCategory: true } } },
     });
@@ -18,15 +21,20 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const companyId = requireCompanyId(req);
     const body = await req.json();
     const { supplierId, expectedDate, currency = 'EUR', notes, lines } = body;
     if (!supplierId) return NextResponse.json({ error: 'supplierId requis' }, { status: 400 });
     if (!Array.isArray(lines) || !lines.length) return NextResponse.json({ error: 'lines requises' }, { status: 400 });
+
+    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId, companyId }, select: { id: true } });
+    if (!supplier) return NextResponse.json({ error: 'Fournisseur introuvable' }, { status: 404 });
+
     const norm = lines.map((l, idx) => {
       const qty = Number(l.quantity ?? 1);
       const price = Number(l.unitPrice);
-      if (!l.assetCategoryId) throw new Error(`Catégorie manquante ligne ${idx + 1}`);
-      if (!(qty > 0)) throw new Error(`Quantité invalide ligne ${idx + 1}`);
+      if (!l.assetCategoryId) throw new Error(`Categorie manquante ligne ${idx + 1}`);
+      if (!(qty > 0)) throw new Error(`Quantite invalide ligne ${idx + 1}`);
       if (isNaN(price) || price < 0) throw new Error(`PU invalide ligne ${idx + 1}`);
       const vat = l.vatRate != null && l.vatRate !== '' ? Number(l.vatRate) : null;
       if (vat != null && (isNaN(vat) || vat < 0)) throw new Error(`TVA invalide ligne ${idx + 1}`);
@@ -36,12 +44,15 @@ export async function POST(req) {
         quantity: qty.toString(),
         unitPrice: price.toString(),
         vatRate: vat != null ? vat.toFixed(2) : undefined,
+        companyId,
       };
     });
+
     const po = await prisma.$transaction(async (tx) => {
-      const number = await nextSequence(tx, 'ASSET_PO', 'APO-');
+      const number = await nextSequence(tx, 'ASSET_PO', 'APO-', companyId);
       return tx.assetPurchaseOrder.create({
         data: {
+          companyId,
           number,
           supplierId,
           expectedDate: expectedDate ? new Date(expectedDate) : undefined,
@@ -54,7 +65,7 @@ export async function POST(req) {
     });
     return NextResponse.json(po, { status: 201 });
   } catch (e) {
-    const msg = e.message || 'Erreur création BC immob.';
+    const msg = e.message || 'Erreur creation BC immob.';
     const status = msg.includes('invalide') || msg.includes('manquante') ? 400 : 500;
     return NextResponse.json({ error: msg }, { status });
   }

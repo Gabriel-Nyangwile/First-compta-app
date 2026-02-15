@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { checkPerm, getUserRole } from '@/lib/authz';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   const asset = await prisma.asset.findUnique({
-    where: { id },
+    where: { id, companyId },
     include: {
       category: true,
-      depreciationLines: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
-      disposals: true,
+      depreciationLines: { where: { companyId }, orderBy: [{ year: 'asc' }, { month: 'asc' }] },
+      disposals: { where: { companyId } },
     },
   });
   if (!asset) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
@@ -20,6 +22,7 @@ export async function GET(_req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const companyId = requireCompanyId(req);
   const role = await getUserRole(req);
   if (!checkPerm('createAsset', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
@@ -27,7 +30,7 @@ export async function PUT(req, { params }) {
   try {
     const body = await req.json();
     const updated = await prisma.asset.update({
-      where: { id },
+      where: { id, companyId },
       data: {
         label: body.label,
         categoryId: body.categoryId,
@@ -46,15 +49,16 @@ export async function PUT(req, { params }) {
   }
 }
 
-export async function DELETE(_req, { params }) {
-  const role = await getUserRole(_req);
+export async function DELETE(req, { params }) {
+  const companyId = requireCompanyId(req);
+  const role = await getUserRole(req);
   if (!checkPerm('createAsset', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
-    await prisma.depreciationLine.deleteMany({ where: { assetId: id } });
-    await prisma.assetDisposal.deleteMany({ where: { assetId: id } });
-    await prisma.asset.delete({ where: { id } });
+    await prisma.depreciationLine.deleteMany({ where: { assetId: id, companyId } });
+    await prisma.assetDisposal.deleteMany({ where: { assetId: id, companyId } });
+    await prisma.asset.delete({ where: { id, companyId } });
     return NextResponse.json({ ok: true, deleted: id });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e.message || 'Delete failed' }, { status: 500 });

@@ -1,12 +1,14 @@
 import { featureFlags } from '@/lib/features';
 import { sanitizePlain } from '@/lib/sanitizePlain';
 import { aggregatePeriodSummary } from '@/lib/payroll/aggregatePeriod';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return new Response(JSON.stringify({ ok:false, error:'Missing period id'}), { status:400 });
-  const summaryRaw = await aggregatePeriodSummary(id);
+  const summaryRaw = await aggregatePeriodSummary(id, companyId);
   if (!summaryRaw) return new Response(JSON.stringify({ ok:false, error:'Period not found'}), { status:404 });
   const summary = sanitizePlain(summaryRaw);
   const { searchParams } = new URL(req.url);

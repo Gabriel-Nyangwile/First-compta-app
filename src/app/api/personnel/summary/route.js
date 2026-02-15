@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 function exportAuth(req){
   if(process.env.NODE_ENV !== 'production') return null;
@@ -14,6 +15,7 @@ function exportAuth(req){
 // Fournit des métriques RH basiques pour le dashboard (effectif, statuts, mouvements YTD, rémunération moyenne)
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const url = new URL(req.url);
     const format = url.searchParams.get('format');
     const yearParam = url.searchParams.get('year');
@@ -34,9 +36,10 @@ export async function GET(req) {
 
     // Headcount & status counts
     const [totalEmployees, activeEmployees, statusGroups, hiresYtd, exitsYtd, contractGroups, hiresMonth, exitsMonth, activeAtYearStart, activeAtMonthStart, activeWithHireDates, activeWithBirthDates] = await Promise.all([
-      prisma.employee.count(),
+      prisma.employee.count({ where: { companyId } }),
       prisma.employee.count({
         where: {
+          companyId,
           status: "ACTIVE",
           OR: [
             { endDate: null },
@@ -44,14 +47,15 @@ export async function GET(req) {
           ],
         },
       }),
-      prisma.employee.groupBy({ by: ["status"], _count: { status: true } }),
-      prisma.employee.count({ where: { hireDate: { gte: yearStart, lte: now } } }),
-      prisma.employee.count({ where: { endDate: { gte: yearStart, lte: now } } }),
-      prisma.employee.groupBy({ by: ["contractType"], _count: { contractType: true } }),
-      prisma.employee.count({ where: { hireDate: { gte: monthStart, lte: monthEnd } } }),
-      prisma.employee.count({ where: { endDate: { gte: monthStart, lte: monthEnd } } }),
+      prisma.employee.groupBy({ by: ["status"], where: { companyId }, _count: { status: true } }),
+      prisma.employee.count({ where: { companyId, hireDate: { gte: yearStart, lte: now } } }),
+      prisma.employee.count({ where: { companyId, endDate: { gte: yearStart, lte: now } } }),
+      prisma.employee.groupBy({ by: ["contractType"], where: { companyId }, _count: { contractType: true } }),
+      prisma.employee.count({ where: { companyId, hireDate: { gte: monthStart, lte: monthEnd } } }),
+      prisma.employee.count({ where: { companyId, endDate: { gte: monthStart, lte: monthEnd } } }),
       prisma.employee.count({ // actifs au début d'année
         where: {
+          companyId,
           status: "ACTIVE",
           hireDate: { lte: yearStart },
           OR: [ { endDate: null }, { endDate: { gt: yearStart } } ],
@@ -59,6 +63,7 @@ export async function GET(req) {
       }),
       prisma.employee.count({ // actifs au début de mois
         where: {
+          companyId,
           status: "ACTIVE",
           hireDate: { lte: monthStart },
           OR: [ { endDate: null }, { endDate: { gt: monthStart } } ],
@@ -66,6 +71,7 @@ export async function GET(req) {
       }),
       prisma.employee.findMany({ // actifs avec date d'embauche pour tenure
         where: {
+          companyId,
           status: "ACTIVE",
           hireDate: { not: null, lte: now },
           OR: [ { endDate: null }, { endDate: { gt: now } } ],
@@ -74,6 +80,7 @@ export async function GET(req) {
       }),
       prisma.employee.findMany({ // actifs avec birthDate pour age
         where: {
+          companyId,
           status: "ACTIVE",
           birthDate: { not: null, lte: now },
           OR: [ { endDate: null }, { endDate: { gt: now } } ],
@@ -136,11 +143,11 @@ export async function GET(req) {
     // Payslips month & YTD aggregates
     const [monthPayslips, ytdPayslips] = await Promise.all([
       prisma.payslip.findMany({
-        where: { period: { month, year } },
+        where: { period: { companyId, month, year } },
         select: { grossAmount: true, netAmount: true },
       }),
       prisma.payslip.findMany({
-        where: { period: { year } },
+        where: { period: { companyId, year } },
         select: { grossAmount: true, netAmount: true },
       }),
     ]);

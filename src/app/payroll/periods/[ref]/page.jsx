@@ -8,15 +8,21 @@ import AuditPanel from '../AuditPanel.jsx';
 import ReverseButton from '../ReverseButton.jsx';
 import SettlementButton from '../SettlementButton.jsx';
 import { sanitizePlain } from '@/lib/sanitizePlain';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PayrollPeriodDetail({ params, searchParams }) {
   if (!featureFlags.payroll) return <div className="p-6">Module paie desactive.</div>;
   const { ref } = await params;
-  const employeeFilter = searchParams?.employeeId || null;
+  const sp = await searchParams;
+  const employeeFilter = sp?.employeeId || null;
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
   const rawPeriod = await prisma.payrollPeriod.findUnique({
-    where: { ref },
+    where: { companyId_ref: { companyId, ref } },
     include: {
       payslips: {
         include: {
@@ -85,7 +91,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   const audit = auditRaw ? sanitizePlain(auditRaw) : null;
   const payrollJe =
     period.status === 'POSTED'
-      ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, select: { id: true } })
+      ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id, companyId }, select: { id: true } })
       : null;
   const hasJournal = !!payrollJe;
   const settlementJes =
@@ -94,6 +100,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
           where: {
             sourceType: 'PAYROLL',
             sourceId: period.id,
+            companyId,
             description: { contains: 'PAYSET-' },
           },
           orderBy: { date: 'desc' },
@@ -102,7 +109,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   let settlements = [];
   if (settlementJes.length) {
     const tx = await prisma.transaction.findMany({
-      where: { journalEntryId: { in: settlementJes.map((j) => j.id) } },
+      where: { companyId, journalEntryId: { in: settlementJes.map((j) => j.id) } },
       include: { account: true },
     });
     const txByJe = new Map();

@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 function exportAuth(req){
   if(process.env.NODE_ENV !== 'production') return null;
@@ -11,6 +12,7 @@ function exportAuth(req){
 }
 
 export async function GET(req){
+  const companyId = requireCompanyId(req);
   const url = new URL(req.url);
   const monthsParam = parseInt(url.searchParams.get('months')||'6',10);
   const monthsWindow = Number.isNaN(monthsParam)?6:Math.min(Math.max(monthsParam,1),24);
@@ -23,10 +25,10 @@ export async function GET(req){
     const monthStart = new Date(m.year, m.month-1,1);
     const monthEnd = new Date(m.year, m.month,0,23,59,59,999);
     const [activeStart, activeEnd, hires, exits] = await Promise.all([
-      prisma.employee.count({ where:{ status:'ACTIVE', hireDate:{ lte: monthStart }, OR:[{ endDate:null }, { endDate:{ gt: monthStart } }] } }),
-      prisma.employee.count({ where:{ status:'ACTIVE', hireDate:{ lte: monthEnd }, OR:[{ endDate:null }, { endDate:{ gt: monthEnd } }] } }),
-      prisma.employee.count({ where:{ hireDate:{ gte: monthStart, lte: monthEnd } } }),
-      prisma.employee.count({ where:{ endDate:{ gte: monthStart, lte: monthEnd } } }),
+      prisma.employee.count({ where:{ companyId, status:'ACTIVE', hireDate:{ lte: monthStart }, OR:[{ endDate:null }, { endDate:{ gt: monthStart } }] } }),
+      prisma.employee.count({ where:{ companyId, status:'ACTIVE', hireDate:{ lte: monthEnd }, OR:[{ endDate:null }, { endDate:{ gt: monthEnd } }] } }),
+      prisma.employee.count({ where:{ companyId, hireDate:{ gte: monthStart, lte: monthEnd } } }),
+      prisma.employee.count({ where:{ companyId, endDate:{ gte: monthStart, lte: monthEnd } } }),
     ]);
     const avgHeadcount = (activeStart + activeEnd)/2;
     const hiresRatePct = avgHeadcount ? (hires/avgHeadcount)*100 : 0;
@@ -38,7 +40,7 @@ export async function GET(req){
   const page = pdfDoc.addPage([595,842]);
   const margin=36; let y=842-margin; const draw=(text,size=10,x=margin)=>{ page.drawText(text,{ x,y,size,font,color:rgb(0,0,0)}); y-=size+4; };
   draw(`Tendance Personnel (${monthsWindow} mois)`,14);
-  draw('Colonnes: AAAA-MM | Actifs Début | Actifs Fin | Moyenne | Embauches | Sorties | Hires% | ExitTurnover%');
+  draw('Colonnes: AAAA-MM | Actifs Debut | Actifs Fin | Moyenne | Embauches | Sorties | Hires% | ExitTurnover%');
   y-=4;
   rows.forEach(r=>{ draw(`${r.year}-${String(r.month).padStart(2,'0')} | ${r.activeStart} | ${r.activeEnd} | ${r.avgHeadcount} | ${r.hires} | ${r.exits} | ${r.hiresRatePct}% | ${r.exitTurnoverPct}%`); });
   const bytes = await pdfDoc.save();

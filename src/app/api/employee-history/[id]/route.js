@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { toPlain } from '@/lib/json';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET: Get employee history record by ID
 export async function GET(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = params;
     const record = await prisma.employeeHistory.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: { employee: true },
     });
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -20,6 +22,7 @@ export async function GET(request, { params }) {
 // PUT: Update employee history record by ID
 export async function PUT(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = params;
     const body = await request.json();
     const data = {};
@@ -31,8 +34,17 @@ export async function PUT(request, { params }) {
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: 'Aucun champ valide à mettre à jour' }, { status: 400 });
     }
+    if (data.employeeId) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: data.employeeId, companyId },
+        select: { id: true },
+      });
+      if (!employee) {
+        return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+      }
+    }
 
-    const record = await prisma.employeeHistory.update({ where: { id }, data });
+    const record = await prisma.employeeHistory.update({ where: { id, companyId }, data });
   return NextResponse.json(toPlain({ record }));
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -42,8 +54,9 @@ export async function PUT(request, { params }) {
 // DELETE: Delete employee history record by ID
 export async function DELETE(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = params;
-    await prisma.employeeHistory.delete({ where: { id } });
+    await prisma.employeeHistory.delete({ where: { id, companyId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

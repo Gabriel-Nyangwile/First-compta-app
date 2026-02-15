@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { loadPrimaryFont, drawFooter, drawPageHeader, drawCompanyIdentity, drawDraftWatermark } from '@/lib/pdf/utils';
 import { featureFlags } from '@/lib/features';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const runtime = 'nodejs';
 
@@ -36,12 +37,13 @@ function computeTotals(lines) {
   );
 }
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   try {
     if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
+    const companyId = requireCompanyId(req);
     const { id } = await params;
     const payslip = await prisma.payslip.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: { employee: true, lines: true, period: true }
     });
     if (!payslip) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -51,6 +53,7 @@ export async function GET(_req, { params }) {
     // Récupérer le dernier règlement PAYSET (s'il existe) pour cet employé dans la période
     const settlements = await prisma.journalEntry.findMany({
       where: {
+        companyId,
         sourceType: 'PAYROLL',
         sourceId: payslip.periodId,
         description: { contains: 'PAYSET-' },

@@ -1,14 +1,16 @@
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
 import ExcelJS from 'exceljs';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response('Payroll disabled', { status:403 });
+  const companyId = requireCompanyId(req);
   const url = new URL(req.url);
   const yearParam = url.searchParams.get('year');
   const year = yearParam ? Number(yearParam) : new Date().getFullYear();
   if (!Number.isFinite(year) || year < 2000 || year > 2100) return new Response('Invalid year', { status:400 });
-  const annual = await aggregateAnnualPayroll(year);
+  const annual = await aggregateAnnualPayroll(year, companyId);
   const wb = new ExcelJS.Workbook();
   const meta = wb.addWorksheet('Résumé');
   meta.columns = [ { header:'Clé', key:'k', width:28 }, { header:'Valeur', key:'v', width:22 } ];

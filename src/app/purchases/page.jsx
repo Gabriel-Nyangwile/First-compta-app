@@ -3,6 +3,8 @@ import ChartFacturesAchats from "@/components/ChartFacturesAchats.jsx";
 import BackButton from "@/components/BackButton.jsx";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 
 export default async function PurchasesPage(props) {
@@ -12,9 +14,15 @@ export default async function PurchasesPage(props) {
   const dateFrom = sp?.from || "";
   const dateTo = sp?.to || "";
   const q = (sp?.q || "").toLowerCase();
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <main className="u-main-container u-padding-content-container">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  }
 
   // Récupère tous les bons de commande et factures fournisseurs
   const purchaseOrders = await prisma.purchaseOrder.findMany({
+    where: { companyId },
     include: {
       supplier: true,
       lines: true,
@@ -22,6 +30,7 @@ export default async function PurchasesPage(props) {
     }
   });
   const incomingInvoices = await prisma.incomingInvoice.findMany({
+    where: { companyId },
     include: {
       supplier: true
     }

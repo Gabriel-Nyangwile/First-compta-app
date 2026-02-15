@@ -6,24 +6,33 @@ import prisma from '@/lib/prisma';
 import { createAsset } from '@/lib/assets';
 import { getSystemAccounts } from '@/lib/systemAccounts';
 import { finalizeBatchToJournal } from '@/lib/journal';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
-async function fetchDetail(id) {
+async function fetchDetail(id, companyId) {
   const url = await absoluteUrl(`/api/asset-purchase-orders/${id}`);
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: companyId ? { 'x-company-id': companyId } : undefined,
+  });
   if (!res.ok) return null;
   return res.json();
 }
 
 async function statusAction(poId, status) {
   'use server';
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) throw new Error('companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).');
   const url = await absoluteUrl(`/api/asset-purchase-orders/${poId}/status`);
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-user-role': process.env.DEFAULT_ROLE || 'SUPERADMIN',
+      ...(companyId ? { 'x-company-id': companyId } : {}),
     },
     body: JSON.stringify({ status }),
   });
@@ -37,6 +46,9 @@ async function statusAction(poId, status) {
 
 async function invoiceAction(poId, formData) {
   'use server';
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) throw new Error('companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).');
   const supplierInvoiceNumber = formData.get('supplierInvoiceNumber')?.toString().trim();
   const receiptDate = formData.get('receiptDate')?.toString();
   const issueDate = formData.get('issueDate')?.toString();
@@ -55,6 +67,7 @@ async function invoiceAction(poId, formData) {
     headers: {
       'Content-Type': 'application/json',
       'x-user-role': process.env.DEFAULT_ROLE || 'SUPERADMIN',
+      ...(companyId ? { 'x-company-id': companyId } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -72,11 +85,12 @@ async function invoiceAction(poId, formData) {
   redirect(`/asset-purchase-orders/${poId}`);
 }
 
-async function ensureInvoicePosted(invoiceId) {
+async function ensureInvoicePosted(invoiceId, companyId) {
   'use server';
   if (!invoiceId) return;
-  const invoice = await prisma.incomingInvoice.findUnique({
-    where: { id: invoiceId },
+  if (!companyId) throw new Error('companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).');
+  const invoice = await prisma.incomingInvoice.findFirst({
+    where: { id: invoiceId, companyId },
     include: { lines: true, supplier: true, transactions: true },
   });
   if (!invoice) return;
@@ -91,8 +105,8 @@ async function ensureInvoicePosted(invoiceId) {
 
   let supplierAccountId = invoice.supplier?.accountId || null;
   if (!supplierAccountId) {
-    let acc = await prisma.account.findFirst({ where: { number: '401000' } });
-    if (!acc) acc = await prisma.account.create({ data: { number: '401000', label: 'Fournisseurs' } });
+    let acc = await prisma.account.findFirst({ where: { number: '401000', companyId } });
+    if (!acc) acc = await prisma.account.create({ data: { number: '401000', label: 'Fournisseurs', companyId } });
     supplierAccountId = acc.id;
   }
 
@@ -111,11 +125,12 @@ async function ensureInvoicePosted(invoiceId) {
         accountId: l.accountId,
         incomingInvoiceId: invoice.id,
         supplierId: invoice.supplierId || undefined,
+        companyId,
       },
     }));
   }
 
-  const { vatDeductibleAccount } = await getSystemAccounts();
+  const { vatDeductibleAccount } = await getSystemAccounts(companyId);
   if (vatDeductibleAccount && vatBuckets.size) {
     for (const [rate, amt] of vatBuckets.entries()) {
       if (!(amt > 0)) continue;
@@ -131,6 +146,7 @@ async function ensureInvoicePosted(invoiceId) {
           accountId: vatDeductibleAccount.id,
           incomingInvoiceId: invoice.id,
           supplierId: invoice.supplierId || undefined,
+          companyId,
         },
       }));
     }
@@ -148,6 +164,7 @@ async function ensureInvoicePosted(invoiceId) {
       accountId: supplierAccountId,
       incomingInvoiceId: invoice.id,
       supplierId: invoice.supplierId || undefined,
+      companyId,
     },
   }));
 
@@ -157,20 +174,24 @@ async function ensureInvoicePosted(invoiceId) {
     date: receiptDate,
     description: `Facture fournisseur immob ${invoice.entryNumber}`,
     transactions: txns,
+    companyId,
   });
 }
 
 async function createAssetsAction(poId) {
   'use server';
-  const po = await prisma.assetPurchaseOrder.findUnique({
-    where: { id: poId },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) throw new Error('companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).');
+  const po = await prisma.assetPurchaseOrder.findFirst({
+    where: { id: poId, companyId },
     include: { lines: { include: { assetCategory: true } }, incomingInvoice: true },
   });
   if (!po) throw new Error('BC immob introuvable');
-  await ensureInvoicePosted(po.incomingInvoiceId);
+  await ensureInvoicePosted(po.incomingInvoiceId, companyId);
   if (po.incomingInvoiceId) {
-    const postedInvoice = await prisma.incomingInvoice.findUnique({
-      where: { id: po.incomingInvoiceId },
+    const postedInvoice = await prisma.incomingInvoice.findFirst({
+      where: { id: po.incomingInvoiceId, companyId },
       include: { transactions: true },
     });
     const hasAcquisition = (postedInvoice?.transactions || []).some(
@@ -206,6 +227,7 @@ async function createAssetsAction(poId) {
         assetPurchaseOrderLineId: line.id,
         incomingInvoiceId: po.incomingInvoiceId || null,
       },
+      companyId,
     });
     created.push(asset);
   }
@@ -220,7 +242,10 @@ async function createAssetsAction(poId) {
 
 export default async function Page({ params }) {
   const { id } = await params;
-  const po = await fetchDetail(id);
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const po = await fetchDetail(id, companyId);
   if (!po) return <div className="p-6">BC immobilisation introuvable.</div>;
   const totalHt = (po.lines || []).reduce((s, l) => s + Number(l.unitPrice) * Number(l.quantity || 1), 0);
   const actions = [

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkPerm, getUserRole } from "@/lib/authz";
 import bcrypt from "bcryptjs";
+import { requireCompanyId } from "@/lib/tenant";
 
 const allowedRoles = [
   "SUPERADMIN",
@@ -21,24 +22,35 @@ function normalizeRole(role) {
   return allowedRoles.includes(upper) ? upper : "VIEWER";
 }
 
-// GET /api/admin/users?page=&pageSize=&q=
 export async function GET(req) {
   const role = await getUserRole(req);
   if (!checkPerm("manageUsers", role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const companyId = requireCompanyId(req);
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+  if (!company) {
+    return NextResponse.json(
+      { error: "companyId invalide (aucune société trouvée)." },
+      { status: 400 }
+    );
+  }
   const url = new URL(req.url);
   const page = Math.max(1, Number(url.searchParams.get("page") || 1));
   const pageSize = Math.min(50, Math.max(5, Number(url.searchParams.get("pageSize") || 10)));
   const q = url.searchParams.get("q");
-  const where = q
-    ? {
-        OR: [
-          { email: { contains: q, mode: "insensitive" } },
-          { username: { contains: q, mode: "insensitive" } },
-        ],
-      }
-    : {};
+  const where = {
+    companyId,
+    ...(q
+      ? {
+          OR: [
+            { email: { contains: q, mode: "insensitive" } },
+            { username: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
     prisma.user.findMany({
@@ -57,6 +69,14 @@ export async function POST(req) {
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const companyId = requireCompanyId(req);
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+  if (!company) {
+    return NextResponse.json(
+      { error: "companyId invalide (aucune société trouvée)." },
+      { status: 400 }
+    );
+  }
   const body = await req.json();
   const { username, email, password, role } = body || {};
   if (!username || !email || !password) {
@@ -64,12 +84,12 @@ export async function POST(req) {
   }
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return NextResponse.json({ error: "Email déjà utilisé" }, { status: 409 });
+    return NextResponse.json({ error: "Email deja utilise" }, { status: 409 });
   }
   const hashed = await bcrypt.hash(password, 10);
   const userRole = normalizeRole(role);
   const user = await prisma.user.create({
-    data: { username, email, password: hashed, role: userRole },
+    data: { companyId, username, email, password: hashed, role: userRole },
     select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true },
   });
   return NextResponse.json({ user }, { status: 201 });

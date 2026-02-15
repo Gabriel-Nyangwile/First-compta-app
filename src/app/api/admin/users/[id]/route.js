@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkPerm, getUserRole } from "@/lib/authz";
 import bcrypt from "bcryptjs";
+import { requireCompanyId } from "@/lib/tenant";
 
 const allowedRoles = [
   "SUPERADMIN",
@@ -26,6 +27,7 @@ export async function PATCH(req, { params }) {
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   const body = await req.json().catch(() => ({}));
@@ -42,11 +44,11 @@ export async function PATCH(req, { params }) {
     updates.password = await bcrypt.hash(body.password, 10);
   }
   if (!Object.keys(updates).length) {
-    return NextResponse.json({ error: "Aucune donnée à mettre à jour" }, { status: 400 });
+    return NextResponse.json({ error: "Aucune donnee a mettre a jour" }, { status: 400 });
   }
   try {
     const user = await prisma.user.update({
-      where: { id },
+      where: { id, companyId },
       data: updates,
       select: { id: true, email: true, username: true, role: true, isActive: true, createdAt: true },
     });
@@ -61,10 +63,11 @@ export async function DELETE(req, { params }) {
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
-    await prisma.user.delete({ where: { id } });
+    await prisma.user.delete({ where: { id, companyId } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e.message || "Delete failed" }, { status: 500 });

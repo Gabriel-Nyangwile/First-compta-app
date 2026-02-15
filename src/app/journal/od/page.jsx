@@ -1,8 +1,13 @@
 import React from 'react';
 import prisma from '@/lib/prisma';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
-async function loadOrphanGroups() {
-  const orphan = await prisma.transaction.findMany({ where: { journalEntryId: null }, orderBy: { date: 'asc' } });
+async function loadOrphanGroups(companyId) {
+  const orphan = await prisma.transaction.findMany({
+    where: { journalEntryId: null, companyId },
+    orderBy: { date: 'asc' },
+  });
   const map = new Map();
   for (const t of orphan) {
     const key = t.invoiceId || t.incomingInvoiceId || t.moneyMovementId || `MISC:${t.date.toISOString().slice(0,10)}:${t.nature}`;
@@ -22,7 +27,10 @@ async function loadOrphanGroups() {
 }
 
 export default async function ODPage() {
-  const groups = await loadOrphanGroups();
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div style={{ padding: '1rem' }}>companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const groups = await loadOrphanGroups(companyId);
   return (
     <div style={{ padding: '1rem' }}>
       <h1>Opérations Diverses – Orphelins</h1>

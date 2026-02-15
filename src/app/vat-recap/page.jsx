@@ -2,6 +2,8 @@ import React from 'react';
 import { computeVatRecap } from '@/lib/vatRecap';
 import Amount from '@/components/Amount.jsx';
 import { formatRatePercent } from '@/lib/utils';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export default async function VatRecapPage(props) {
   // Harmonisation avec autres pages: searchParams peut être Promise-like selon streaming
@@ -10,7 +12,10 @@ export default async function VatRecapPage(props) {
   const to = sp?.to ?? '';
   const granularity = sp?.granularity ?? 'month';
   const includeZero = sp?.includeZero ?? 'false';
-  const recap = await computeVatRecap({ from: from || undefined, to: to || undefined, granularity, includeZero: includeZero === 'true' });
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <main className="px-6 max-w-[1100px] mx-auto py-8">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  const recap = await computeVatRecap({ companyId, from: from || undefined, to: to || undefined, granularity, includeZero: includeZero === 'true' });
   return (
     <main className="px-6 max-w-[1100px] mx-auto py-8">
       <h1 className="text-3xl font-bold mb-2">Récapitulatif TVA</h1>

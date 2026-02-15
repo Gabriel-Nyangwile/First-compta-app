@@ -12,6 +12,9 @@ export async function GET(req) {
     return NextResponse.json({ count });
   } catch (e) {
     console.error('unpaid-count incoming invoices error', e);
-    return NextResponse.json({ error: 'Erreur comptage factures reçues impayées' }, { status: 500 });
+    if (String(e?.message || '').includes('companyId requis')) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Erreur comptage factures recues impayees' }, { status: 500 });
   }
 }

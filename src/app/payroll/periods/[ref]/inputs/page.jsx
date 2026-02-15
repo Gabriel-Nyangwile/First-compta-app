@@ -3,23 +3,32 @@ import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 import InputsPanel from '../../InputsPanel.jsx';
 import { featureFlags } from '@/lib/features';
 import { sanitizeArray } from '@/lib/sanitizePlain';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PeriodInputsPage({ params }) {
   if (!featureFlags.payroll) return <div className="p-6">Module paie désactivé.</div>;
   const { ref } = await params;
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
   const period = await prisma.payrollPeriod.findUnique({
-    where: { ref },
+    where: { companyId_ref: { companyId, ref } },
     select: { id: true, ref: true, status: true },
   });
   if (!period) return <div className="p-6">Période introuvable.</div>;
   const employeesRaw = await prisma.employee.findMany({
-    where: { status: 'ACTIVE' },
+    where: { companyId, status: 'ACTIVE' },
     select: { id: true, firstName: true, lastName: true, employeeNumber: true },
     orderBy: { lastName: 'asc' },
   });
-  const costCentersRaw = await prisma.costCenter.findMany({ select: { id: true, code: true, label: true, active: true }, orderBy: { code: 'asc' } });
+  const costCentersRaw = await prisma.costCenter.findMany({
+    where: { companyId },
+    select: { id: true, code: true, label: true, active: true },
+    orderBy: { code: 'asc' }
+  });
   const employees = sanitizeArray(employeesRaw);
   const costCenters = sanitizeArray(costCentersRaw);
   const readonly = period.status !== 'OPEN';

@@ -11,14 +11,14 @@ import { nextSequence } from '../sequence.js';
 function toNumber(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
-export async function getActiveSchemes() {
-  const list = await prisma.contributionScheme.findMany({ where: { active: true } });
+export async function getActiveSchemes(companyId = null) {
+  const list = await prisma.contributionScheme.findMany({ where: { active: true, ...(companyId ? { companyId } : {}) } });
   const byCode = Object.fromEntries(list.map(s => [s.code, s]));
   return { list, byCode };
 }
 
-export async function getIprRule() {
-  const rule = await prisma.taxRule.findFirst({ where: { code: 'IPR_RDC_2025', active: true } });
+export async function getIprRule(companyId = null) {
+  const rule = await prisma.taxRule.findFirst({ where: { code: 'IPR_RDC_2025', active: true, ...(companyId ? { companyId } : {}) } });
   return rule;
 }
 
@@ -58,18 +58,19 @@ function computeIprMonthlyCDF(riCDF, rule) {
   return round2(monthlyTax);
 }
 
-async function getFxRateForPeriod(baseCurrency, quoteCurrency, year, month) {
+async function getFxRateForPeriod(baseCurrency, quoteCurrency, year, month, companyId = null) {
   // Use last day of month
   const targetDate = new Date(Date.UTC(year, month - 1, 1));
   // Find latest rate <= first day of period month (could shift to end-of-month once available)
   const rate = await prisma.fxRate.findFirst({
-    where: { baseCurrency, quoteCurrency, date: { lte: targetDate } },
+    where: { baseCurrency, quoteCurrency, date: { lte: targetDate }, ...(companyId ? { companyId } : {}) },
     orderBy: { date: 'desc' }
   });
   return rate?.rate?.toNumber?.() ?? 1;
 }
 
 export async function calculatePayslipForEmployee(employee, periodContext = null) {
+  const companyId = periodContext?.companyId || employee?.companyId || null;
   // Base salary from Position.Bareme
   const baseSalary = toNumber(employee?.position?.bareme?.legalSalary) || 0;
   // Simulated primes via feature flag
@@ -143,8 +144,8 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
   const gross = baseAfterAttendance + variablesPrimeTotal + aen + primes + overtimeAmount;
 
   // Load schemes and tax
-  const { byCode } = await getActiveSchemes();
-  const iprRule = await getIprRule();
+  const { byCode } = await getActiveSchemes(companyId);
+  const iprRule = await getIprRule(companyId);
 
   // CNSS salarie 5% on BRUT for v1 (practical; RI-based would require circular solve)
   const cnssEmpRate = toNumber(byCode?.CNSS?.employeeRate) || 0.05;
@@ -157,7 +158,7 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
   // FX conversion for tax (EUR->CDF) using period context if provided
   let fxRate = 1;
   if (periodContext) {
-    fxRate = await getFxRateForPeriod('EUR', 'CDF', periodContext.year, periodContext.month);
+    fxRate = await getFxRateForPeriod('EUR', 'CDF', periodContext.year, periodContext.month, companyId);
   }
   const riCDF = round2(riBase * fxRate);
   const iprCDF = iprRule ? computeIprMonthlyCDF(riCDF, iprRule) : 0;
@@ -197,14 +198,14 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
   };
 }
 
-export async function recalculatePayslip(payslipId) {
+export async function recalculatePayslip(payslipId, companyId = null) {
   const p = await prisma.payslip.findUnique({
-    where: { id: payslipId },
+    where: { id: payslipId, ...(companyId ? { companyId } : {}) },
     include: { employee: { include: { position: { include: { bareme: true } } }, costAllocations: true } },
   });
   if (!p) throw new Error('Payslip not found');
   // Load period for FX context
-  const period = await prisma.payrollPeriod.findUnique({ where: { id: p.periodId } });
+  const period = await prisma.payrollPeriod.findUnique({ where: { id: p.periodId, ...(companyId ? { companyId } : {}) } });
   const res = await calculatePayslipForEmployee(p.employee, period);
   // Replace non-manual lines (in v1: replace all)
   await prisma.$transaction(async (tx) => {
@@ -226,25 +227,25 @@ export async function recalculatePayslip(payslipId) {
   return res;
 }
 
-export async function generatePayslipsForPeriod(periodId) {
-  const period = await prisma.payrollPeriod.findUnique({ where: { id: periodId } });
+export async function generatePayslipsForPeriod(periodId, companyId = null) {
+  const period = await prisma.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
   if (!period) throw new Error('Period not found');
-  const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' }, include: { position: { include: { bareme: true } }, costAllocations: true } });
+  const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE', ...(companyId ? { companyId } : {}) }, include: { position: { include: { bareme: true } }, costAllocations: true } });
   const results = [];
   await prisma.$transaction(async (tx) => {
     for (const e of employees) {
       // Upsert payslip
       const existing = await tx.payslip.findFirst({ where: { employeeId: e.id, periodId } });
       const ps = existing || await (async () => {
-        const ref = await nextSequence(tx, 'PAYSLIP', 'PSL-');
-        return tx.payslip.create({ data: { employeeId: e.id, periodId, ref, grossAmount: 0, netAmount: 0 } });
+        const ref = await nextSequence(tx, 'PAYSLIP', 'PSL-', companyId);
+        return tx.payslip.create({ data: { companyId: companyId || null, employeeId: e.id, periodId, ref, grossAmount: 0, netAmount: 0 } });
       })();
       const calc = await calculatePayslipForEmployee(e, period);
       // Reset lines
       await tx.payslipLine.deleteMany({ where: { payslipId: ps.id } });
       await tx.payslip.update({ where: { id: ps.id }, data: { grossAmount: calc.grossAmount, netAmount: calc.netAmount } });
       for (const [i, l] of calc.lines.entries()) {
-        await tx.payslipLine.create({ data: { payslipId: ps.id, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
+        await tx.payslipLine.create({ data: { companyId: companyId || null, payslipId: ps.id, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
       }
       await tx.payslipCostAllocation.deleteMany({ where: { payslipId: ps.id } });
       const allocs = e.costAllocations?.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) })) || [];
@@ -252,7 +253,7 @@ export async function generatePayslipsForPeriod(periodId) {
       if (allocs.length || direct.length) {
         const rounded = distributeAllocations(calc.grossAmount, allocs, direct);
         for (const a of rounded) {
-          await tx.payslipCostAllocation.create({ data: { payslipId: ps.id, costCenterId: a.costCenterId, percent: a.percent, amount: a.amount } });
+          await tx.payslipCostAllocation.create({ data: { companyId: companyId || null, payslipId: ps.id, costCenterId: a.costCenterId, percent: a.percent, amount: a.amount } });
         }
       }
       results.push({ employeeId: e.id, payslipId: ps.id, ...calc });

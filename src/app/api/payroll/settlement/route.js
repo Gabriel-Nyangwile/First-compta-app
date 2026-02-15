@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import { postPayrollSettlement } from '@/lib/payroll/settlement';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,15 +10,16 @@ export const dynamic = 'force-dynamic';
   // body: { periodId OR periodRef, accountNumber?, dryRun?, employeeId? }
 export async function POST(req) {
   if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
+  const companyId = requireCompanyId(req);
   try {
     const body = await req.json();
     const { periodId, periodRef, accountNumber, dryRun, employeeId } = body || {};
     if (!periodId && !periodRef) return NextResponse.json({ error: 'periodId or periodRef required' }, { status: 400 });
     const period = periodId
-      ? await prisma.payrollPeriod.findUnique({ where: { id: periodId } })
-      : await prisma.payrollPeriod.findUnique({ where: { ref: periodRef } });
+      ? await prisma.payrollPeriod.findUnique({ where: { id: periodId, companyId } })
+      : await prisma.payrollPeriod.findFirst({ where: { ref: periodRef, companyId } });
     if (!period) return NextResponse.json({ error: 'Period not found' }, { status: 404 });
-    const res = await postPayrollSettlement(period.id, { accountNumber, dryRun, employeeId });
+    const res = await postPayrollSettlement(period.id, { accountNumber, dryRun, employeeId, companyId });
     return NextResponse.json({ ok: true, ...res });
   } catch (e) {
     console.error('payroll settlement error', e);

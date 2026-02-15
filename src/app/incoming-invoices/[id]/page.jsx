@@ -8,11 +8,16 @@ import { redirect } from "next/navigation";
 import { createAsset } from "@/lib/assets";
 import { getSystemAccounts } from "@/lib/systemAccounts";
 import { finalizeBatchToJournal } from "@/lib/journal";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 export default async function IncomingInvoiceDetail({ params, searchParams }) {
   const { id } = await params;
-  const inv = await prisma.incomingInvoice.findUnique({
-    where: { id },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-8 text-sm text-red-600">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const inv = await prisma.incomingInvoice.findFirst({
+    where: { id, companyId },
     include: {
       supplier: true,
       lines: { include: { account: true } },
@@ -73,8 +78,8 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
   async function ensureInvoicePosted(invoiceId) {
     "use server";
     if (!invoiceId) return;
-    const invoice = await prisma.incomingInvoice.findUnique({
-      where: { id: invoiceId },
+    const invoice = await prisma.incomingInvoice.findFirst({
+      where: { id: invoiceId, companyId },
       include: { lines: true, supplier: true, transactions: true },
     });
     if (!invoice) return;
@@ -89,8 +94,8 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
 
     let supplierAccountId = invoice.supplier?.accountId || null;
     if (!supplierAccountId) {
-      let acc = await prisma.account.findFirst({ where: { number: "401000" } });
-      if (!acc) acc = await prisma.account.create({ data: { number: "401000", label: "Fournisseurs" } });
+      let acc = await prisma.account.findFirst({ where: { number: "401000", companyId } });
+      if (!acc) acc = await prisma.account.create({ data: { number: "401000", label: "Fournisseurs", companyId } });
       supplierAccountId = acc.id;
     }
 
@@ -100,6 +105,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
       if (rate != null) vatBuckets.set(rate, (vatBuckets.get(rate) || 0) + amt * rate);
       txns.push(await prisma.transaction.create({
         data: {
+          companyId,
           date: receiptDate,
           nature: "purchase",
           description: l.description || "Immobilisation",
@@ -113,13 +119,14 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
       }));
     }
 
-    const { vatDeductibleAccount } = await getSystemAccounts();
+    const { vatDeductibleAccount } = await getSystemAccounts(companyId);
     if (vatDeductibleAccount && vatBuckets.size) {
       for (const [rate, amt] of vatBuckets.entries()) {
         if (!(amt > 0)) continue;
         const pct = (Number(rate) * 100).toFixed(2).replace(/\\.00$/, "");
         txns.push(await prisma.transaction.create({
           data: {
+            companyId,
             date: receiptDate,
             nature: "purchase",
             description: `TVA deductible ${pct}% facture ${invoice.entryNumber}`,
@@ -137,6 +144,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
     const totalAmount = Number(invoice.totalAmount?.toString?.() ?? invoice.totalAmount ?? 0);
     txns.push(await prisma.transaction.create({
       data: {
+        companyId,
         date: receiptDate,
         nature: "purchase",
         description: `Dette fournisseur facture ${invoice.entryNumber}`,
@@ -160,8 +168,8 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
 
   async function createAssetFromInvoice() {
     "use server";
-    const invoice = await prisma.incomingInvoice.findUnique({
-      where: { id },
+    const invoice = await prisma.incomingInvoice.findFirst({
+      where: { id, companyId },
       include: {
         assetPurchaseOrder: {
           include: {
@@ -174,8 +182,8 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
       throw new Error("BC immobilisation non lié à cette facture");
     }
     await ensureInvoicePosted(invoice.id);
-    const postedInvoice = await prisma.incomingInvoice.findUnique({
-      where: { id },
+    const postedInvoice = await prisma.incomingInvoice.findFirst({
+      where: { id, companyId },
       include: { transactions: true },
     });
     const hasAcquisition = (postedInvoice?.transactions || []).some(
@@ -194,6 +202,7 @@ export default async function IncomingInvoiceDetail({ params, searchParams }) {
       const acquisitionDate = invoice.receiptDate || new Date();
       const inServiceDate = acquisitionDate;
       await createAsset({
+        companyId,
         label: line.label || po.number,
         categoryId: line.assetCategoryId,
         acquisitionDate,

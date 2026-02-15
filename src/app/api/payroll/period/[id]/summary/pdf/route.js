@@ -1,12 +1,14 @@
 import { featureFlags } from '@/lib/features';
 import { aggregatePeriodSummary } from '@/lib/payroll/aggregatePeriod';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { requireCompanyId } from '@/lib/tenant';
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   if (!featureFlags.payroll) return new Response('Payroll disabled', { status:403 });
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return new Response('Missing period id', { status:400 });
-  const summary = await aggregatePeriodSummary(id);
+  const summary = await aggregatePeriodSummary(id, companyId);
   if (!summary) return new Response('Not found', { status:404 });
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);

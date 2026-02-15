@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,9 +9,10 @@ function toNum(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 
 export async function GET(req, { params }) {
   if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Missing period id' }, { status: 400 });
-  const period = await prisma.payrollPeriod.findUnique({ where: { id } });
+  const period = await prisma.payrollPeriod.findUnique({ where: { id, companyId } });
   if (!period) return NextResponse.json({ error: 'Period not found' }, { status: 404 });
   if (period.status !== 'POSTED') return NextResponse.json({ error: `Period must be POSTED (status=${period.status})` }, { status: 409 });
 
@@ -20,6 +22,7 @@ export async function GET(req, { params }) {
 
   const journals = await prisma.journalEntry.findMany({
     where: {
+      companyId,
       sourceType: 'PAYROLL',
       sourceId: period.id,
       description: { contains: 'PAYSET-' },
@@ -29,7 +32,7 @@ export async function GET(req, { params }) {
   const jeIds = journals.map(j => j.id);
   const txs = jeIds.length
     ? await prisma.transaction.findMany({
-        where: { journalEntryId: { in: jeIds } },
+        where: { companyId, journalEntryId: { in: jeIds } },
         include: { account: true },
       })
     : [];

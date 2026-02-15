@@ -101,6 +101,11 @@ export async function middleware(req) {
 
   const { pathname } = req.nextUrl;
   const method = req.method;
+  const defaultCompanyId = (process.env.DEFAULT_COMPANY_ID || '').trim();
+  const hasCompanyCookie =
+    req.cookies.get('company-id')?.value ||
+    req.cookies.get('companyId')?.value ||
+    req.cookies.get('company_id')?.value;
 
   const action = matchAction(pathname, method);
   // Bypass with admin token if provided
@@ -114,6 +119,11 @@ export async function middleware(req) {
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    if (!hasCompanyCookie && defaultCompanyId) {
+      const res = NextResponse.next();
+      res.cookies.set('company-id', defaultCompanyId, { path: '/', sameSite: 'lax' });
+      return res;
+    }
     return NextResponse.next();
   }
 
@@ -125,6 +135,11 @@ export async function middleware(req) {
     );
   }
 
+  if (!hasCompanyCookie && defaultCompanyId) {
+    const res = NextResponse.next();
+    res.cookies.set('company-id', defaultCompanyId, { path: '/', sameSite: 'lax' });
+    return res;
+  }
   return NextResponse.next();
 }
 

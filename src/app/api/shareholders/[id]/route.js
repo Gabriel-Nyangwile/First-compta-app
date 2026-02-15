@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 export async function PATCH(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
     const body = await req.json();
     const { name, type, email, phone, address } = body;
     const sh = await prisma.shareholder.update({
-      where: { id },
+      where: { id, companyId },
       data: {
         name: name ?? undefined,
         type: type ?? undefined,
@@ -19,16 +21,17 @@ export async function PATCH(req, { params }) {
     });
     return NextResponse.json(sh);
   } catch (e) {
-    const msg = e.message || "Erreur mise à jour actionnaire";
+    const msg = e.message || "Erreur mise a jour actionnaire";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
-export async function DELETE(_req, { params }) {
+export async function DELETE(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
-    await prisma.shareholder.delete({ where: { id } });
+    await prisma.shareholder.delete({ where: { id, companyId } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e.message || "Erreur suppression actionnaire";

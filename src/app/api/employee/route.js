@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { toPlain } from '@/lib/json';
 import { nextSequence } from '@/lib/sequence';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET: List all employees
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q');
     const where = q
@@ -18,6 +20,7 @@ export async function GET(request) {
           ],
         }
       : {};
+    where.companyId = companyId;
     const employees = await prisma.employee.findMany({
       where,
       include: {
@@ -35,6 +38,7 @@ export async function GET(request) {
 // POST: Create a new employee
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const data = await request.json();
     if (!data?.firstName || !data?.lastName) {
       return NextResponse.json({ error: 'firstName et lastName sont requis' }, { status: 400 });
@@ -86,7 +90,7 @@ export async function POST(request) {
       : undefined;
     let group = 'C';
     if (normalizedPositionId) {
-      const pos = await prisma.position.findUnique({ where: { id: normalizedPositionId }, include: { bareme: true } });
+      const pos = await prisma.position.findUnique({ where: { id: normalizedPositionId, companyId }, include: { bareme: true } });
       if (!pos) {
         return NextResponse.json({ error: 'Invalid positionId: not found' }, { status: 400 });
       }
@@ -99,7 +103,7 @@ export async function POST(request) {
     }
     // No contract entity anymore
     if (!finalEmployeeNumber) {
-      finalEmployeeNumber = await nextSequence(prisma, `employeeNumber:${group}`, `${group}-`);
+      finalEmployeeNumber = await nextSequence(prisma, `employeeNumber:${group}`, `${group}-`, companyId);
     }
 
     // Normalize social security number: strip spaces
@@ -129,6 +133,7 @@ export async function POST(request) {
 
     const employee = await prisma.employee.create({
       data: {
+        companyId,
         firstName,
         lastName,
         email,

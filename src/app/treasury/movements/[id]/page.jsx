@@ -1,11 +1,16 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import { formatAmount } from '@/lib/utils';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export default async function MovementDetailPage({ params }) {
   const { id } = await params;
-  const mv = await prisma.moneyMovement.findUnique({
-    where: { id },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-8 text-sm text-red-600">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const mv = await prisma.moneyMovement.findFirst({
+    where: { id, companyId },
     include: {
       moneyAccount: true,
       invoice: { select: { id: true, invoiceNumber: true, client: { select: { name: true } } } },

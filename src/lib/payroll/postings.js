@@ -12,9 +12,9 @@
 import prisma from '../prisma.js';
 import { finalizeBatchToJournal, computeDebitCredit } from '../journal.js';
 
-async function getNatExpCostCenters(tx) {
+async function getNatExpCostCenters(tx, companyId = null) {
   const centers = await tx.costCenter.findMany({
-    where: { code: { in: ['NAT', 'EXP'] } },
+    where: { code: { in: ['NAT', 'EXP'] }, ...(companyId ? { companyId } : {}) },
     select: { id: true, code: true },
   });
   const map = new Map(centers.map(c => [c.code, c.id]));
@@ -52,8 +52,8 @@ function mergeAllocations(...maps) {
   return res;
 }
 
-async function fetchPayrollAccounts(tx) {
-  const mappings = await tx.payrollAccountMapping.findMany({ where: { active: true } });
+async function fetchPayrollAccounts(tx, companyId = null) {
+  const mappings = await tx.payrollAccountMapping.findMany({ where: { active: true, ...(companyId ? { companyId } : {}) } });
   const index = Object.fromEntries(mappings.map(m => [m.code, m]));
   // Helper to resolve to accountId via accountNumber if needed
   async function resolve(code) {
@@ -61,10 +61,10 @@ async function fetchPayrollAccounts(tx) {
     if (!m) throw new Error(`Missing payroll account mapping for code ${code}`);
     if (m.accountId) return m.accountId;
     if (!m.accountNumber) throw new Error(`Mapping ${code} missing accountNumber`);
-    let acc = await tx.account.findFirst({ where: { number: m.accountNumber } });
+    let acc = await tx.account.findFirst({ where: { number: m.accountNumber, ...(companyId ? { companyId } : {}) } });
     if (!acc) {
       // Auto-create missing account for payroll usage
-      acc = await tx.account.create({ data: { number: m.accountNumber, label: m.label || code } });
+      acc = await tx.account.create({ data: { companyId: companyId || null, number: m.accountNumber, label: m.label || code } });
     }
     return acc.id;
   }
@@ -83,9 +83,9 @@ async function fetchPayrollAccounts(tx) {
 }
 
 // Internal posting logic executed within an existing prisma.$transaction block.
-export async function postPayrollPeriodTx(tx, periodId) {
+export async function postPayrollPeriodTx(tx, periodId, companyId = null) {
   const period = await tx.payrollPeriod.findUnique({
-    where: { id: periodId },
+    where: { id: periodId, ...(companyId ? { companyId } : {}) },
     include: {
       payslips: {
         include: {
@@ -100,13 +100,14 @@ export async function postPayrollPeriodTx(tx, periodId) {
   if (period.status !== 'LOCKED') throw new Error('Period must be LOCKED before posting');
   if (!period.payslips.length) throw new Error('No payslips to post');
 
-    const accounts = await fetchPayrollAccounts(tx);
-    const natExp = await getNatExpCostCenters(tx);
+    const scopedCompanyId = period?.companyId || companyId || null;
+    const accounts = await fetchPayrollAccounts(tx, scopedCompanyId);
+    const natExp = await getNatExpCostCenters(tx, scopedCompanyId);
 
     // Preload cost allocations for employees in this period
     const employeeIds = Array.from(new Set(period.payslips.map(p => p.employeeId))).filter(Boolean);
     const empAllocs = employeeIds.length
-      ? await tx.employeeCostAllocation.findMany({ where: { employeeId: { in: employeeIds } } })
+      ? await tx.employeeCostAllocation.findMany({ where: { employeeId: { in: employeeIds }, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } })
       : [];
     const allocByEmp = new Map();
     for (const a of empAllocs) {
@@ -273,7 +274,7 @@ export async function postPayrollPeriodTx(tx, periodId) {
     // Persist transactions
     const createdTxns = [];
     for (const data of txnData) {
-      createdTxns.push(await tx.transaction.create({ data }));
+      createdTxns.push(await tx.transaction.create({ data: { ...data, companyId: scopedCompanyId } }));
     }
 
     // Finalize journal
@@ -293,18 +294,19 @@ export async function postPayrollPeriodTx(tx, periodId) {
 }
 
 // Convenience wrapper for cases where we want to post outside an existing transaction.
-export async function postPayrollPeriod(periodId) {
-  return prisma.$transaction(async (tx) => postPayrollPeriodTx(tx, periodId));
+export async function postPayrollPeriod(periodId, companyId = null) {
+  return prisma.$transaction(async (tx) => postPayrollPeriodTx(tx, periodId, companyId));
 }
 
 // Reverse a posted payroll journal and set period back to LOCKED
-export async function reversePayrollPeriodTx(tx, periodId, actor = null) {
-  const period = await tx.payrollPeriod.findUnique({ where: { id: periodId } });
+export async function reversePayrollPeriodTx(tx, periodId, actor = null, companyId = null) {
+  const period = await tx.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
   if (!period) throw new Error('Payroll period not found');
   if (period.status !== 'POSTED') throw new Error('Period must be POSTED to reverse');
-  const je = await tx.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id }, orderBy: { date: 'desc' } });
+  const scopedCompanyId = period?.companyId || companyId || null;
+  const je = await tx.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, orderBy: { date: 'desc' } });
   if (!je) throw new Error('No payroll journal found to reverse');
-  const origTxns = await tx.transaction.findMany({ where: { journalEntryId: je.id } });
+  const origTxns = await tx.transaction.findMany({ where: { journalEntryId: je.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
   if (!origTxns.length) throw new Error('Original journal has no transactions');
 
   const today = new Date();
@@ -315,6 +317,7 @@ export async function reversePayrollPeriodTx(tx, periodId, actor = null) {
     const direction = t.direction === 'DEBIT' ? 'CREDIT' : 'DEBIT';
     reversed.push(await tx.transaction.create({
       data: {
+        companyId: scopedCompanyId,
         date: today,
         description: desc,
         amount,
@@ -334,10 +337,11 @@ export async function reversePayrollPeriodTx(tx, periodId, actor = null) {
     transactions: reversed,
   });
 
-  await tx.payrollPeriod.update({ where: { id: period.id }, data: { status: 'LOCKED', postedAt: null } });
+  await tx.payrollPeriod.update({ where: { id: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, data: { status: 'LOCKED', postedAt: null } });
   // Audit log
   await tx.auditLog.create({
     data: {
+      companyId: scopedCompanyId,
       entityType: 'PAYROLL_PERIOD',
       entityId: period.id,
       action: 'REVERSE',
@@ -354,6 +358,6 @@ export async function reversePayrollPeriodTx(tx, periodId, actor = null) {
   return { journal: reversalJournal, reversedCount: reversed.length, debit, credit };
 }
 
-export async function reversePayrollPeriod(periodId, actor = null) {
-  return prisma.$transaction(async (tx) => reversePayrollPeriodTx(tx, periodId, actor));
+export async function reversePayrollPeriod(periodId, actor = null, companyId = null) {
+  return prisma.$transaction(async (tx) => reversePayrollPeriodTx(tx, periodId, actor, companyId));
 }

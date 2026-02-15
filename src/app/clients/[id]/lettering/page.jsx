@@ -1,11 +1,16 @@
 import { ClientLetteringPanel } from "@/components/clients/lettering/ClientLetteringPanel";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 export default async function ClientDetailLetteringPage({ params }) {
   const { id } = await params;
-  const client = await prisma.client.findUnique({
-    where: { id },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-8">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const client = await prisma.client.findFirst({
+    where: { id, companyId },
     select: { id: true, name: true, email: true }
   });
   if (!client) return <div className="p-8">Client introuvable</div>;

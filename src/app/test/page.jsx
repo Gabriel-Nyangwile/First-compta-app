@@ -1,10 +1,17 @@
 import prisma from '@/lib/prisma';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 // Simple test page (deduplicated). Remove this file in production if not needed.
 export default async function TestPage() {
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <main style={{ padding: '2rem' }}>companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  }
   const [clients, invoices] = await Promise.all([
-    prisma.client.findMany(),
-    prisma.invoice.findMany({ include: { client: true } })
+    prisma.client.findMany({ where: { companyId } }),
+    prisma.invoice.findMany({ where: { companyId }, include: { client: true } })
   ]);
 
   return (

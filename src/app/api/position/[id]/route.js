@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { toPlain } from '@/lib/json';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET: Get position by ID
 export async function GET(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await params;
-    const position = await prisma.position.findUnique({ where: { id }, include: { bareme: true } });
+    const position = await prisma.position.findUnique({ where: { id, companyId }, include: { bareme: true } });
     if (!position) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(toPlain({ position }));
   } catch (error) {
@@ -51,6 +53,7 @@ export async function GET(request, { params }) {
 } */
 export async function PUT(request, ctx) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await ctx.params;
     const body = await request.json();
     const data = {};
@@ -62,7 +65,7 @@ export async function PUT(request, ctx) {
       return NextResponse.json({ error: 'Aucun champ valide à mettre à jour' }, { status: 400 });
     }
 
-    const position = await prisma.position.update({ where: { id }, data, include: { bareme: true } });
+    const position = await prisma.position.update({ where: { id, companyId }, data, include: { bareme: true } });
     return NextResponse.json(toPlain({ position }));
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -72,8 +75,9 @@ export async function PUT(request, ctx) {
 // DELETE: Delete position by ID
 export async function DELETE(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = await params;
-    await prisma.position.delete({ where: { id } });
+    await prisma.position.delete({ where: { id, companyId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

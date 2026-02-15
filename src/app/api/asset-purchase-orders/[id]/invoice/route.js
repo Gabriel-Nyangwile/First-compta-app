@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { resolveCategoryAccounts } from '@/lib/assets';
 import { getSystemAccounts } from '@/lib/systemAccounts';
 import { checkPerm, getUserRole } from '@/lib/authz';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,13 @@ function addDays(base, days) {
   return d;
 }
 
-async function generateNextEntryNumber(tx) {
+async function generateNextEntryNumber(tx, companyId) {
   const now = new Date();
   const year = now.getFullYear();
   const startOfYear = new Date(year, 0, 1);
   const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999);
   const count = await tx.incomingInvoice.count({
-    where: { receiptDate: { gte: startOfYear, lte: endOfYear } },
+    where: { companyId, receiptDate: { gte: startOfYear, lte: endOfYear } },
   });
   const seq = count + 1;
   const seqPadded = String(seq).padStart(4, '0');
@@ -32,6 +33,7 @@ async function generateNextEntryNumber(tx) {
 }
 
 export async function POST(req, { params }) {
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
   try {
@@ -49,7 +51,7 @@ export async function POST(req, { params }) {
     }
 
     const apo = await prisma.assetPurchaseOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: { supplier: true, lines: { include: { assetCategory: true } } },
     });
     if (!apo) return NextResponse.json({ error: 'BC immob non trouve' }, { status: 404 });
@@ -60,7 +62,7 @@ export async function POST(req, { params }) {
     const lines = [];
     let totalHt = 0;
     let totalVat = 0;
-    const vatBuckets = new Map(); // rate -> vat amount
+    const vatBuckets = new Map();
     for (const l of apo.lines) {
       const qty = Number(l.quantity?.toNumber?.() ?? l.quantity ?? 1);
       const pu = Number(l.unitPrice?.toNumber?.() ?? l.unitPrice ?? 0);
@@ -72,6 +74,7 @@ export async function POST(req, { params }) {
       if (rate != null) vatBuckets.set(rate, (vatBuckets.get(rate) || 0) + vatAmt);
       const accounts = await resolveCategoryAccounts(l.assetCategory);
       lines.push({
+        companyId,
         description: l.label || 'Immobilisation',
         unitOfMeasure: 'UN',
         quantity: qty.toString(),
@@ -85,17 +88,19 @@ export async function POST(req, { params }) {
     }
 
     const invoice = await prisma.$transaction(async (tx) => {
-      const entryNumber = await generateNextEntryNumber(tx);
-      // Resolve supplier account (fallback 401000)
+      const entryNumber = await generateNextEntryNumber(tx, companyId);
+
       let supplierAccountId = apo.supplier?.accountId || null;
       if (!supplierAccountId) {
-        let acc = await tx.account.findFirst({ where: { number: '401000' } });
-        if (!acc) acc = await tx.account.create({ data: { number: '401000', label: 'Fournisseurs' } });
+        let acc = await tx.account.findFirst({ where: { number: '401000', companyId } });
+        if (!acc) acc = await tx.account.create({ data: { companyId, number: '401000', label: 'Fournisseurs' } });
         supplierAccountId = acc.id;
       }
-      const { vatDeductibleAccount } = await getSystemAccounts();
+
+      const { vatDeductibleAccount } = await getSystemAccounts(companyId);
       const inv = await tx.incomingInvoice.create({
         data: {
+          companyId,
           entryNumber,
           receiptDate,
           issueDate,
@@ -118,6 +123,7 @@ export async function POST(req, { params }) {
       for (const l of lines) {
         txns.push(await tx.transaction.create({
           data: {
+            companyId,
             date: receiptDate,
             nature: 'purchase',
             description: l.description,
@@ -130,12 +136,14 @@ export async function POST(req, { params }) {
           },
         }));
       }
+
       if (vatDeductibleAccount && vatBuckets.size) {
         for (const [rate, amt] of vatBuckets.entries()) {
           if (!(amt > 0)) continue;
           const pct = (Number(rate) * 100).toFixed(2).replace(/\.00$/, '');
           txns.push(await tx.transaction.create({
             data: {
+              companyId,
               date: receiptDate,
               nature: 'purchase',
               description: `TVA deductible ${pct}% facture ${inv.entryNumber}`,
@@ -149,8 +157,10 @@ export async function POST(req, { params }) {
           }));
         }
       }
+
       txns.push(await tx.transaction.create({
         data: {
+          companyId,
           date: receiptDate,
           nature: 'purchase',
           description: `Dette fournisseur facture ${inv.entryNumber}`,
@@ -172,7 +182,7 @@ export async function POST(req, { params }) {
         transactions: txns,
       });
 
-      await tx.assetPurchaseOrder.update({ where: { id: apo.id }, data: { status: 'INVOICED', incomingInvoiceId: inv.id } });
+      await tx.assetPurchaseOrder.update({ where: { id: apo.id, companyId }, data: { status: 'INVOICED', incomingInvoiceId: inv.id } });
       return inv;
     });
 

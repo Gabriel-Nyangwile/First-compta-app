@@ -1,5 +1,7 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -30,8 +32,13 @@ const formatAmount = (value) => {
 };
 
 export default async function JournalEntryDetail({ params }) {
-  const entry = await prisma.journalEntry.findUnique({
-    where: { id: params.id },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <div className="px-6 py-10">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  }
+  const entry = await prisma.journalEntry.findFirst({
+    where: { id: params.id, companyId },
     include: {
       lines: {
         orderBy: [{ date: "asc" }, { id: "asc" }],

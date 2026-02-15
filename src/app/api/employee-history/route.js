@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { toPlain } from '@/lib/json';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET: List all employee history records
 export async function GET(request) {
   try {
+    const companyId = requireCompanyId(request);
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
-    const where = employeeId ? { employeeId } : {};
+    const where = employeeId ? { employeeId, companyId } : { companyId };
     const history = await prisma.employeeHistory.findMany({
       where,
       orderBy: { changeDate: 'desc' },
@@ -22,6 +24,7 @@ export async function GET(request) {
 // POST: Create a new employee history record
 export async function POST(request) {
   try {
+    const companyId = requireCompanyId(request);
     const data = await request.json();
     const { employeeId, changeType, details, changeDate } = data;
     const allowedTypes = ['PROMOTION','MUTATION','SANCTION','SUSPENSION','END_CONTRACT'];
@@ -31,8 +34,16 @@ export async function POST(request) {
     if (!changeType || !allowedTypes.includes(changeType)) {
       return NextResponse.json({ error: `Type de changement invalide. Valeurs permises: ${allowedTypes.join(', ')}` }, { status: 400 });
     }
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId, companyId },
+      select: { id: true },
+    });
+    if (!employee) {
+      return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    }
     const record = await prisma.employeeHistory.create({
       data: {
+        companyId,
         employeeId,
         changeType,
         details,

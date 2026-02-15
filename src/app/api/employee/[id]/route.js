@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { toPlain } from '@/lib/json';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET: Get employee by ID
 export async function GET(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = params;
     const employee = await prisma.employee.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         position: true,
         history: true,
@@ -23,6 +25,7 @@ export async function GET(request, { params }) {
 // PUT: Update employee by ID
 export async function PUT(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = params;
     const body = await request.json();
     // Allowlist updatable fields
@@ -98,14 +101,14 @@ export async function PUT(request, { params }) {
       data.positionId = normalizedPositionId;
       // Recalc category snapshot if position changes
       if (normalizedPositionId) {
-        const pos = await prisma.position.findUnique({ where: { id: normalizedPositionId }, include: { bareme: true } });
+        const pos = await prisma.position.findUnique({ where: { id: normalizedPositionId, companyId }, include: { bareme: true } });
         if (!pos) {
           return NextResponse.json({ error: 'Invalid positionId: not found' }, { status: 400 });
         }
         data.category = pos?.bareme?.category || null;
         // Only assign employeeNumber automatically if currently missing and not provided explicitly in update
         if (typeof body.employeeNumber === 'undefined') {
-          const current = await prisma.employee.findUnique({ where: { id } });
+          const current = await prisma.employee.findUnique({ where: { id, companyId } });
           if (!current?.employeeNumber) {
             const cat = pos?.bareme?.category;
             const A_SET = ['A1','A2','A3','B1','B2','B3'];
@@ -113,7 +116,7 @@ export async function PUT(request, { params }) {
             if (cat && A_SET.includes(cat)) group = 'A';
             // Lazy import nextSequence to avoid circular import patterns (already used elsewhere)
             const { nextSequence } = await import('@/lib/sequence');
-            data.employeeNumber = await nextSequence(prisma, `employeeNumber:${group}`, `${group}-`);
+            data.employeeNumber = await nextSequence(prisma, `employeeNumber:${group}`, `${group}-`, companyId);
           }
         }
       } else {
@@ -155,7 +158,7 @@ export async function PUT(request, { params }) {
     }
 
     const employee = await prisma.employee.update({
-      where: { id },
+      where: { id, companyId },
       data,
     });
     return NextResponse.json(toPlain({ employee }));
@@ -170,8 +173,9 @@ export async function PUT(request, { params }) {
 // DELETE: Delete employee by ID
 export async function DELETE(request, { params }) {
   try {
+    const companyId = requireCompanyId(request);
     const { id } = params;
-    await prisma.employee.delete({ where: { id } });
+    await prisma.employee.delete({ where: { id, companyId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

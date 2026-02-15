@@ -8,6 +8,8 @@ import RecalcButton from '../RecalcButton.jsx';
 import ExportPayslipJson from '../ExportPayslipJson.jsx';
 import { sanitizePlain } from '@/lib/sanitizePlain';
 import PayButton from '../PayButton.jsx';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +17,11 @@ export default async function PayslipDetailPage({ params }) {
   if (!featureFlags.payroll) return <div className="p-6">Module paie désactivé.</div>;
   const { id } = await params;
   if (!id) return notFound();
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
   const psRaw = await prisma.payslip.findUnique({
-    where: { id },
+    where: { id, companyId },
     include: { employee: true, lines: true, period: true }
   });
   if (!psRaw) return notFound();
@@ -53,7 +58,7 @@ export default async function PayslipDetailPage({ params }) {
   // Déterminer si un règlement PAYSET existe pour l'employé dans cette période
   const settlements = ps.period?.id
     ? await prisma.journalEntry.findMany({
-        where: { sourceType: 'PAYROLL', sourceId: ps.period.id, description: { contains: 'PAYSET-' } },
+        where: { sourceType: 'PAYROLL', sourceId: ps.period.id, companyId, description: { contains: 'PAYSET-' } },
         select: { id: true, description: true, date: true },
       })
     : [];

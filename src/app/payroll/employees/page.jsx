@@ -1,12 +1,18 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PayrollEmployeesPage() {
   if (!featureFlags.payroll) return <div className="p-6">Module paie désactivé.</div>;
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
   const employees = await prisma.employee.findMany({
+    where: { companyId },
     take: 100,
     orderBy: [{ lastName: 'asc' }],
     select: { id: true, employeeNumber: true, firstName: true, lastName: true, isExpat: true, status: true }

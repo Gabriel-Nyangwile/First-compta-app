@@ -1,9 +1,9 @@
 import prisma from '@/lib/prisma';
 
 // Shared aggregation for period summary (used by JSON/CSV/PDF/XLSX endpoints)
-export async function aggregatePeriodSummary(periodId) {
+export async function aggregatePeriodSummary(periodId, companyId = null) {
   const period = await prisma.payrollPeriod.findUnique({
-    where: { id: periodId },
+    where: { id: periodId, ...(companyId ? { companyId } : {}) },
     include: { payslips: { include: { employee: { select: { firstName:true, lastName:true, employeeNumber:true } }, lines: { select: { code:true, amount:true, meta:true } } } } }
   });
   if (!period) return null;

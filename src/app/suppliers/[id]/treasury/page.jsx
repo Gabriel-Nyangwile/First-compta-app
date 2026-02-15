@@ -3,12 +3,18 @@ import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import SupplierHeader from "@/components/suppliers/SupplierHeader";
 import SupplierTreasuryPanel from "@/components/suppliers/treasury/SupplierTreasuryPanel";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 export default async function SupplierTreasuryPage({ params }) {
   const { id } = await params;
 
-  const supplier = await prisma.supplier.findUnique({
-    where: { id },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <main className="min-h-screen pt-24 px-6 bg-gray-50">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+
+  const supplier = await prisma.supplier.findFirst({
+    where: { id, companyId },
     include: {
       account: { select: { number: true, label: true } },
     },

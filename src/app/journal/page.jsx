@@ -5,6 +5,8 @@ import {
   TransactionLetterStatus,
 } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -52,6 +54,11 @@ const buildQuery = (currentParams, overrides = {}) => {
 };
 
 export default async function JournalPage({ searchParams }) {
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <div className="px-6 py-8">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  }
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params?.page ?? "1", 10) || 1);
   const pageSize = Math.min(
@@ -65,7 +72,7 @@ export default async function JournalPage({ searchParams }) {
   const dateFrom = params?.dateFrom ?? "";
   const dateTo = params?.dateTo ?? "";
 
-  const filters = [];
+  const filters = [{ companyId }];
   if (sourceType) filters.push({ sourceType });
   if (status) filters.push({ status });
   if (dateFrom || dateTo) {

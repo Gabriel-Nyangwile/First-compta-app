@@ -3,17 +3,23 @@ import prisma from "@/lib/prisma";
 import Amount from "@/components/Amount.jsx";
 import SupplierHeader from "@/components/suppliers/SupplierHeader";
 import { LetteringPanel } from "@/components/suppliers/lettering/LetteringPanel";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 // Page serveur: détail fournisseur + factures reçues + agrégats
 export default async function SupplierDetailPage({ params }) {
   const { id } = await params;
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <div className="p-8">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
 
   // Récupérer fournisseur + factures reçues + transactions liées pour calculs
-  const supplier = await prisma.supplier.findUnique({
-    where: { id },
+  const supplier = await prisma.supplier.findFirst({
+    where: { id, companyId },
     include: {
       account: { select: { id: true, number: true, label: true } },
       incomingInvoices: {
+        where: { companyId },
         orderBy: { receiptDate: "desc" },
         include: {
           lines: true,

@@ -4,11 +4,19 @@ import ChartFacturesVentes from "@/components/ChartFacturesVentes.jsx";
 import BackButton from "@/components/BackButton.jsx";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 export default async function SalesPage() {
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <main className="u-main-container u-padding-content-container">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  }
   // Récupère tous les clients et factures
-  const clients = await prisma.client.findMany();
+  const clients = await prisma.client.findMany({ where: { companyId } });
   const invoices = await prisma.invoice.findMany({
+    where: { companyId },
     include: {
       client: true
     }

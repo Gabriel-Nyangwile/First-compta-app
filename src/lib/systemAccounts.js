@@ -1,33 +1,45 @@
 import prisma from './prisma.js';
 
+function accountWhere(number, companyId) {
+  return companyId ? { number, companyId } : { number };
+}
+
+function accountData(number, label, description, companyId) {
+  const data = { number, label, description };
+  if (companyId) data.companyId = companyId;
+  return data;
+}
+
 /**
- * Récupère (et crée si besoin) les comptes systèmes nécessaires.
+ * Recupere (et cree si besoin) les comptes systemes necessaires.
  * - Compte client : fourni via client.accountId
- * - Compte TVA collectée : 445700 (T.V.A. Collectée)
- * - Compte TVA déductible : 445660 (T.V.A. Déductible)
+ * - Compte TVA collectee : 445700 (T.V.A. Collectee)
+ * - Compte TVA deductible : 445660 (T.V.A. Deductible)
  */
-export async function getSystemAccounts() {
-  // TVA collectée (ventes)
-  let vatAccount = await prisma.account.findFirst({ where: { number: '445700' } });
+export async function getSystemAccounts(companyId = null) {
+  let vatAccount = await prisma.account.findFirst({ where: accountWhere('445700', companyId) });
   if (!vatAccount) {
     vatAccount = await prisma.account.create({
-      data: {
-        number: '445700',
-        label: 'T.V.A. Collectée',
-        description: 'Compte système auto-créé pour TVA collectée sur ventes'
-      }
+      data: accountData(
+        '445700',
+        'T.V.A. Collectee',
+        'Compte systeme auto-cree pour TVA collectee sur ventes',
+        companyId
+      )
     });
   }
-  // TVA déductible (achats)
-  let vatDeductibleAccount = await prisma.account.findFirst({ where: { number: '445660' } });
+
+  let vatDeductibleAccount = await prisma.account.findFirst({ where: accountWhere('445660', companyId) });
   if (!vatDeductibleAccount) {
     vatDeductibleAccount = await prisma.account.create({
-      data: {
-        number: '445660',
-        label: 'T.V.A. Déductible',
-        description: 'Compte système auto-créé pour TVA déductible sur achats'
-      }
+      data: accountData(
+        '445660',
+        'T.V.A. Deductible',
+        'Compte systeme auto-cree pour TVA deductible sur achats',
+        companyId
+      )
     });
   }
+
   return { vatAccount, vatDeductibleAccount };
 }

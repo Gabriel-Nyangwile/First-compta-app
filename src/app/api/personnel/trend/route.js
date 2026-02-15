@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
 function exportAuth(req){
   if(process.env.NODE_ENV !== 'production') return null;
@@ -14,6 +15,7 @@ function exportAuth(req){
 // Retourne les 6 derniers mois (incluant courant) avec actifs fin de mois, embauches et sorties.
 export async function GET(req) {
   try {
+    const companyId = requireCompanyId(req);
     const url = new URL(req.url);
     const format = url.searchParams.get('format');
     const monthsParam = parseInt(url.searchParams.get('months') || '6', 10);
@@ -31,17 +33,18 @@ export async function GET(req) {
       const monthEnd = new Date(m.year, m.month, 0, 23, 59, 59, 999); // dernier jour du mois
       const [activeStart, activeEnd, hires, exits] = await Promise.all([
         prisma.employee.count({
-          where:{ status:'ACTIVE', hireDate:{ lte: monthStart }, OR:[ { endDate:null }, { endDate:{ gt: monthStart } } ] }
+          where:{ companyId, status:'ACTIVE', hireDate:{ lte: monthStart }, OR:[ { endDate:null }, { endDate:{ gt: monthStart } } ] }
         }),
         prisma.employee.count({
           where: {
+            companyId,
             status: "ACTIVE",
             hireDate: { lte: monthEnd },
             OR: [ { endDate: null }, { endDate: { gt: monthEnd } } ],
           }
         }),
-        prisma.employee.count({ where: { hireDate: { gte: monthStart, lte: monthEnd } } }),
-        prisma.employee.count({ where: { endDate: { gte: monthStart, lte: monthEnd } } }),
+        prisma.employee.count({ where: { companyId, hireDate: { gte: monthStart, lte: monthEnd } } }),
+        prisma.employee.count({ where: { companyId, endDate: { gte: monthStart, lte: monthEnd } } }),
       ]);
       const avgHeadcount = (activeStart + activeEnd)/2;
       const hiresRatePct = avgHeadcount ? (hires / avgHeadcount)*100 : 0;

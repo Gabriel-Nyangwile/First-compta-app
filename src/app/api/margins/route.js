@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 // GET /api/margins?from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function GET(request) {
+  const companyId = requireCompanyId(request);
   const { searchParams } = new URL(request.url);
   const from = searchParams.get('from');
   const to = searchParams.get('to');
@@ -13,8 +15,18 @@ export async function GET(request) {
   }
   try {
     const invoices = await prisma.invoice.findMany({
-      where: Object.keys(dateFilter).length ? { issueDate: dateFilter } : {},
-      include: { invoiceLines: { include: { product: true, stockMovements: { where: { movementType: 'OUT' } } } } }
+      where: {
+        companyId,
+        ...(Object.keys(dateFilter).length ? { issueDate: dateFilter } : {}),
+      },
+      include: {
+        invoiceLines: {
+          include: {
+            product: true,
+            stockMovements: { where: { companyId, movementType: 'OUT' } }
+          }
+        }
+      }
     });
     let revenue = 0, cogs = 0;
     for (const inv of invoices) {
@@ -27,7 +39,7 @@ export async function GET(request) {
     }
     const gross = revenue - cogs;
     const pct = revenue ? gross / revenue : 0;
-    return NextResponse.json({ from, to, revenueHt: revenue, cogs, grossMargin: gross, grossMarginPct: + (pct * 100).toFixed(2) });
+    return NextResponse.json({ from, to, revenueHt: revenue, cogs, grossMargin: gross, grossMarginPct: +(pct * 100).toFixed(2) });
   } catch (e) {
     console.error('Margins error', e);
     return NextResponse.json({ error: 'Erreur calcul marge.' }, { status: 500 });

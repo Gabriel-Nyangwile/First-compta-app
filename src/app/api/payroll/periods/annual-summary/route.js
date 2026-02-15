@@ -1,13 +1,15 @@
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
+  const companyId = requireCompanyId(req);
   const url = new URL(req.url);
   const yearParam = url.searchParams.get('year');
   const year = yearParam ? Number(yearParam) : new Date().getFullYear();
   if (!Number.isFinite(year) || year < 2000 || year > 2100) return new Response(JSON.stringify({ ok:false, error:'Invalid year'}), { status:400 });
-  const data = await aggregateAnnualPayroll(year);
+  const data = await aggregateAnnualPayroll(year, companyId);
   const format = url.searchParams.get('format');
   if (format === 'csv') {
     const headers = ['month','periodRef','grossTotal','netTotal','grossNegative','netNegative','correctionRatioGross','correctionRatioNet','cnssEmployeeTotal','iprTaxTotal','cnssEmployerTotal','onemTotal','inppTotal','employerChargesTotal','overtimeTotal','ytdGross','ytdNet','ytdCorrectionsGross','ytdCorrectionsNet','ytdCorrectionRatioGross','ytdCorrectionRatioNet'];

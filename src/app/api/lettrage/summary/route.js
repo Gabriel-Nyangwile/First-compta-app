@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
-export async function GET() {
+export async function GET(req) {
   try {
-    // Récupère toutes les transactions
-    const all = await prisma.transaction.findMany({ select: { letterRef: true, letterStatus: true } });
-    // Lettrées = letterRef non nul
-    //const lettrage = all.filter(t => t.letterRef != null);
+    const companyId = requireCompanyId(req);
+    const all = await prisma.transaction.findMany({
+      where: { companyId },
+      select: { letterRef: true, letterStatus: true }
+    });
     const total = all.length;
     const matched = all.filter(t => t.letterStatus === 'MATCHED').length;
     const unmatched = all.filter(t => t.letterStatus === 'UNMATCHED').length;
@@ -14,6 +16,6 @@ export async function GET() {
     return NextResponse.json({ total, matched, unmatched, rate });
   } catch (e) {
     console.error("GET /api/lettrage/summary error", e);
-    return NextResponse.json({ error: "Erreur récupération lettrage." }, { status: 500 });
+    return NextResponse.json({ error: "Erreur recuperation lettrage." }, { status: 500 });
   }
 }

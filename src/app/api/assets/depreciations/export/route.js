@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ function toCsv(rows) {
 }
 
 export async function GET(req) {
+  const companyId = requireCompanyId(req);
   const url = new URL(req.url);
   const from = parseYm(url.searchParams.get('from'));
   const to = parseYm(url.searchParams.get('to'));
@@ -56,6 +58,7 @@ export async function GET(req) {
 
   try {
     const lines = await prisma.depreciationLine.findMany({
+      where: { companyId },
       include: {
         asset: { include: { category: true } },
         journalEntry: true,

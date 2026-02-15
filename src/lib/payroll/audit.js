@@ -3,15 +3,15 @@ import prisma from '../prisma.js';
 function toNum(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
-async function fetchPayrollAccounts(db) {
-  const mappings = await db.payrollAccountMapping.findMany({ where: { active: true } });
+async function fetchPayrollAccounts(db, companyId = null) {
+  const mappings = await db.payrollAccountMapping.findMany({ where: { active: true, ...(companyId ? { companyId } : {}) } });
   const index = Object.fromEntries(mappings.map(m => [m.code, m]));
   async function resolve(code) {
     const m = index[code];
     if (!m) throw new Error(`Missing payroll account mapping for code ${code}`);
     if (m.accountId) return m.accountId;
     if (!m.accountNumber) throw new Error(`Mapping ${code} missing accountNumber`);
-    const acc = await db.account.findFirst({ where: { number: m.accountNumber } });
+    const acc = await db.account.findFirst({ where: { number: m.accountNumber, ...(companyId ? { companyId } : {}) } });
     if (!acc) throw new Error(`Account ${m.accountNumber} for mapping ${code} not found`);
     return acc.id;
   }
@@ -28,10 +28,11 @@ async function fetchPayrollAccounts(db) {
   };
 }
 
-export async function auditPayrollPeriod(periodId, db = prisma) {
-  const period = await db.payrollPeriod.findUnique({ where: { id: periodId }, include: { payslips: { include: { lines: true } } } });
+export async function auditPayrollPeriod(periodId, db = prisma, companyId = null) {
+  const period = await db.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) }, include: { payslips: { include: { lines: true } } } });
   if (!period) throw new Error('Period not found');
-  const journal = await db.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id } });
+  const scopedCompanyId = period?.companyId || companyId || null;
+  const journal = await db.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
   if (!journal) throw new Error('No journal linked to period');
 
   let baseSalaryTotal = 0, bonusTotal = 0, employerSocialTotal = 0;
@@ -55,9 +56,9 @@ export async function auditPayrollPeriod(periodId, db = prisma) {
     }
   }
 
-  const txns = await db.transaction.findMany({ where: { journalEntryId: journal.id } });
+  const txns = await db.transaction.findMany({ where: { journalEntryId: journal.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
   const sumBy = (f) => round2(txns.filter(f).reduce((s,t)=> s + toNum(t.amount), 0));
-  const accounts = await fetchPayrollAccounts(db);
+  const accounts = await fetchPayrollAccounts(db, scopedCompanyId);
   const ledger = {
     wagesSalary: sumBy(t => t.direction==='DEBIT' && t.accountId===accounts.wagesSalary),
     wagesBonus: sumBy(t => t.direction==='DEBIT' && t.accountId===accounts.wagesBonus),

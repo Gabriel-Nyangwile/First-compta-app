@@ -4,6 +4,8 @@ import { listMoneyAccountsWithBalance } from '@/lib/serverActions/money';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatAmount, buildInvoiceLink, buildIncomingInvoiceLink } from '@/lib/utils';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 async function doApprove(formData) { 'use server'; const id = formData.get('id'); await authorizeAuthorization(id); redirect(`/authorizations/${id}`); }
 async function doCancel(formData) { 'use server'; const id = formData.get('id'); await cancelAuthorization(id); redirect(`/authorizations/${id}`); }
@@ -11,8 +13,11 @@ async function doExecute(formData) { 'use server'; const id = formData.get('id')
 
 export default async function AuthorizationDetailPage({ params }) {
   const { id } = await params;
-  const auth = await prisma.treasuryAuthorization.findUnique({
-    where: { id },
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) return <main className="p-8">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  const auth = await prisma.treasuryAuthorization.findFirst({
+    where: { id, companyId },
     include: {
       moneyMovements: true,
       invoice: { select: { id: true, invoiceNumber: true, totalAmount: true, paidAmount: true, outstandingAmount: true } },
@@ -20,7 +25,7 @@ export default async function AuthorizationDetailPage({ params }) {
     }
   });
   if (!auth) return <main className="p-8">Introuvable</main>;
-  const accounts = await listMoneyAccountsWithBalance();
+  const accounts = await listMoneyAccountsWithBalance(companyId);
   return (
     <main className="u-main-container u-padding-content-container space-y-6">
       <div className="flex items-center gap-4">

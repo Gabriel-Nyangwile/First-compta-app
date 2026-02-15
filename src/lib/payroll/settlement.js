@@ -7,9 +7,9 @@ import { finalizeBatchToJournal, computeDebitCredit } from '../journal.js';
  * Options: { accountNumber?, dryRun?, employeeId? } -> si employeeId présent, ne règle que le(s) bulletins de cet employé.
  */
 export async function postPayrollSettlement(periodId, opts = {}) {
-  const { accountNumber, dryRun, employeeId } = opts;
+  const { accountNumber, dryRun, employeeId, companyId } = opts;
   const period = await prisma.payrollPeriod.findUnique({
-    where: { id: periodId },
+    where: { id: periodId, ...(companyId ? { companyId } : {}) },
     include: { payslips: true },
   });
   if (!period) throw new Error('Period not found');
@@ -22,24 +22,24 @@ export async function postPayrollSettlement(periodId, opts = {}) {
   if (!(netTotal > 0)) throw new Error(`Net total <= 0 (${netTotal})`);
 
   // Resolve accounts
-  const mappings = await prisma.payrollAccountMapping.findMany({ where: { active: true } });
+  const mappings = await prisma.payrollAccountMapping.findMany({ where: { active: true, ...(companyId ? { companyId } : {}) } });
   const index = Object.fromEntries(mappings.map(m => [m.code, m]));
   async function resolve(code) {
     const m = index[code];
     if (!m) throw new Error(`Missing payroll account mapping for code ${code}`);
     if (m.accountId) return m.accountId;
     if (!m.accountNumber) throw new Error(`Mapping ${code} missing accountNumber`);
-    let acc = await prisma.account.findFirst({ where: { number: m.accountNumber } });
+    let acc = await prisma.account.findFirst({ where: { number: m.accountNumber, ...(companyId ? { companyId } : {}) } });
     if (!acc) {
-      acc = await prisma.account.create({ data: { number: m.accountNumber, label: m.label || code } });
+      acc = await prisma.account.create({ data: { companyId: companyId || null, number: m.accountNumber, label: m.label || code } });
     }
     return acc.id;
   }
   const netPayAccountId = await resolve('NET_PAY');
   let bankAccountId = null;
   if (accountNumber) {
-    let bank = await prisma.account.findFirst({ where: { number: accountNumber } });
-    if (!bank) bank = await prisma.account.create({ data: { number: accountNumber, label: 'Banque Paie' } });
+    let bank = await prisma.account.findFirst({ where: { number: accountNumber, ...(companyId ? { companyId } : {}) } });
+    if (!bank) bank = await prisma.account.create({ data: { companyId: companyId || null, number: accountNumber, label: 'Banque Paie' } });
     bankAccountId = bank.id;
   } else {
     const bankEnv = process.env.PAYROLL_BANK_NUMBER || process.env.NEXT_PUBLIC_PAYROLL_BANK_NUMBER || '521000';
@@ -47,8 +47,8 @@ export async function postPayrollSettlement(periodId, opts = {}) {
     if (bankMapping) {
       bankAccountId = await resolve('BANK');
     } else {
-      let bank = await prisma.account.findFirst({ where: { number: bankEnv } });
-      if (!bank) bank = await prisma.account.create({ data: { number: bankEnv, label: 'Banque Paie (fallback)' } });
+      let bank = await prisma.account.findFirst({ where: { number: bankEnv, ...(companyId ? { companyId } : {}) } });
+      if (!bank) bank = await prisma.account.create({ data: { companyId: companyId || null, number: bankEnv, label: 'Banque Paie (fallback)' } });
       bankAccountId = bank.id;
     }
   }
@@ -70,6 +70,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
         amount: netTotal,
         direction: 'DEBIT',
         kind: 'PAYMENT',
+        companyId: companyId || period.companyId || null,
         accountId: bankAccountId,
       }
     });
@@ -80,6 +81,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
         amount: netTotal,
         direction: 'CREDIT',
         kind: 'WAGES_PAYABLE',
+        companyId: companyId || period.companyId || null,
         accountId: netPayAccountId,
       }
     });

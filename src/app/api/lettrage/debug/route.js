@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/tenant";
 
-export async function GET() {
+export async function GET(req) {
   try {
-    // Récupère toutes les transactions
+    const companyId = requireCompanyId(req);
     const all = await prisma.transaction.findMany({
+      where: { companyId },
       orderBy: { date: 'desc' },
       select: {
         id: true,
@@ -20,11 +22,8 @@ export async function GET() {
         kind: true
       }
     });
-    // Transactions lettrées
     const lettrage = all.filter(t => t.letterRef != null);
-    // Transactions non lettrées
     const nonLettrage = all.filter(t => t.letterRef == null);
-    // Parmi les lettrées, matched/unmatched
     const matched = all.filter(t => t.letterStatus === 'MATCHED');
     const unmatched = all.filter(t => t.letterStatus === 'UNMATCHED');
     return NextResponse.json({

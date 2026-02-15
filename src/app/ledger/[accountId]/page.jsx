@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { TransactionDirection, TransactionLetterStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -53,6 +55,24 @@ const letterStatusOptions = Object.keys(TransactionLetterStatus);
 const directionOptions = Object.keys(TransactionDirection);
 
 export default async function LedgerAccountPage(props) {
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return (
+      <div className="px-6 py-8">
+        <p className="text-sm text-neutral-500">
+          companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).
+        </p>
+        <Link
+          className="mt-4 inline-flex text-sm text-blue-600 hover:underline"
+          href="/ledger"
+        >
+          Retour au grand livre
+        </Link>
+      </div>
+    );
+  }
+
   const resolvedParams = await props.params;
   const resolvedSearchParams = await props.searchParams;
 
@@ -86,8 +106,8 @@ export default async function LedgerAccountPage(props) {
   const direction = searchParams?.direction ?? "";
   const q = searchParams?.q ?? "";
 
-  const account = await prisma.account.findUnique({
-    where: { id: accountId },
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, companyId },
     select: { id: true, number: true, label: true },
   });
 
@@ -105,7 +125,7 @@ export default async function LedgerAccountPage(props) {
     );
   }
 
-  const filters = [{ accountId }];
+  const filters = [{ companyId }, { accountId }];
   if (dateFrom || dateTo) {
     const range = {};
     if (dateFrom) range.gte = new Date(dateFrom);

@@ -1,8 +1,8 @@
 import prisma from '@/lib/prisma';
 
-export async function aggregateAnnualPayroll(year) {
+export async function aggregateAnnualPayroll(year, companyId = null) {
   const periods = await prisma.payrollPeriod.findMany({
-    where: { year },
+    where: { year, ...(companyId ? { companyId } : {}) },
     include: { payslips: { include: { lines: { select: { code:true, amount:true } } } } },
     orderBy: { month: 'asc' }
   });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,16 +8,17 @@ function toNumber(x) {
   return x?.toNumber?.() ?? Number(x ?? 0) ?? 0;
 }
 
-async function buildRows(year, { categoryId, status }) {
+async function buildRows(companyId, year, { categoryId, status }) {
   const assets = await prisma.asset.findMany({
     where: {
+      companyId,
       ...(categoryId ? { categoryId } : {}),
       ...(status ? { status } : {}),
     },
     include: {
       category: true,
       depreciationLines: {
-        where: { year },
+        where: { companyId, year },
         orderBy: [{ month: 'asc' }],
       },
     },
@@ -88,7 +90,7 @@ async function buildXlsx(rows, year) {
 async function buildPdf(rows, year) {
   const { PDFDocument, StandardFonts } = await import('pdf-lib');
   const pdfDoc = await PDFDocument.create();
-  let page = pdfDoc.addPage([842, 595]); // A4 landscape
+  let page = pdfDoc.addPage([842, 595]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const size = 9;
@@ -101,9 +103,7 @@ async function buildPdf(rows, year) {
     pg.drawText('Libelle', { x: x + 60, y: headerY, size, font: fontBold });
     pg.drawText('Cat', { x: x + 210, y: headerY, size, font: fontBold });
     pg.drawText('Cout', { x: x + 260, y: headerY, size, font: fontBold });
-    for (let i = 0; i < 12; i += 1) {
-      pg.drawText(`M${i + 1}`, { x: x + 300 + i * 32, y: headerY, size, font: fontBold });
-    }
+    for (let i = 0; i < 12; i += 1) pg.drawText(`M${i + 1}`, { x: x + 300 + i * 32, y: headerY, size, font: fontBold });
     pg.drawText('Total', { x: x + 300 + 12 * 32, y: headerY, size, font: fontBold });
     return headerY - 14;
   };
@@ -130,11 +130,11 @@ async function buildPdf(rows, year) {
     y -= 12;
   }
 
-  const pdfBytes = await pdfDoc.save();
-  return pdfBytes;
+  return pdfDoc.save();
 }
 
 export async function GET(req) {
+  const companyId = requireCompanyId(req);
   const url = new URL(req.url);
   const year = Number(url.searchParams.get('year'));
   const format = (url.searchParams.get('format') || 'xlsx').toLowerCase();
@@ -142,8 +142,8 @@ export async function GET(req) {
   const status = url.searchParams.get('status') || undefined;
   if (!year) return NextResponse.json({ ok: false, error: 'year requis' }, { status: 400 });
   try {
-    const rows = await buildRows(year, { categoryId, status });
-    if (!rows.length) return NextResponse.json({ ok: false, error: 'Aucune dotation trouvée pour cette année' }, { status: 404 });
+    const rows = await buildRows(companyId, year, { categoryId, status });
+    if (!rows.length) return NextResponse.json({ ok: false, error: 'Aucune dotation trouvee pour cette annee' }, { status: 404 });
 
     if (format === 'csv') {
       const csv = toCsv(rows, year);
@@ -165,7 +165,6 @@ export async function GET(req) {
         },
       });
     }
-    // default xlsx
     const buf = await buildXlsx(rows, year);
     return new NextResponse(Buffer.from(buf), {
       status: 200,

@@ -1,7 +1,6 @@
 // src/lib/vatRecap.js
-// Calcul récap TVA (collectée / déductible) à partir des lignes de factures et factures fournisseurs.
-// Approche: on s'appuie sur les taux stockés ligne par ligne (vatRate) sinon fallback sur invoice.vat / incomingInvoice.vat.
-// Permet d'éviter les ambiguïtés d'anciennes écritures agrégées.
+// Calcul recap TVA (collectee / deductible) a partir des lignes de factures et factures fournisseurs.
+// Approche: on s'appuie sur les taux stockes ligne par ligne (vatRate) sinon fallback sur invoice.vat / incomingInvoice.vat.
 
 import prisma from './prisma.js';
 
@@ -13,12 +12,15 @@ function normalizeDate(d, end=false) {
   if (!d) return null;
   const dt = new Date(d);
   if (isNaN(dt)) return null;
-  if (end) {
-    dt.setHours(23,59,59,999);
-  } else {
-    dt.setHours(0,0,0,0);
-  }
+  if (end) dt.setHours(23,59,59,999);
+  else dt.setHours(0,0,0,0);
   return dt;
+}
+
+function resolveCompanyId(companyId) {
+  if (companyId) return companyId;
+  const envId = (process.env.DEFAULT_COMPANY_ID || '').trim();
+  return envId || null;
 }
 
 // rows: { period, direction, rate, base, vat }
@@ -29,31 +31,32 @@ export async function computeVatRecap({
   granularity = 'month',
   includeZero = false
 }) {
-  if (!companyId) {
-    throw new Error('companyId requis');
+  const scopedCompanyId = resolveCompanyId(companyId);
+  if (!scopedCompanyId) {
+    throw new Error('companyId requis (ou DEFAULT_COMPANY_ID)');
   }
+
   const fromDate = normalizeDate(from) || new Date(new Date().getFullYear(), 0, 1);
   const toDate = normalizeDate(to, true) || new Date();
 
-  // Récupérer lignes de factures clients
   const invoiceLines = await prisma.invoiceLine.findMany({
     where: {
-      invoice: { issueDate: { gte: fromDate, lte: toDate }, companyId }
+      invoice: { issueDate: { gte: fromDate, lte: toDate }, companyId: scopedCompanyId }
     },
     include: { invoice: { select: { issueDate: true, vat: true } } }
   });
-  // Lignes factures fournisseurs
+
   const incomingLines = await prisma.incomingInvoiceLine.findMany({
     where: {
       incomingInvoice: {
         receiptDate: { gte: fromDate, lte: toDate },
-        companyId
+        companyId: scopedCompanyId
       }
     },
     include: { incomingInvoice: { select: { receiptDate: true, vat: true } } }
   });
 
-  const buckets = new Map(); // key = period|direction|rate -> { base, vat }
+  const buckets = new Map();
 
   function add(direction, date, rate, base) {
     const r = rate != null ? Number(rate) : 0;
@@ -79,7 +82,6 @@ export async function computeVatRecap({
   }
 
   let rows = [...buckets.values()];
-  // Arrondir et filtrer
   rows = rows.map(r => ({
     period: r.period,
     direction: r.direction,
@@ -90,7 +92,6 @@ export async function computeVatRecap({
   }));
   if (!includeZero) rows = rows.filter(r => r.vat !== 0 || r.base !== 0);
 
-  // Tri: period asc, direction (COLLECTED avant DEDUCTIBLE), rate asc
   rows.sort((a,b) => {
     if (a.period !== b.period) return a.period.localeCompare(b.period);
     if (a.direction !== b.direction) return a.direction.localeCompare(b.direction);

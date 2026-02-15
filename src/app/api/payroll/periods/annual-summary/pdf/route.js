@@ -1,14 +1,16 @@
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response('Payroll disabled', { status:403 });
+  const companyId = requireCompanyId(req);
   const url = new URL(req.url);
   const yearParam = url.searchParams.get('year');
   const year = yearParam ? Number(yearParam) : new Date().getFullYear();
   if (!Number.isFinite(year) || year < 2000 || year > 2100) return new Response('Invalid year', { status:400 });
-  const annual = await aggregateAnnualPayroll(year);
+  const annual = await aggregateAnnualPayroll(year, companyId);
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const page = pdfDoc.addPage([842, 595]); // A4 landscape

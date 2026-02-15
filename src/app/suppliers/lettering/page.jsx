@@ -1,8 +1,16 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 export default async function SuppliersLetteringListPage() {
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <main className="min-h-screen pt-24 px-6 bg-gray-50">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  }
   const suppliers = await prisma.supplier.findMany({
+    where: { companyId },
     orderBy: { name: "asc" },
     select: { id: true, name: true, email: true }
   });

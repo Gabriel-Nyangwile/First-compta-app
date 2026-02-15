@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { TransactionLetterStatus, TransactionDirection } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -44,6 +46,18 @@ const buildQuery = (current, overrides = {}) => {
 };
 
 export default async function LedgerPage(props) {
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return (
+      <div className="px-6 py-8">
+        <p className="text-sm text-neutral-500">
+          companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).
+        </p>
+      </div>
+    );
+  }
+
   const resolvedSearchParams = await props.searchParams;
   const searchParams = resolvedSearchParams ?? {};
 
@@ -67,7 +81,7 @@ export default async function LedgerPage(props) {
   }
   if (letterStatus) filters.push({ letterStatus });
   if (direction) filters.push({ direction });
-  const where = filters.length ? { AND: filters } : undefined;
+  const where = filters.length ? { AND: [{ companyId }, ...filters] } : { companyId };
 
   const transactions = await prisma.transaction.findMany({
     where,

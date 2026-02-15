@@ -2,15 +2,17 @@ import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import { calculatePayslipForEmployee } from '@/lib/payroll/engine';
 import { sanitizePlain } from '@/lib/sanitizePlain';
+import { requireCompanyId } from '@/lib/tenant';
 
-export async function GET(_req, { params }) {
+export async function GET(req, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
+  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return new Response(JSON.stringify({ ok:false, error:'Missing period id'}), { status:400 });
-  const period = await prisma.payrollPeriod.findUnique({ where:{ id } });
+  const period = await prisma.payrollPeriod.findUnique({ where:{ id, companyId } });
   if (!period) return new Response(JSON.stringify({ ok:false, error:'Period not found'}), { status:404 });
   if (period.status !== 'OPEN') return new Response(JSON.stringify({ ok:false, error:'Period must be OPEN for preview'}), { status:409 });
-  const employees = await prisma.employee.findMany({ where:{ status:'ACTIVE' }, include:{ position:{ include:{ bareme:true } } } });
+  const employees = await prisma.employee.findMany({ where:{ companyId, status:'ACTIVE' }, include:{ position:{ include:{ bareme:true } } } });
   const results = [];
   for (const e of employees) {
     const calc = await calculatePayslipForEmployee(e, period);
