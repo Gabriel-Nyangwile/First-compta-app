@@ -120,6 +120,7 @@ const GROUPS = [
     label: "Paramètres",
     items: [
       { href: "/admin/users", label: "Utilisateurs (SuperAdmin)", superadminOnly: true },
+      { href: "/admin/companies", label: "Sociétés", superadminOnly: true },
     ],
   },
   {
