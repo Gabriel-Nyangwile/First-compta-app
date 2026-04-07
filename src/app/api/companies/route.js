@@ -15,6 +15,12 @@ export async function GET(req) {
       name: true,
       legalForm: true,
       currency: true,
+      rccmNumber: true,
+      idNatNumber: true,
+      taxNumber: true,
+      cnssNumber: true,
+      onemNumber: true,
+      inppNumber: true,
       vatPolicy: true,
       country: true,
       createdAt: true,
@@ -34,6 +40,18 @@ export async function POST(req) {
   if (!name) {
     return NextResponse.json({ error: "Nom requis" }, { status: 400 });
   }
+  const rccmNumber = body?.rccmNumber?.toString?.().trim();
+  const idNatNumber = body?.idNatNumber?.toString?.().trim();
+  const taxNumber = body?.taxNumber?.toString?.().trim();
+  const cnssNumber = body?.cnssNumber?.toString?.().trim();
+  const onemNumber = body?.onemNumber?.toString?.().trim();
+  const inppNumber = body?.inppNumber?.toString?.().trim();
+  if (!rccmNumber || !idNatNumber || !taxNumber || !cnssNumber || !onemNumber || !inppNumber) {
+    return NextResponse.json(
+      { error: "RCCM, IdNat, N° Impôt, CNSS, ONEM et INPP sont obligatoires" },
+      { status: 400 }
+    );
+  }
   const legalForm = body.legalForm ? String(body.legalForm).trim() : null;
   const currency = (body.currency || process.env.DEFAULT_COMPANY_CURRENCY || "XOF")
     .toString()
@@ -43,6 +61,13 @@ export async function POST(req) {
     name,
     legalForm,
     currency,
+    address: body.address ? String(body.address).trim() : null,
+    rccmNumber,
+    idNatNumber,
+    taxNumber,
+    cnssNumber,
+    onemNumber,
+    inppNumber,
     vatPolicy: body.vatPolicy ? String(body.vatPolicy).trim() : null,
     country: body.country ? String(body.country).trim() : null,
     timezone: body.timezone ? String(body.timezone).trim() : null,
@@ -53,8 +78,15 @@ export async function POST(req) {
     select: {
       id: true,
       name: true,
+      address: true,
       legalForm: true,
       currency: true,
+      rccmNumber: true,
+      idNatNumber: true,
+      taxNumber: true,
+      cnssNumber: true,
+      onemNumber: true,
+      inppNumber: true,
       vatPolicy: true,
       country: true,
       timezone: true,

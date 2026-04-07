@@ -4,13 +4,20 @@ import { computeVatRecap } from '@/lib/vatRecap';
 import { loadPrimaryFont, drawPageHeader, drawFooter, drawCompanyIdentity, formatDateFR } from '@/lib/pdf/utils';
 import { formatAmountPlain, formatRatePercent } from '@/lib/utils';
 import { requireCompanyId } from '@/lib/tenant';
+import prisma from '@/lib/prisma';
 
-function envCompany() {
+function envCompany(dbCompany) {
   return {
-    name: process.env.COMPANY_NAME,
-    address: process.env.COMPANY_ADDRESS,
+    name: dbCompany?.name || process.env.COMPANY_NAME,
+    address: dbCompany?.address || process.env.COMPANY_ADDRESS,
     siret: process.env.COMPANY_SIRET,
-    vat: process.env.COMPANY_VAT
+    vat: process.env.COMPANY_VAT,
+    rccm: dbCompany?.rccmNumber || '',
+    idNat: dbCompany?.idNatNumber || '',
+    taxNumber: dbCompany?.taxNumber || '',
+    cnss: dbCompany?.cnssNumber || '',
+    onem: dbCompany?.onemNumber || '',
+    inpp: dbCompany?.inppNumber || '',
   };
 }
 
@@ -22,6 +29,7 @@ export async function GET(req) {
     const to = searchParams.get('to');
     const granularity = searchParams.get('granularity') || 'month';
     const includeZero = searchParams.get('includeZero') === 'true';
+    const dbCompany = await prisma.company.findUnique({ where: { id: companyId } });
 
     const recap = await computeVatRecap({
       companyId,
@@ -36,7 +44,7 @@ export async function GET(req) {
   let page = pdfDoc.addPage([595.28, 841.89]);
 
     drawPageHeader(page, { font, title: 'Récapitulatif TVA', subTitle: `${formatDateFR(recap.from)} -> ${formatDateFR(recap.to)}` });
-    drawCompanyIdentity(page, { font, company: envCompany() });
+    drawCompanyIdentity(page, { font, company: envCompany(dbCompany) });
 
     let y = 780;
     page.drawText(`Granularité: ${recap.granularity}`, { x: 40, y, size: 10, font, color: rgb(0.2,0.2,0.4) }); y -= 18;
@@ -57,7 +65,7 @@ export async function GET(req) {
         const np = pdfDoc.addPage([595.28, 841.89]);
         pageCount++; pages.push(np);
         drawPageHeader(np, { font, title: 'Récapitulatif TVA (suite)', subTitle: `${formatDateFR(recap.from)} -> ${formatDateFR(recap.to)}` });
-        drawCompanyIdentity(np, { font, company: envCompany() });
+        drawCompanyIdentity(np, { font, company: envCompany(dbCompany) });
         y = 780;
         np.drawText('Période', { x: 40, y, size: 10, font });
         np.drawText('Sens', { x: 110, y, size: 10, font });
@@ -80,7 +88,7 @@ export async function GET(req) {
       const np = pdfDoc.addPage([595.28, 841.89]);
       pageCount++; pages.push(np);
       drawPageHeader(np, { font, title: 'Récapitulatif TVA (totaux)', subTitle: `${formatDateFR(recap.from)} -> ${formatDateFR(recap.to)}` });
-      drawCompanyIdentity(np, { font, company: envCompany() });
+      drawCompanyIdentity(np, { font, company: envCompany(dbCompany) });
       page = np; y = 780;
     }
     y -= 10;

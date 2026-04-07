@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [companies, setCompanies] = useState([]);
+  const [pendingCompanyId, setPendingCompanyId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,35 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCompanies() {
+      try {
+        const res = await fetch("/api/companies/public", { cache: "no-store" });
+        const data = await res.json();
+        if (!cancelled) {
+          setCompanies(data.companies || []);
+        }
+      } catch {
+        if (!cancelled) setCompanies([]);
+      }
+    }
+    loadCompanies();
+    const saved = localStorage.getItem("pendingCompanyId") || "";
+    setPendingCompanyId(saved);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function setPending(id) {
+    setPendingCompanyId(id);
+    try {
+      localStorage.setItem("pendingCompanyId", id);
+    } catch {}
+    document.cookie = `pending-company-id=${encodeURIComponent(id)}; path=/`;
+  }
+
   const UserSlot = () => {
     if (loadingUser) {
       return (
@@ -49,6 +80,23 @@ export default function Navbar() {
     if (!user) {
       return (
         <>
+          <div className="hidden sm:flex items-center gap-2 text-xs">
+            <label htmlFor="companyPick" className="opacity-80">Société</label>
+            <select
+              id="companyPick"
+              className="bg-blue-950/40 border border-blue-700/50 rounded px-2 py-1 text-xs"
+              value={pendingCompanyId}
+              onChange={(e) => setPending(e.target.value)}
+            >
+              <option value="">-- Choisir --</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.legalForm ? `(${c.legalForm})` : ""}
+                </option>
+              ))}
+              <option value="NEW">Nouvelle société</option>
+            </select>
+          </div>
           <Link href="/auth/signup" className="hover:text-blue-300">Inscription</Link>
           <Link href="/auth/signin" className="hover:text-blue-300">Connexion</Link>
         </>

@@ -278,6 +278,15 @@ export default function AuthSidebar() {
     window.location.href = "/?loggedout=1";
   };
 
+  const getCookie = (name) => {
+    try {
+      const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
+      return match ? decodeURIComponent(match[1]) : "";
+    } catch {
+      return "";
+    }
+  };
+
   // detect user
   useEffect(() => {
     const read = () => {
@@ -352,6 +361,8 @@ export default function AuthSidebar() {
     if (!user) return;
     let cancel = false;
     async function load() {
+      const companyId = getCookie("company-id");
+      if (!companyId || companyId === "NEW") return;
       try {
         const [a, b] = await Promise.all([
           fetch("/api/invoices/unpaid-count").then((r) =>

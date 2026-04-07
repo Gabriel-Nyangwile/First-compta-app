@@ -1,16 +1,47 @@
 import { useRouter } from 'next/navigation';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function SigninForm() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [pendingCompanyId, setPendingCompanyId] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCompanies() {
+      try {
+        const res = await fetch("/api/companies/public", { cache: "no-store" });
+        const data = await res.json();
+        if (!cancelled) setCompanies(data.companies || []);
+      } catch {
+        if (!cancelled) setCompanies([]);
+      }
+    }
+    const saved = localStorage.getItem("pendingCompanyId") || "";
+    setPendingCompanyId(saved);
+    loadCompanies();
+    return () => { cancelled = true; };
+  }, []);
+
+  function setPending(id) {
+    setPendingCompanyId(id);
+    try {
+      localStorage.setItem("pendingCompanyId", id);
+    } catch {}
+    document.cookie = `pending-company-id=${encodeURIComponent(id)}; path=/`;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setUser(null);
+    if (!pendingCompanyId) {
+      setError("Sélectionnez la société (existante ou nouvelle) avant de vous connecter.");
+      return;
+    }
     const params = new URLSearchParams(form).toString();
     const res = await fetch(`/api/auth?${params}`);
     const data = await res.json();
@@ -26,6 +57,15 @@ export default function SigninForm() {
       if (data.user?.role) {
         document.cookie = `user-role=${encodeURIComponent(data.user.role)}; path=/`;
       }
+      if (pendingCompanyId === "NEW") {
+        document.cookie = "company-id=NEW; path=/";
+        window.dispatchEvent(new Event('user:login'));
+        setTimeout(() => {
+          router.push('/admin/companies?create=1');
+        }, 1000);
+        return;
+      }
+      document.cookie = `company-id=${encodeURIComponent(pendingCompanyId)}; path=/`;
       window.dispatchEvent(new Event('user:login'));
       setTimeout(() => {
         router.push('/dashboard');
@@ -36,6 +76,22 @@ export default function SigninForm() {
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto mt-36 p-6 ">
       <h2 className="text-xl text-center font-bold mb-10">Connexion</h2>
+      <label htmlFor="companyPick" className="f-label">Société</label>
+      <select
+        id="companyPick"
+        className="f-auth-input"
+        value={pendingCompanyId}
+        onChange={(e) => setPending(e.target.value)}
+        required
+      >
+        <option value="">-- Choisir --</option>
+        {companies.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name} {c.legalForm ? `(${c.legalForm})` : ""}
+          </option>
+        ))}
+        <option value="NEW">Nouvelle société</option>
+      </select>
       <label htmlFor="email" className="f-label">
         Email
       </label>

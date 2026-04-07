@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const legalForms = ["SARL", "SA", "SAS", "SNC", "EURL", "AUTRE"];
 
@@ -10,10 +11,20 @@ export default function AdminCompaniesPage() {
   const [savingId, setSavingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const createOnly = searchParams?.get("create") === "1";
   const [createForm, setCreateForm] = useState({
     name: "",
+    address: "",
     legalForm: "",
     currency: "CDF",
+    rccmNumber: "",
+    idNatNumber: "",
+    taxNumber: "",
+    cnssNumber: "",
+    onemNumber: "",
+    inppNumber: "",
     vatPolicy: "",
     country: "",
     timezone: "",
@@ -51,6 +62,11 @@ export default function AdminCompaniesPage() {
     setError("");
     setSuccess("");
     try {
+      if (!company.rccmNumber || !company.idNatNumber || !company.taxNumber || !company.cnssNumber || !company.onemNumber || !company.inppNumber) {
+        setError("RCCM, IdNat, N° Impôt, CNSS, ONEM et INPP sont obligatoires.");
+        setSavingId(null);
+        return;
+      }
       const res = await fetch(`/api/companies/${company.id}`, {
         method: "PATCH",
         headers: {
@@ -59,8 +75,15 @@ export default function AdminCompaniesPage() {
         },
         body: JSON.stringify({
           name: company.name,
+          address: company.address,
           legalForm: company.legalForm,
           currency: company.currency,
+          rccmNumber: company.rccmNumber,
+          idNatNumber: company.idNatNumber,
+          taxNumber: company.taxNumber,
+          cnssNumber: company.cnssNumber,
+          onemNumber: company.onemNumber,
+          inppNumber: company.inppNumber,
           vatPolicy: company.vatPolicy,
           country: company.country,
           timezone: company.timezone,
@@ -96,13 +119,29 @@ export default function AdminCompaniesPage() {
       setSuccess("Société créée");
       setCreateForm({
         name: "",
+        address: "",
         legalForm: "",
         currency: "CDF",
+        rccmNumber: "",
+        idNatNumber: "",
+        taxNumber: "",
+        cnssNumber: "",
+        onemNumber: "",
+        inppNumber: "",
         vatPolicy: "",
         country: "",
         timezone: "",
         fiscalYearStart: "",
       });
+      const created = data.company;
+      const wantsCreate = searchParams?.get("create") === "1";
+      const pending = localStorage.getItem("pendingCompanyId");
+      if (created?.id && (wantsCreate || pending === "NEW")) {
+        document.cookie = `company-id=${encodeURIComponent(created.id)}; path=/`;
+        localStorage.setItem("pendingCompanyId", created.id);
+        router.push("/dashboard");
+        return;
+      }
       await loadCompanies();
     } catch (e2) {
       setError(e2.message);
@@ -136,6 +175,69 @@ export default function AdminCompaniesPage() {
               className="border rounded px-2 py-1"
               value={createForm.name}
               onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 md:col-span-2">
+            <span className="text-xs text-gray-600">Adresse</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.address}
+              onChange={(e) => setCreateForm((f) => ({ ...f, address: e.target.value }))}
+              placeholder="Adresse complète"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600">N° RCCM *</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.rccmNumber}
+              onChange={(e) => setCreateForm((f) => ({ ...f, rccmNumber: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600">N° IdNat *</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.idNatNumber}
+              onChange={(e) => setCreateForm((f) => ({ ...f, idNatNumber: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600">N° Impôt *</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.taxNumber}
+              onChange={(e) => setCreateForm((f) => ({ ...f, taxNumber: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600">N° CNSS *</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.cnssNumber}
+              onChange={(e) => setCreateForm((f) => ({ ...f, cnssNumber: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600">N° ONEM *</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.onemNumber}
+              onChange={(e) => setCreateForm((f) => ({ ...f, onemNumber: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600">N° INPP *</span>
+            <input
+              className="border rounded px-2 py-1"
+              value={createForm.inppNumber}
+              onChange={(e) => setCreateForm((f) => ({ ...f, inppNumber: e.target.value }))}
               required
             />
           </label>
@@ -208,7 +310,8 @@ export default function AdminCompaniesPage() {
         </div>
       </form>
 
-      <div className="space-y-4">
+      {!createOnly && (
+        <div className="space-y-4">
         {companies.map((c) => (
           <div key={c.id} className="border rounded bg-white p-4 space-y-3">
             <div className="text-xs text-gray-500 font-mono">ID: {c.id}</div>
@@ -242,6 +345,69 @@ export default function AdminCompaniesPage() {
                   className="border rounded px-2 py-1 uppercase"
                   value={c.currency || ""}
                   onChange={(e) => updateLocal(c.id, { currency: e.target.value.toUpperCase() })}
+                />
+              </label>
+              <label className="flex flex-col gap-1 md:col-span-2">
+                <span className="text-xs text-gray-600">Adresse</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.address || ""}
+                  onChange={(e) => updateLocal(c.id, { address: e.target.value })}
+                  placeholder="Adresse complète"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">N° RCCM *</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.rccmNumber || ""}
+                  onChange={(e) => updateLocal(c.id, { rccmNumber: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">N° IdNat *</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.idNatNumber || ""}
+                  onChange={(e) => updateLocal(c.id, { idNatNumber: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">N° Impôt *</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.taxNumber || ""}
+                  onChange={(e) => updateLocal(c.id, { taxNumber: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">N° CNSS *</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.cnssNumber || ""}
+                  onChange={(e) => updateLocal(c.id, { cnssNumber: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">N° ONEM *</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.onemNumber || ""}
+                  onChange={(e) => updateLocal(c.id, { onemNumber: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">N° INPP *</span>
+                <input
+                  className="border rounded px-2 py-1"
+                  value={c.inppNumber || ""}
+                  onChange={(e) => updateLocal(c.id, { inppNumber: e.target.value })}
+                  required
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -296,7 +462,8 @@ export default function AdminCompaniesPage() {
         {!loading && companies.length === 0 && (
           <div className="text-sm text-gray-500">Aucune société trouvée.</div>
         )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }

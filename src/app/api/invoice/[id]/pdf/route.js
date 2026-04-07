@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { fetchInvoiceById } from '@/lib/serverActions/clientAndInvoice';
 import { requireCompanyId } from '@/lib/tenant';
 import { embedLogo, formatDateFR, drawLinesTable, drawRecapBreakdown, drawPageHeader, drawFooter, drawCompanyIdentity, drawDraftWatermark, loadPrimaryFont, computeVatBreakdown } from '@/lib/pdf/utils';
+import prisma from '@/lib/prisma';
 
 export async function GET(req, { params }) {
   const companyId = requireCompanyId(req);
@@ -24,12 +25,19 @@ export async function GET(req, { params }) {
     page.drawImage(maybeLogo.image, { x: 40, y: 800, width: maybeLogo.scaled.width, height: maybeLogo.scaled.height });
   }
 
-  // Identité société (variables d'environnement ou fallback)
+  // Identité société (base + fallback env)
+  const dbCompany = await prisma.company.findUnique({ where: { id: companyId } });
   const company = {
-    name: process.env.COMPANY_NAME || 'Ma Société SAS',
-    address: process.env.COMPANY_ADDRESS || '12 Rue Exemple\n75000 Paris',
-    siret: process.env.COMPANY_SIRET || '000 000 000 00000',
-    vat: process.env.COMPANY_VAT || 'FR00XXXXXXXXX'
+    name: dbCompany?.name || process.env.COMPANY_NAME || 'Ma Société SAS',
+    address: dbCompany?.address || process.env.COMPANY_ADDRESS || '12 Rue Exemple\n75000 Paris',
+    siret: process.env.COMPANY_SIRET || '',
+    vat: process.env.COMPANY_VAT || '',
+    rccm: dbCompany?.rccmNumber || '',
+    idNat: dbCompany?.idNatNumber || '',
+    taxNumber: dbCompany?.taxNumber || '',
+    cnss: dbCompany?.cnssNumber || '',
+    onem: dbCompany?.onemNumber || '',
+    inpp: dbCompany?.inppNumber || '',
   };
   drawCompanyIdentity(page, { font, company });
 

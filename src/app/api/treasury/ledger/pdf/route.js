@@ -3,6 +3,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { getMoneyAccountLedger } from '@/lib/serverActions/money';
 import { embedLogo, loadPrimaryFont, drawFooter, drawCompanyIdentity, formatDateFR } from '@/lib/pdf/utils';
 import { requireCompanyId } from '@/lib/tenant';
+import prisma from '@/lib/prisma';
 
 export async function GET(req) {
   const companyId = requireCompanyId(req);
@@ -28,11 +29,18 @@ export async function GET(req) {
     const pages = [page];
     const logo = await embedLogo(pdfDoc);
 
+    const dbCompany = await prisma.company.findUnique({ where: { id: companyId } });
     const company = {
-      name: process.env.COMPANY_NAME || 'Ma Société SAS',
-      address: process.env.COMPANY_ADDRESS || '12 Rue Exemple\n75000 Paris',
+      name: dbCompany?.name || process.env.COMPANY_NAME || 'Ma Société SAS',
+      address: dbCompany?.address || process.env.COMPANY_ADDRESS || '12 Rue Exemple\n75000 Paris',
       siret: process.env.COMPANY_SIRET || '',
-      vat: process.env.COMPANY_VAT || ''
+      vat: process.env.COMPANY_VAT || '',
+      rccm: dbCompany?.rccmNumber || '',
+      idNat: dbCompany?.idNatNumber || '',
+      taxNumber: dbCompany?.taxNumber || '',
+      cnss: dbCompany?.cnssNumber || '',
+      onem: dbCompany?.onemNumber || '',
+      inpp: dbCompany?.inppNumber || '',
     };
     drawCompanyIdentity(page, { font, company });
     const title = 'GRAND LIVRE TRESORERIE';

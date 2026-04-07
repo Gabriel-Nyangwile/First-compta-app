@@ -15,12 +15,32 @@ const fmt = (n) => {
 
 const clean = (s = '') => String(s ?? '').replace(/[\u00a0\u202f]/g, ' ').replace(/[^\x20-\x7E]/g, ' ');
 
-function companyFromEnv() {
+function companyFromDb(company) {
+  if (!company) {
+    return {
+      name: clean(process.env.COMPANY_NAME),
+      address: clean(process.env.COMPANY_ADDRESS),
+      siret: clean(process.env.COMPANY_SIRET),
+      vat: clean(process.env.COMPANY_VAT),
+      rccm: '',
+      idNat: '',
+      taxNumber: '',
+      cnss: '',
+      onem: '',
+      inpp: '',
+    };
+  }
   return {
-    name: clean(process.env.COMPANY_NAME),
-    address: clean(process.env.COMPANY_ADDRESS),
+    name: clean(company.name),
+    address: clean(company.address || process.env.COMPANY_ADDRESS),
     siret: clean(process.env.COMPANY_SIRET),
     vat: clean(process.env.COMPANY_VAT),
+    rccm: clean(company.rccmNumber),
+    idNat: clean(company.idNatNumber),
+    taxNumber: clean(company.taxNumber),
+    cnss: clean(company.cnssNumber),
+    onem: clean(company.onemNumber),
+    inpp: clean(company.inppNumber),
   };
 }
 
@@ -79,7 +99,8 @@ export async function GET(req, { params }) {
     const pages = [];
     const font = await loadPrimaryFont(pdfDoc);
     const isDraft = payslip.period?.status !== 'POSTED';
-    const company = companyFromEnv();
+    const dbCompany = await prisma.company.findUnique({ where: { id: companyId } });
+    const company = companyFromDb(dbCompany);
 
     const addPage = (subTitle) => {
       const p = pdfDoc.addPage([595.28, 841.89]);

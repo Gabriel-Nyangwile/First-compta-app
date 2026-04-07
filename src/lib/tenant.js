@@ -8,14 +8,14 @@ function readCookie(cookieHeader, name) {
 
 export function getCompanyIdFromRequest(req) {
   const headerId = req.headers.get('x-company-id') || req.headers.get('x-companyid');
-  if (headerId) return headerId;
+  if (headerId && headerId !== 'NEW') return headerId;
 
   const cookieHeader = req.headers.get('cookie') || '';
   const cookieId =
     readCookie(cookieHeader, 'company-id') ||
     readCookie(cookieHeader, 'companyId') ||
     readCookie(cookieHeader, 'company_id');
-  if (cookieId) return cookieId;
+  if (cookieId) return cookieId === 'NEW' ? null : cookieId;
 
   const envId = (process.env.DEFAULT_COMPANY_ID || '').trim();
   return envId || null;
@@ -27,7 +27,7 @@ export function getCompanyIdFromCookies(cookieStore) {
     cookieStore.get?.('company-id')?.value ||
     cookieStore.get?.('companyId')?.value ||
     cookieStore.get?.('company_id')?.value;
-  if (direct) return direct;
+  if (direct) return direct === 'NEW' ? null : direct;
   const envId = (process.env.DEFAULT_COMPANY_ID || '').trim();
   return envId || null;
 }

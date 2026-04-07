@@ -153,7 +153,7 @@ export function drawFooter(page, { font, pageNumber, totalPages, legal }) {
 
 /** Dessine bloc identité société (coin haut droit). */
 export function drawCompanyIdentity(page, { font, company }) {
-  if (!company) return; // company = { name, address, siret, vat }
+  if (!company) return; // company = { name, address, siret, vat, rccm, idNat, taxNumber, cnss, onem, inpp }
   const startX = 350;
   let y = 820;
   const line = (txt, size = 9) => { page.drawText(txt, { x: startX, y, size, font, color: rgb(0.15,0.15,0.25) }); y -= 12; };
@@ -161,6 +161,12 @@ export function drawCompanyIdentity(page, { font, company }) {
   if (company.address) company.address.split(/\n+/).forEach(a => line(a));
   if (company.siret) line(`SIRET: ${company.siret}`);
   if (company.vat) line(`TVA: ${company.vat}`);
+  if (company.rccm) line(`RCCM: ${company.rccm}`);
+  if (company.idNat) line(`ID NAT: ${company.idNat}`);
+  if (company.taxNumber) line(`N° Impôt: ${company.taxNumber}`);
+  if (company.cnss) line(`CNSS: ${company.cnss}`);
+  if (company.onem) line(`ONEM: ${company.onem}`);
+  if (company.inpp) line(`INPP: ${company.inpp}`);
 }
 
 /** Watermark diagonale pour factures brouillon. */

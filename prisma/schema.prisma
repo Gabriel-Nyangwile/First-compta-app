@@ -108,8 +108,15 @@ enum UserRole {
 model Company {
   id              String   @id @default(uuid())
   name            String
+  address         String?
   legalForm       String?
   currency        String   @default("XOF")
+  rccmNumber      String?
+  idNatNumber     String?
+  taxNumber       String?
+  cnssNumber      String?
+  onemNumber      String?
+  inppNumber      String?
   vatPolicy       String?
   country         String?
   timezone        String?
