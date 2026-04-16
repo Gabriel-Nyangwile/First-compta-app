@@ -1,20 +1,17 @@
 import prisma from "../prisma.js";
 import { Prisma } from "@prisma/client";
 import crypto from "crypto";
+import { nextSequence as nextScopedSequence } from "../sequence.js";
+import { finalizeBatchToJournal } from "../journal.js";
 
 async function nextSequence(name) {
-  return await prisma.$transaction(async (tx) => {
-    let seq = await tx.sequence.findUnique({ where: { name } });
-    if (!seq) {
-      seq = await tx.sequence.create({ data: { name, value: 1 } });
-      return seq.value;
-    }
-    const updated = await tx.sequence.update({
-      where: { name },
-      data: { value: { increment: 1 } },
-    });
-    return updated.value;
-  });
+  const raw = await nextScopedSequence(prisma, name, "", null);
+  return Number.parseInt(raw, 10);
+}
+
+async function nextSequenceForCompany(name, companyId = null) {
+  const raw = await nextScopedSequence(prisma, name, "", companyId);
+  return Number.parseInt(raw, 10);
 }
 
 function formatVoucher(prefix, date, num) {
@@ -62,6 +59,9 @@ export async function createMoneyMovement({
       `Direction incohérente pour ${kind}. Doit être ${forcedDirections[kind]}`
     );
   }
+  if (autoPost && kind === "OTHER" && !counterpartAccountId) {
+    throw new Error("counterpartAccountId requis pour OTHER quand autoPost=true");
+  }
 
   let moneyAccount = await prisma.moneyAccount.findFirst({
     where: { id: moneyAccountId, ...(companyId ? { companyId } : {}) },
@@ -98,7 +98,7 @@ export async function createMoneyMovement({
   // Auto voucherRef if missing
   let finalVoucherRef = voucherRef;
   if (!finalVoucherRef) {
-    const seqNum = await nextSequence("MONEY_MOVEMENT");
+    const seqNum = await nextSequenceForCompany("MONEY_MOVEMENT", companyId);
     finalVoucherRef = formatVoucher("MV", new Date(), seqNum);
   }
 
@@ -135,7 +135,7 @@ export async function createMoneyMovement({
     });
 
     if (autoPost) {
-      await autoPostTransactions({
+      const postedTransactions = await autoPostTransactions({
         tx,
         movement,
         moneyAccount,
@@ -149,6 +149,17 @@ export async function createMoneyMovement({
         incomingInvoice: resolvedIncomingInvoice,
         companyId,
       });
+      if (postedTransactions.length) {
+        await finalizeBatchToJournal(tx, {
+          sourceType: "MONEY_MOVEMENT",
+          sourceId: movement.id,
+          date: movement.date,
+          description:
+            movement.description ||
+            `Mouvement de tresorerie ${movement.voucherRef || movement.kind}`,
+          transactions: postedTransactions,
+        });
+      }
       if (invoiceId)
         await updateInvoiceSettlementStatus(tx, invoiceId, companyId);
       if (incomingInvoiceId)
@@ -524,8 +535,14 @@ export async function autoPostTransactions({
         if (!e.companyId) e.companyId = companyId;
       });
     }
-    await tx.transaction.createMany({ data: entries });
+    const createdTransactions = [];
+    for (const entry of entries) {
+      createdTransactions.push(await tx.transaction.create({ data: entry }));
+    }
+    return createdTransactions;
   }
+
+  return [];
 }
 
 export async function updateInvoiceSettlementStatus(
@@ -906,7 +923,7 @@ export async function createTransfer({
     // Génération baseRef
     let baseRef = voucherRef;
     if (!baseRef) {
-      const seqNum = await nextSequence("TRANSFER");
+      const seqNum = await nextSequenceForCompany("TRANSFER", companyId);
       baseRef = formatVoucher("TRF", new Date(), seqNum);
     }
     const outRef = baseRef + "-1";
@@ -937,9 +954,9 @@ export async function createTransfer({
     });
 
     // Écritures : Crédit source, Débit destination
-    await tx.transaction.createMany({
-      data: [
-        {
+    const transferTransactions = [
+      await tx.transaction.create({
+        data: {
           date: outMv.date,
           amount: new Prisma.Decimal(amount),
           direction: "CREDIT",
@@ -949,7 +966,9 @@ export async function createTransfer({
           description: description || "Transfert sortant",
           companyId,
         },
-        {
+      }),
+      await tx.transaction.create({
+        data: {
           date: inMv.date,
           amount: new Prisma.Decimal(amount),
           direction: "DEBIT",
@@ -959,7 +978,14 @@ export async function createTransfer({
           description: description || "Transfert entrant",
           companyId,
         },
-      ],
+      }),
+    ];
+    await finalizeBatchToJournal(tx, {
+      sourceType: "MONEY_MOVEMENT",
+      sourceId: baseRef,
+      date: outMv.date,
+      description: description || `Transfert ${baseRef}`,
+      transactions: transferTransactions,
     });
     return {
       out: outMv,

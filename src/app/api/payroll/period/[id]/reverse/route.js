@@ -24,6 +24,11 @@ export async function POST(req, { params }) {
     const after = await prisma.payrollPeriod.findUnique({ where: { id, companyId } });
     return NextResponse.json({ ok: true, periodId: id, periodRef: period.ref, journalNumber: journal.number, reversedCount, debit, credit, newStatus: after.status });
   } catch (e) {
-    return NextResponse.json({ error: e.message || 'Reverse failed' }, { status: 500 });
+    const msg = e?.message || 'Reverse failed';
+    const lower = msg.toLowerCase();
+    const status = lower.includes('must be posted') || lower.includes('settlements') ? 409
+      : lower.includes('not found') ? 404
+      : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

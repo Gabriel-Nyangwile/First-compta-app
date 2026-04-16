@@ -1,0 +1,13 @@
+[
+  {
+    "id": "f4093401-ae7e-446d-bf75-7cab6fcfcfd4",
+    "companyId": "uuid-existant-ou-nouveau",
+    "periodId": "dcc4b549-aa5b-445e-871b-fbae19fd638b",
+    "employeeId": "68776e00-bf74-4c5b-83c7-1b92673c7570",
+    "kind": "BONUS",
+    "label": "BONUS",
+    "amount": "500",
+    "costCenterId": "41d2c826-edfe-4472-8740-849f3addb578",
+    "createdAt": "2025-11-23T00:23:55.108Z"
+  }
+]

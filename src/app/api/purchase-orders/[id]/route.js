@@ -37,8 +37,12 @@ export async function GET(_request, context) {
         supplier: true,
         lines: { include: { product: true } },
         goodsReceipts: {
+          orderBy: [{ receiptDate: "asc" }, { createdAt: "asc" }],
           include: {
-            lines: { include: { product: true, purchaseOrderLine: true } },
+            lines: {
+              orderBy: { createdAt: "asc" },
+              include: { product: true, purchaseOrderLine: true },
+            },
           },
         },
         statusLogs: { orderBy: { changedAt: "asc" } },

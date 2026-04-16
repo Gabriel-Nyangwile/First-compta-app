@@ -8,27 +8,48 @@ async function main() {
   let inconsistencies = 0;
   for (const p of products) {
     const agg = await prisma.stockMovement.groupBy({
-      by: ['productId','movementType'],
+      by: ['productId', 'movementType', 'stage'],
       where: { productId: p.id },
       _sum: { quantity: true }
     });
-    let qtyIn = 0, qtyOut = 0, qtyAdjust = 0;
+    let availableIn = 0, availableOut = 0, availableAdjust = 0;
+    let stagedIn = 0, stagedOut = 0, stagedAdjust = 0;
     for (const g of agg) {
       const q = Number(g._sum.quantity || 0);
-      if (g.movementType === 'IN') qtyIn += q; else if (g.movementType === 'OUT') qtyOut += q; else qtyAdjust += q; 
+      const isStaged = g.stage === 'STAGED';
+      if (g.movementType === 'IN') {
+        if (isStaged) stagedIn += q;
+        else availableIn += q;
+      } else if (g.movementType === 'OUT') {
+        if (isStaged) stagedOut += q;
+        else availableOut += q;
+      } else {
+        if (isStaged) stagedAdjust += q;
+        else availableAdjust += q;
+      }
     }
-    const theoretical = qtyIn - qtyOut + qtyAdjust; // adjust treated as signed quantity (future)
+    const theoreticalOnHand = availableIn - availableOut + availableAdjust;
+    const theoreticalStaged = stagedIn - stagedOut + stagedAdjust;
     const inv = await prisma.productInventory.findUnique({ where: { productId: p.id } });
-    const stored = inv ? Number(inv.qtyOnHand) : 0;
-    const diff = +(theoretical - stored).toFixed(3);
-    if (Math.abs(diff) > 0.0005) {
+    const storedOnHand = inv ? Number(inv.qtyOnHand) : 0;
+    const storedStaged = inv ? Number(inv.qtyStaged || 0) : 0;
+    const diffOnHand = +(theoreticalOnHand - storedOnHand).toFixed(3);
+    const diffStaged = +(theoreticalStaged - storedStaged).toFixed(3);
+    if (Math.abs(diffOnHand) > 0.0005 || Math.abs(diffStaged) > 0.0005) {
       inconsistencies++;
-      console.log(`⚠️  ${p.sku} ${p.name} diff=${diff} (calc=${theoretical.toFixed(3)} stored=${stored.toFixed(3)})`);
+      console.log(`⚠️  ${p.sku} ${p.name} onHandDiff=${diffOnHand} stagedDiff=${diffStaged} (calcOnHand=${theoreticalOnHand.toFixed(3)} storedOnHand=${storedOnHand.toFixed(3)} calcStaged=${theoreticalStaged.toFixed(3)} storedStaged=${storedStaged.toFixed(3)})`);
       if (process.argv.includes('--fix')) {
         await prisma.productInventory.upsert({
           where: { productId: p.id },
-          update: { qtyOnHand: theoretical.toFixed(3) },
-          create: { productId: p.id, qtyOnHand: theoretical.toFixed(3) }
+          update: {
+            qtyOnHand: theoreticalOnHand.toFixed(3),
+            qtyStaged: theoreticalStaged.toFixed(3),
+          },
+          create: {
+            productId: p.id,
+            qtyOnHand: theoreticalOnHand.toFixed(3),
+            qtyStaged: theoreticalStaged.toFixed(3),
+          }
         });
         console.log('   → Fix applied');
       }

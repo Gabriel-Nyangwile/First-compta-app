@@ -100,7 +100,6 @@ export async function POST(req, { params }) {
       const { vatDeductibleAccount } = await getSystemAccounts(companyId);
       const inv = await tx.incomingInvoice.create({
         data: {
-          companyId,
           entryNumber,
           receiptDate,
           issueDate,
@@ -113,6 +112,7 @@ export async function POST(req, { params }) {
           outstandingAmount: (totalHt + totalVat).toFixed(2),
           supplierInvoiceNumber,
           status: 'PENDING',
+          company: { connect: { id: companyId } },
           supplier: apo.supplierId ? { connect: { id: apo.supplierId } } : undefined,
           lines: { create: lines },
         },

@@ -11,6 +11,8 @@
 
 import prisma from '../prisma.js';
 import { finalizeBatchToJournal, computeDebitCredit } from '../journal.js';
+import { isPayrollSettlementDescription } from './settlement-config.js';
+import { getCurrentPayrollJournal } from './journals.js';
 
 async function getNatExpCostCenters(tx, companyId = null) {
   const centers = await tx.costCenter.findMany({
@@ -304,7 +306,19 @@ export async function reversePayrollPeriodTx(tx, periodId, actor = null, company
   if (!period) throw new Error('Payroll period not found');
   if (period.status !== 'POSTED') throw new Error('Period must be POSTED to reverse');
   const scopedCompanyId = period?.companyId || companyId || null;
-  const je = await tx.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, orderBy: { date: 'desc' } });
+  const payrollJournals = await tx.journalEntry.findMany({
+    where: {
+      sourceType: 'PAYROLL',
+      sourceId: period.id,
+      ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}),
+    },
+    select: { description: true },
+  });
+  const settlementCount = payrollJournals.filter((journal) => isPayrollSettlementDescription(journal.description)).length;
+  if (settlementCount > 0) {
+    throw new Error('Payroll period has settlements; reverse blocked');
+  }
+  const je = await getCurrentPayrollJournal(tx, period.id, scopedCompanyId);
   if (!je) throw new Error('No payroll journal found to reverse');
   const origTxns = await tx.transaction.findMany({ where: { journalEntryId: je.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
   if (!origTxns.length) throw new Error('Original journal has no transactions');

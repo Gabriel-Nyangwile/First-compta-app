@@ -9,7 +9,7 @@ const toNumber = (value) => {
   return value.toNumber?.() ?? Number(value) ?? 0;
 };
 
-// GET /api/ledger?dateFrom=&dateTo=&letterStatus=&accountId=&includeZero=&q=
+// GET /api/ledger?dateFrom=&dateTo=&letterStatus=&accountId=&direction=&includeZero=&q=&format=
 export async function GET(request) {
   try {
     const companyId = requireCompanyId(request);
@@ -19,7 +19,9 @@ export async function GET(request) {
     const q = searchParams.get("q")?.trim()?.toLowerCase();
     const letterStatus = searchParams.get("letterStatus") || undefined;
     const accountId = searchParams.get("accountId") || undefined;
+    const direction = searchParams.get("direction") || undefined;
     const includeZero = searchParams.get("includeZero") !== "false";
+    const format = searchParams.get("format") || undefined;
 
     const filters = [];
     if (dateFrom || dateTo) {
@@ -34,6 +36,7 @@ export async function GET(request) {
     }
     if (letterStatus) filters.push({ letterStatus });
     if (accountId) filters.push({ accountId });
+    if (direction) filters.push({ direction });
     const where = filters.length
       ? { AND: [{ companyId }, ...filters] }
       : { companyId };
@@ -99,6 +102,42 @@ export async function GET(request) {
       totalOutstanding += row.outstandingAmount;
     });
 
+    if (format === "csv") {
+      const header = [
+        "Compte",
+        "Libellé",
+        "Débit",
+        "Crédit",
+        "Solde",
+        "Lettré",
+        "Reste",
+        "Écritures",
+        "UNMATCHED",
+        "PARTIAL",
+        "MATCHED",
+      ];
+      const lines = rows.map((row) =>
+        [
+          row.account.number,
+          `"${(row.account.label || "").replace(/"/g, '""')}"`,
+          row.debit.toFixed(2),
+          row.credit.toFixed(2),
+          (row.debit - row.credit).toFixed(2),
+          row.letteredAmount.toFixed(2),
+          row.outstandingAmount.toFixed(2),
+          String(row.transactionCount || 0),
+          String(row.statusBreakdown.UNMATCHED || 0),
+          String(row.statusBreakdown.PARTIAL || 0),
+          String(row.statusBreakdown.MATCHED || 0),
+        ].join(";")
+      );
+      const csv = [header.join(";"), ...lines].join("\n");
+      return new Response(csv, {
+        status: 200,
+        headers: { "Content-Type": "text/csv; charset=utf-8" },
+      });
+    }
+
     return NextResponse.json({
       items: rows.map((row) => ({
         accountNumber: row.account.number,
@@ -121,6 +160,7 @@ export async function GET(request) {
         dateEnd: dateTo || null,
         letterStatus: letterStatus || null,
         accountId: accountId || null,
+        direction: direction || null,
         search: q || null,
       },
     });

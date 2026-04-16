@@ -37,9 +37,10 @@ async function main() {
     argValue("--date") || process.env.OPENING_DATE || "2026-01-01";
   const companyId =
     argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
+  const dryRun = process.argv.includes("--dry-run");
 
   if (!file) {
-    console.error("Usage: node --env-file=.env.local scripts/import-opening-stock.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
+    console.error("Usage: node --env-file=.env.local scripts/import-opening-stock.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD] [--dry-run]");
     process.exit(1);
   }
   if (!companyId) {
@@ -91,7 +92,75 @@ async function main() {
   });
 
   if (!rows.length) throw new Error("Aucune ligne detectee");
+
+  const existingSkus = await prisma.product.findMany({
+    where: { companyId, sku: { in: rows.map((row) => row.sku) } },
+    select: { sku: true },
+  });
+  if (existingSkus.length) {
+    throw new Error(`Import duplicated detected: existing product SKUs=${existingSkus.map((item) => item.sku).join(", ")}`);
+  }
+
   const date = new Date(openingDate);
+
+  if (dryRun) {
+    // Mode dry-run : analyser sans modifier la base
+    const preview = [];
+    let productsToCreate = 0;
+    let adjustmentsToMake = 0;
+    let totalValue = 0;
+
+    for (const line of rows) {
+      if (line.qty === 0) continue;
+      
+      const existingProduct = await prisma.product.findFirst({ 
+        where: { sku: line.sku, companyId },
+        select: { id: true, name: true }
+      });
+      
+      const willCreateProduct = !existingProduct && !!line.name && !!line.inventoryAccountNumber && !!line.stockVariationAccountNumber;
+      const willAdjustStock = true; // Toujours un ajustement
+      
+      if (willCreateProduct) productsToCreate += 1;
+      if (willAdjustStock) adjustmentsToMake += 1;
+      
+      const lineValue = line.unitCost * line.qty;
+      totalValue += lineValue;
+      
+      preview.push({
+        sku: line.sku,
+        name: line.name,
+        qty: line.qty,
+        unitCost: line.unitCost,
+        totalValue: Number(lineValue.toFixed(2)),
+        existingProduct: !!existingProduct,
+        willCreateProduct,
+        willAdjustStock,
+        inventoryAccountNumber: line.inventoryAccountNumber,
+        stockVariationAccountNumber: line.stockVariationAccountNumber,
+      });
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          mode: "DRY-RUN",
+          companyId,
+          openingDate,
+          products: rows.length,
+          productsToCreate,
+          adjustmentsToMake,
+          totalValue: Number(totalValue.toFixed(2)),
+          preview: preview.slice(0, 10), // Limiter à 10 pour lisibilité
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  // Mode normal : exécuter les modifications
   let created = 0;
   let adjusted = 0;
 

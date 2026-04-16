@@ -1,0 +1,14 @@
+[
+  {
+    "id": "558a8768-e4f2-47ad-a8fb-98d740f4c4e7",
+    "companyId": "uuid-existant-ou-nouveau",
+    "assetId": "f1d07c7d-9532-4f9a-b829-c4238cd2dcb7",
+    "date": "2025-11-28T00:00:00.000Z",
+    "proceed": "0",
+    "gainLoss": "-850",
+    "journalEntryId": "3aa9d68f-6936-4c5f-87e1-8ff9c25dd14d",
+    "reason": null,
+    "meta": null,
+    "createdAt": "2025-11-28T19:40:50.843Z"
+  }
+]

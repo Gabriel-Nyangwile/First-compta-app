@@ -104,12 +104,22 @@ export default async function JournalEntryDetail({ params }) {
             {entry.sourceId ? ` • Référence ${entry.sourceId}` : ""}
           </p>
         </div>
-        <Link
-          className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
-          href="/journal"
-        >
-          ← Retour journal
-        </Link>
+        <div className="flex items-center gap-4 text-sm">
+          <Link
+            className="text-blue-600 hover:underline"
+            href={`/api/journal-entries/${entry.id}?format=csv`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Export CSV lignes
+          </Link>
+          <Link
+            className="rounded border border-neutral-300 px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+            href="/journal"
+          >
+            ← Retour journal
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm">
@@ -179,7 +189,16 @@ export default async function JournalEntryDetail({ params }) {
                   {line.index}
                 </td>
                 <td className="px-3 py-2 align-top font-mono text-sm">
-                  {line.account?.number || "—"}
+                  {line.account?.id ? (
+                    <Link
+                      className="text-blue-600 hover:underline"
+                      href={`/ledger/${line.account.id}`}
+                    >
+                      {line.account.number}
+                    </Link>
+                  ) : (
+                    line.account?.number || "—"
+                  )}
                   <div className="text-xs text-neutral-500">
                     {line.account?.label}
                   </div>

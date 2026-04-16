@@ -6,6 +6,8 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+const EPSILON = 0.000001;
+
 async function main() {
   console.log('Checking journal integrity...');
   const entries = await prisma.journalEntry.findMany({ include: { lines: true }, orderBy: { date: 'asc' } });
@@ -16,7 +18,7 @@ async function main() {
       const amt = Number(l.amount);
       if (l.direction === 'DEBIT') d += amt; else if (l.direction === 'CREDIT') c += amt;
     }
-    if (d !== c) {
+    if (Math.abs(d - c) > EPSILON) {
       console.log(`UNBALANCED ${e.number} debit=${d} credit=${c} (id=${e.id})`);
       unbalanced++;
     }

@@ -4,6 +4,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import { loadPrimaryFont, drawFooter, drawPageHeader, drawCompanyIdentity, drawDraftWatermark } from '@/lib/pdf/utils';
 import { featureFlags } from '@/lib/features';
 import { requireCompanyId } from '@/lib/tenant';
+import { extractPayrollSettlementRef } from '@/lib/payroll/settlement-config';
 
 export const runtime = 'nodejs';
 
@@ -87,7 +88,7 @@ export async function GET(req, { params }) {
       const match = settlements.find(j => j.description?.includes(payslip.employeeId)) || settlements[0];
       const txs = await prisma.transaction.findMany({ where: { journalEntryId: match.id }, include: { account: true } });
       const bankTx = txs.find(t => t.direction === 'DEBIT');
-      const refMatch = match.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
+      const refMatch = extractPayrollSettlementRef(match.description);
       payset = {
         ref: refMatch,
         date: match.date,

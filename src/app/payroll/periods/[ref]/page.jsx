@@ -7,7 +7,12 @@ import { auditPayrollPeriod } from '@/lib/payroll/audit';
 import AuditPanel from '../AuditPanel.jsx';
 import ReverseButton from '../ReverseButton.jsx';
 import SettlementButton from '../SettlementButton.jsx';
+import PayrollLetteringButton from '../PayrollLetteringButton.jsx';
 import { sanitizePlain } from '@/lib/sanitizePlain';
+import { listPayrollSettlements } from '@/lib/payroll/settlement';
+import { aggregatePeriodSummary } from '@/lib/payroll/aggregatePeriod';
+import { getCurrentPayrollJournal } from '@/lib/payroll/journals';
+import { getPayrollLetteringSummary } from '@/lib/payroll/lettering';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 
@@ -50,103 +55,30 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
     : null;
   if (!period) return <div className="p-6">Periode introuvable.</div>;
   const auditRaw = period && period.status === 'POSTED' ? await auditPayrollPeriod(period.id) : null;
-  // Aggregate totals breakdown across payslips
-  let totals = null;
-  if (period) {
-    let grossTotal = 0,
-      netTotal = 0,
-      cnssEmployeeTotal = 0,
-      iprTaxTotal = 0,
-      cnssEmployerTotal = 0,
-      onemTotal = 0,
-      inppTotal = 0,
-      overtimeTotal = 0;
-    for (const ps of period.payslips) {
-      grossTotal += ps.grossAmount || 0;
-      netTotal += ps.netAmount || 0;
-      for (const l of ps.lines) {
-        const amt = Math.abs(l.amount || 0);
-        if (l.code === 'CNSS_EMP') cnssEmployeeTotal += amt;
-        else if (l.code === 'IPR') iprTaxTotal += amt;
-        else if (l.code === 'CNSS_ER') cnssEmployerTotal += amt;
-        else if (l.code === 'ONEM') onemTotal += amt;
-        else if (l.code === 'INPP') inppTotal += amt;
-        else if (l.code === 'OT') overtimeTotal += l.amount || 0; // overtime positive already
-      }
-    }
-    const employerChargesTotal = cnssEmployerTotal + onemTotal + inppTotal;
-    totals = {
-      grossTotal,
-      netTotal,
-      cnssEmployeeTotal,
-      iprTaxTotal,
-      cnssEmployerTotal,
-      onemTotal,
-      inppTotal,
-      employerChargesTotal,
-      overtimeTotal,
-      payslipCount: period.payslips.length,
-    };
-  }
+  const periodSummary = await aggregatePeriodSummary(period.id, companyId);
+  const payrollLettering = await getPayrollLetteringSummary({ periodId: period.id, companyId });
+  const totals = periodSummary?.totals || null;
+  const liabilities = periodSummary?.liabilities || [];
+  const liabilityTotals = periodSummary?.liabilityTotals || null;
+  const liabilityLetteringMap = new Map((payrollLettering?.items || []).map((item) => [item.liabilityCode, item]));
+  const employeeSettlementMap = new Map((periodSummary?.employees || []).map((employee) => [employee.payslipId, employee]));
   const audit = auditRaw ? sanitizePlain(auditRaw) : null;
   const payrollJe =
     period.status === 'POSTED'
-      ? await prisma.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id, companyId }, select: { id: true } })
+      ? await getCurrentPayrollJournal(prisma, period.id, companyId, { id: true, description: true })
       : null;
   const hasJournal = !!payrollJe;
-  const settlementJes =
-    period.status === 'POSTED'
-      ? await prisma.journalEntry.findMany({
-          where: {
-            sourceType: 'PAYROLL',
-            sourceId: period.id,
-            companyId,
-            description: { contains: 'PAYSET-' },
-          },
-          orderBy: { date: 'desc' },
-        })
-      : [];
-  let settlements = [];
-  if (settlementJes.length) {
-    const tx = await prisma.transaction.findMany({
-      where: { companyId, journalEntryId: { in: settlementJes.map((j) => j.id) } },
-      include: { account: true },
-    });
-    const txByJe = new Map();
-    for (const t of tx) {
-      if (!txByJe.has(t.journalEntryId)) txByJe.set(t.journalEntryId, []);
-      txByJe.get(t.journalEntryId).push(t);
-    }
-    settlements = settlementJes.map((j) => {
-      const list = txByJe.get(j.id) || [];
-      const debitTx = list.find((t) => t.direction === 'DEBIT') || null;
-      const creditTx = list.find((t) => t.direction === 'CREDIT') || null;
-      const debit = list
-        .filter((t) => t.direction === 'DEBIT')
-        .reduce((s, t) => s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
-      const credit = list
-        .filter((t) => t.direction === 'CREDIT')
-        .reduce((s, t) => s + Number(t.amount?.toNumber?.() ?? t.amount ?? 0), 0);
-      const refMatch = j.description?.match(/PAYSET-[0-9]+/i)?.[0] || null;
-      const employeeMatch = j.description?.match(/employ[eé]\s+([a-z0-9-]+)/i);
-      const employeeId = employeeMatch ? employeeMatch[1] : null;
-      return {
-        id: j.id,
-        number: j.number,
-        date: j.date,
-        voucherRef: refMatch,
-        description: j.description,
-        _debit: debit,
-        _credit: credit,
-        bankAccount: debitTx?.account?.number || '',
-        wagesAccount: creditTx?.account?.number || '',
-        employeeId,
-      };
-    });
-  }
+  const allSettlements =
+    period.status === 'POSTED' ? await listPayrollSettlements(period.id, companyId) : [];
+  let settlements = allSettlements.filter((settlement) => settlement.liabilityCode === 'NET_PAY');
+  const liabilitySettlements = allSettlements.filter((settlement) => settlement.liabilityCode !== 'NET_PAY');
   if (employeeFilter) {
     settlements = settlements.filter((s) => s.employeeId === employeeFilter);
   }
+  const filteredSettledTotal = settlements.reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+  const settledTotal = totals?.settledTotal ?? filteredSettledTotal;
+  const isFullySettled = totals ? totals.remainingTotal <= 0.005 : false;
+  const isPartiallySettled = totals ? totals.settledTotal > 0.005 && totals.remainingTotal > 0.005 : filteredSettledTotal > 0 && !isFullySettled;
   const settlementEmployees = Array.from(new Set(settlements.map((s) => s.employeeId).filter(Boolean)));
   const employeeLabel = (empId) => {
     const ps = period.payslips.find((p) => p.employee.id === empId);
@@ -218,12 +150,14 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
       </aside>
       <div className="text-sm text-gray-600 flex items-center gap-4 flex-wrap">
         Statut: {period.status}
+        {period.status === 'POSTED' && isFullySettled && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">SETTLED</span>}
+        {period.status === 'POSTED' && isPartiallySettled && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-amber-100 text-amber-800 border-amber-200">PARTIAL_SETTLEMENT</span>}
         {period.status === 'OPEN' && <LockButton periodId={period.id} />}
         {period.status === 'LOCKED' && <PostButton periodId={period.id} />}
         {period.status === 'POSTED' && (
           <>
             <ReverseButton periodId={period.id} hasJournal={hasJournal} />
-            <SettlementButton periodId={period.id} periodRef={period.ref} />
+            {!isFullySettled && <SettlementButton periodId={period.id} liabilityCode="NET_PAY" buttonLabel="Régler net" />}
           </>
         )}
         <a className="underline text-blue-600" href={`/payroll/periods/${period.ref}/inputs`}>
@@ -235,18 +169,27 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
         <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary?format=csv`}>
           Resume CSV
         </a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary?format=csv&section=liabilities`}>
+          Passifs CSV
+        </a>
         <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/pdf`}>
           Resume PDF
         </a>
         <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/summary/xlsx`}>
           Resume XLSX
         </a>
+        <a className="underline text-blue-600" href={`/api/payroll/period/${period.id}/lettering`}>
+          Lettrage JSON
+        </a>
+        <PayrollLetteringButton periodId={period.id} buttonLabel="Relettrer paie" />
       </div>
       {audit && <AuditPanel audit={audit} periodId={period.id} />}
       {period.status === 'POSTED' && settlements.length > 0 && (
         <section className="space-y-2">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="font-medium">Reglements net (PAYSET)</h2>
+            <span className="text-xs text-gray-600">Regle période: {settledTotal.toFixed(2)} / Net période: {(totals?.netTotal ?? 0).toFixed(2)}</span>
+            {employeeFilter && <span className="text-xs text-gray-500">Vue filtrée: {filteredSettledTotal.toFixed(2)}</span>}
             <a
               className="text-xs underline text-blue-700"
               href={`/api/payroll/period/${period.id}/settlements?format=csv${employeeFilter ? `&employeeId=${employeeFilter}` : ''}`}
@@ -292,7 +235,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                   <td className="px-2 py-1">{s.voucherRef || s.description || '-'}</td>
                   <td className="px-2 py-1">{s.number}</td>
                   <td className="px-2 py-1">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-2 py-1">{(s._debit ?? 0).toFixed(2)} / {(s._credit ?? 0).toFixed(2)}</td>
+                  <td className="px-2 py-1">{(s.debit ?? 0).toFixed(2)} / {(s.credit ?? 0).toFixed(2)}</td>
                   <td className="px-2 py-1">{s.bankAccount || '-'}</td>
                   <td className="px-2 py-1">{s.employeeId ? employeeLabel(s.employeeId) : '-'}</td>
                 </tr>
@@ -309,6 +252,8 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
               <div>Brut total: {totals.grossTotal.toFixed(2)}</div>
               <div>Net total: {totals.netTotal.toFixed(2)}</div>
+              <div>Réglé total: {totals.settledTotal.toFixed(2)}</div>
+              <div>Reste à régler: {totals.remainingTotal.toFixed(2)}</div>
               <div>CNSS salarie total: {totals.cnssEmployeeTotal.toFixed(2)}</div>
               <div>IPR total: {totals.iprTaxTotal.toFixed(2)}</div>
               <div>CNSS employeur total: {totals.cnssEmployerTotal.toFixed(2)}</div>
@@ -320,6 +265,127 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
             </div>
           </div>
         )}
+        {liabilityTotals && (
+          <div className="border rounded p-3 bg-amber-50 text-xs mb-2">
+            <div className="font-semibold mb-1">Passifs paie à régler</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
+              <div>Total passifs: {liabilityTotals.overallTotal.toFixed(2)}</div>
+              <div>Réglé: {liabilityTotals.settledTotal.toFixed(2)}</div>
+              <div>Reste global: {liabilityTotals.remainingTotal.toFixed(2)}</div>
+              <div>Passifs sociaux: {liabilityTotals.socialTotal.toFixed(2)}</div>
+              <div>Passifs fiscaux: {liabilityTotals.fiscalTotal.toFixed(2)}</div>
+              <div>Net salariés: {liabilityTotals.employeeNetTotal.toFixed(2)}</div>
+            </div>
+            <div className="mt-2 text-[11px] text-gray-600">
+              Les passifs paie sont réglables et lettrables. Le suivi ci-dessous combine état de règlement et état de rapprochement des lignes de passif dans le grand livre.
+            </div>
+          </div>
+        )}
+        {payrollLettering?.items?.length > 0 && (
+          <div className="border rounded p-3 bg-slate-50 text-xs mb-2">
+            <div className="font-semibold mb-2">Lettrage paie grand livre</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {payrollLettering.items.map((item) => (
+                <div key={item.liabilityCode} className="border rounded bg-white px-3 py-2">
+                  <div className="font-medium">{item.liabilityCode} · {item.status}</div>
+                  <div>Réf lettrage: {item.letterRef || '—'}</div>
+                  <div>Débit lettré: {(item.letteredDebit ?? 0).toFixed(2)} / Crédit lettré: {(item.letteredCredit ?? 0).toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {liabilities.length > 0 && (
+          <table className="text-sm min-w-[900px] border mb-3">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-2 py-1 text-left">Code</th>
+                <th className="px-2 py-1 text-left">Nature</th>
+                <th className="px-2 py-1 text-left">Groupe</th>
+                <th className="px-2 py-1 text-left">Total</th>
+                <th className="px-2 py-1 text-left">Réglé</th>
+                <th className="px-2 py-1 text-left">Reste</th>
+                <th className="px-2 py-1 text-left">Statut</th>
+                <th className="px-2 py-1 text-left">Flux prêt</th>
+                <th className="px-2 py-1 text-left">Lettrage</th>
+                <th className="px-2 py-1 text-left">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {liabilities.map((item) => {
+                const letteringItem = liabilityLetteringMap.get(item.code);
+                return (
+                <tr key={item.code} className="border-t">
+                  <td className="px-2 py-1">{item.code}</td>
+                  <td className="px-2 py-1">{item.label}</td>
+                  <td className="px-2 py-1">{item.group}</td>
+                  <td className="px-2 py-1">{item.total.toFixed(2)}</td>
+                  <td className="px-2 py-1">{item.settled.toFixed(2)}</td>
+                  <td className="px-2 py-1">{item.remaining.toFixed(2)}</td>
+                  <td className="px-2 py-1">{item.settlementStatus}</td>
+                  <td className="px-2 py-1">{item.paymentFlowReady ? 'oui' : 'non'}</td>
+                  <td className="px-2 py-1">
+                    <div>{letteringItem?.status || 'UNMATCHED'}</div>
+                    <div className="text-[11px] text-gray-500">{letteringItem?.letterRef || '—'}</div>
+                  </td>
+                  <td className="px-2 py-1">
+                    <div className="flex flex-col gap-1 items-start">
+                      {period.status === 'POSTED' && item.paymentFlowReady && item.remaining > 0.005 ? (
+                        <SettlementButton
+                          periodId={period.id}
+                          liabilityCode={item.code}
+                          buttonLabel={item.code === 'NET_PAY' ? 'Régler net' : `Régler ${item.code}`}
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-500">-</span>
+                      )}
+                      <PayrollLetteringButton periodId={period.id} liabilityCode={item.code} buttonLabel={`Lettrer ${item.code}`} />
+                    </div>
+                  </td>
+                </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+        {liabilitySettlements.length > 0 && (
+          <section className="space-y-2 mb-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="font-medium">Règlements organismes et fiscalité</h3>
+              <a className="text-xs underline text-blue-700" href={`/api/payroll/period/${period.id}/settlements?format=csv`}>
+                Exporter CSV global
+              </a>
+            </div>
+            <table className="text-sm min-w-[760px] border">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-2 py-1 text-left">Ref</th>
+                  <th className="px-2 py-1 text-left">Nature</th>
+                  <th className="px-2 py-1 text-left">Journal</th>
+                  <th className="px-2 py-1 text-left">Date</th>
+                  <th className="px-2 py-1 text-left">Débit/Crédit</th>
+                  <th className="px-2 py-1 text-left">Banque</th>
+                  <th className="px-2 py-1 text-left">Compte passif</th>
+                  <th className="px-2 py-1 text-left">Lettrage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liabilitySettlements.map((settlement) => (
+                  <tr key={settlement.id} className="border-t">
+                    <td className="px-2 py-1">{settlement.voucherRef || '-'}</td>
+                    <td className="px-2 py-1">{settlement.liabilityCode}</td>
+                    <td className="px-2 py-1">{settlement.number}</td>
+                    <td className="px-2 py-1">{new Date(settlement.date).toLocaleDateString('fr-FR')}</td>
+                    <td className="px-2 py-1">{(settlement.debit ?? 0).toFixed(2)} / {(settlement.credit ?? 0).toFixed(2)}</td>
+                    <td className="px-2 py-1">{settlement.bankAccount || '-'}</td>
+                    <td className="px-2 py-1">{settlement.liabilityAccount || '-'}</td>
+                    <td className="px-2 py-1">{settlement.letterStatus || 'UNMATCHED'} · {settlement.letterRef || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
         <table className="text-sm min-w-[600px] border">
           <thead>
             <tr className="bg-gray-100">
@@ -327,12 +393,16 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
               <th className="px-2 py-1 text-left">Employe</th>
               <th className="px-2 py-1 text-left">Brut</th>
               <th className="px-2 py-1 text-left">Net</th>
+              <th className="px-2 py-1 text-left">Réglé</th>
+              <th className="px-2 py-1 text-left">Reste</th>
               <th className="px-2 py-1 text-left">Lock</th>
               <th className="px-2 py-1 text-left">PDF</th>
             </tr>
           </thead>
           <tbody>
-            {period.payslips.map((ps) => (
+            {period.payslips.map((ps) => {
+              const settlementInfo = employeeSettlementMap.get(ps.id);
+              return (
               <tr key={ps.id} className="border-t hover:bg-gray-50">
                 <td className="px-2 py-1">
                   <a href={`/payroll/payslips/${ps.id}`} className="text-blue-600 underline">
@@ -342,6 +412,8 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                 <td className="px-2 py-1">{ps.employee.employeeNumber || ''} {ps.employee.firstName} {ps.employee.lastName}</td>
                 <td className="px-2 py-1">{ps.grossAmount}</td>
                 <td className="px-2 py-1">{ps.netAmount}</td>
+                <td className="px-2 py-1">{(settlementInfo?.settledAmount ?? 0).toFixed(2)}</td>
+                <td className="px-2 py-1">{(settlementInfo?.remainingAmount ?? (ps.netAmount || 0)).toFixed(2)}</td>
                 <td className="px-2 py-1">{ps.locked ? 'V' : '-'}</td>
                 <td className="px-2 py-1">
                   <a href={`/api/payroll/payslips/${ps.id}/pdf`} className="underline">
@@ -349,7 +421,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                   </a>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </section>

@@ -276,12 +276,31 @@ export default async function LedgerAccountPage(props) {
             {account.label || "Sans libellé"}
           </p>
         </div>
-        <Link
-          className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
-          href="/ledger"
-        >
-          ← Retour grand livre
-        </Link>
+        <div className="flex items-center gap-4 text-sm">
+          <Link
+            className="text-blue-600 hover:underline"
+            href={`/api/ledger/${account.id}${buildQuery({
+              dateFrom,
+              dateTo,
+              letterStatus,
+              direction,
+              q,
+              page,
+              pageSize,
+              format: "csv",
+            })}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Export CSV
+          </Link>
+          <Link
+            className="rounded border border-neutral-300 px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+            href="/ledger"
+          >
+            ← Retour grand livre
+          </Link>
+        </div>
       </div>
 
       <form

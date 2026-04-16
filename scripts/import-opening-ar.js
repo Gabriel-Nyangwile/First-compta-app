@@ -43,9 +43,10 @@ async function main() {
     process.env.OPENING_OFFSET_ACCOUNT || "471000";
   const companyId =
     argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
+  const dryRun = process.argv.includes("--dry-run");
 
   if (!file) {
-    console.error("Usage: node --env-file=.env.local scripts/import-opening-ar.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
+    console.error("Usage: node --env-file=.env.local scripts/import-opening-ar.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD] [--dry-run]");
     process.exit(1);
   }
   if (!companyId) {
@@ -97,7 +98,78 @@ async function main() {
   });
 
   if (!rows.length) throw new Error("Aucune ligne detectee");
+
+  const accountNumbers = [...new Set(rows.map((row) => row.accountNumber))].filter(Boolean);
+  if (accountNumbers.length) {
+    const accounts = await prisma.account.findMany({
+      where: { companyId, number: { in: accountNumbers } },
+      select: { id: true, number: true },
+    });
+    const accountIds = accounts.map((account) => account.id);
+    if (accountIds.length) {
+      const existingClients = await prisma.client.findMany({
+        where: { companyId, accountId: { in: accountIds } },
+        select: { account: { select: { number: true } } },
+      });
+      if (existingClients.length) {
+        throw new Error(
+          `Import duplicated detected: existing clients found for accountNumbers=${existingClients
+            .map((client) => client.account.number)
+            .join(", ")}`
+        );
+      }
+    }
+  }
+
   const date = new Date(openingDate);
+
+  if (dryRun) {
+    // Mode dry-run : analyser sans modifier la base
+    const preview = [];
+    let clientsToCreate = 0;
+    let transactionsToCreate = 0;
+    let totalBalance = 0;
+
+    for (const line of rows) {
+      if (!line.accountNumber) throw new Error(`Compte client manquant pour ${line.name}`);
+      if (line.openingBalance === 0) continue;
+      
+      clientsToCreate += 1;
+      transactionsToCreate += 2; // Une débit + une crédit
+      totalBalance += line.openingBalance;
+      
+      preview.push({
+        clientCode: line.clientCode,
+        name: line.name,
+        accountNumber: line.accountNumber,
+        openingBalance: line.openingBalance,
+        email: line.email,
+        phone: line.phone,
+        address: line.address,
+      });
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          mode: "DRY-RUN",
+          companyId,
+          openingDate,
+          offsetAccount,
+          clients: rows.length,
+          clientsToCreate,
+          transactionsToCreate,
+          totalBalance: Number(totalBalance.toFixed(2)),
+          preview: preview.slice(0, 10), // Limiter à 10 pour lisibilité
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  // Mode normal : exécuter les modifications
   let created = 0;
   let txCount = 0;
 

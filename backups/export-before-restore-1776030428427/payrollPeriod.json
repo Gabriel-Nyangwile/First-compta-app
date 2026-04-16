@@ -1,0 +1,189 @@
+[
+  {
+    "id": "933123d7-5a98-46f2-911a-a1abae7ab8e8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000039",
+    "month": 12,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-26T17:01:50.179Z",
+    "lockedAt": "2025-11-26T17:01:50.330Z",
+    "postedAt": "2025-11-26T17:01:50.414Z"
+  },
+  {
+    "id": "68e259d2-b301-4c7b-84ac-546d05cce02b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000040",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-06T12:10:30.140Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "101eeeab-743a-4123-bb46-e4977cfd5c95",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000041",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-10T14:42:19.981Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "cbb7beab-4b6b-4d07-b45b-1cd933bacaa0",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000042",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-10T17:43:11.400Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "dd77ee55-ce01-4174-b423-96dd0b9f2aa9",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000043",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-11T12:33:35.406Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "01ef428f-b777-4318-8c48-6bac26109791",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000044",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-15T11:37:18.009Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "fa649e00-bde8-42d1-ae5d-5f3ae3465de2",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000045",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-15T12:03:09.873Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "c51ce91f-c5af-40e4-b654-8c4e6bf3c83f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000046",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-12-15T12:39:32.846Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "dcc4b549-aa5b-445e-871b-fbae19fd638b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000001",
+    "month": 10,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-14T18:26:13.471Z",
+    "lockedAt": "2025-11-23T13:53:04.528Z",
+    "postedAt": "2025-11-23T14:01:33.123Z"
+  },
+  {
+    "id": "b4ea38f2-a50c-4b3e-be72-8d4ede9348e7",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000002",
+    "month": 10,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-14T18:28:46.232Z",
+    "lockedAt": "2025-11-23T14:11:03.909Z",
+    "postedAt": "2025-11-23T14:11:11.979Z"
+  },
+  {
+    "id": "17852c7b-7418-46a6-a75f-306a73064357",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000034",
+    "month": 11,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-23T14:18:43.952Z",
+    "lockedAt": "2025-11-23T14:18:44.425Z",
+    "postedAt": "2025-11-23T14:18:44.647Z"
+  },
+  {
+    "id": "55f6fc58-7da6-4491-8286-433481abe57c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000035",
+    "month": 11,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-23T22:44:10.687Z",
+    "lockedAt": "2025-11-24T00:10:14.343Z",
+    "postedAt": "2025-11-24T00:18:14.234Z"
+  },
+  {
+    "id": "8bd3b6a4-af35-46ab-aa3e-235910e575f5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000036",
+    "month": 11,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-24T14:29:14.763Z",
+    "lockedAt": "2025-11-24T14:29:20.054Z",
+    "postedAt": "2025-11-24T14:29:22.716Z"
+  },
+  {
+    "id": "b512fcf4-2607-4106-9291-832b83320ea5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000037",
+    "month": 11,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-11-25T19:19:53.421Z",
+    "lockedAt": "2025-11-25T19:19:57.021Z",
+    "postedAt": "2025-11-25T19:19:58.862Z"
+  },
+  {
+    "id": "451a5cf7-5608-4c5b-bbdd-07379668f09f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000038",
+    "month": 12,
+    "year": 2025,
+    "status": "OPEN",
+    "openedAt": "2025-11-26T16:39:03.678Z",
+    "lockedAt": null,
+    "postedAt": null
+  },
+  {
+    "id": "cbaa2b89-26d9-42fb-b98f-aeeb5afc24ac",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000047",
+    "month": 12,
+    "year": 2025,
+    "status": "POSTED",
+    "openedAt": "2025-12-15T13:10:02.421Z",
+    "lockedAt": "2026-04-09T18:06:24.169Z",
+    "postedAt": "2026-04-09T18:17:52.357Z"
+  },
+  {
+    "id": "f1662b62-216d-4a83-8777-38576f7f24ee",
+    "companyId": "uuid-existant-ou-nouveau",
+    "ref": "PP-000048",
+    "month": 4,
+    "year": 2026,
+    "status": "POSTED",
+    "openedAt": "2026-04-09T17:14:04.651Z",
+    "lockedAt": "2026-04-09T17:14:08.307Z",
+    "postedAt": "2026-04-09T18:53:00.461Z"
+  }
+]

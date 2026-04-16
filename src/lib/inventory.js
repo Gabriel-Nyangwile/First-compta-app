@@ -1,4 +1,4 @@
-import prisma from "@/lib/prisma";
+import prisma from "./prisma.js";
 
 async function ensureInventory(txOrClient, productId, companyId = null) {
   const client = txOrClient || prisma;

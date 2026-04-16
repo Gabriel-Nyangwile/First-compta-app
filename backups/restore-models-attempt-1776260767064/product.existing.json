@@ -1,0 +1,62 @@
+[
+  {
+    "id": "2050d377-5396-4d50-b3fb-794d69e77e68",
+    "companyId": "default-company",
+    "sku": "STK-001",
+    "name": "Ordinateur portable Dell",
+    "description": null,
+    "unit": "PCS",
+    "isActive": true,
+    "minStockAlert": null,
+    "createdAt": "2026-04-13T16:43:43.118Z",
+    "updatedAt": "2026-04-13T16:43:43.118Z",
+    "stockNature": "PURCHASED",
+    "inventoryAccountId": "575dbc27-cb6f-4426-98b4-af8044299c43",
+    "stockVariationAccountId": "5843672d-c2c4-48be-90e5-78803f5364e4"
+  },
+  {
+    "id": "2919356e-4226-4fb1-ab65-6afee5b7777d",
+    "companyId": "default-company",
+    "sku": "STK-002",
+    "name": "Matière première - acier",
+    "description": null,
+    "unit": "PCS",
+    "isActive": true,
+    "minStockAlert": null,
+    "createdAt": "2026-04-13T16:43:43.197Z",
+    "updatedAt": "2026-04-13T16:43:43.197Z",
+    "stockNature": "PURCHASED",
+    "inventoryAccountId": "575dbc27-cb6f-4426-98b4-af8044299c43",
+    "stockVariationAccountId": "5843672d-c2c4-48be-90e5-78803f5364e4"
+  },
+  {
+    "id": "f6e01dda-8aa5-4e75-a0c9-3eec6fb173e5",
+    "companyId": "default-company",
+    "sku": "STK-003",
+    "name": "Produit fini - chaise ergonomique",
+    "description": null,
+    "unit": "PCS",
+    "isActive": true,
+    "minStockAlert": null,
+    "createdAt": "2026-04-13T16:43:43.223Z",
+    "updatedAt": "2026-04-13T16:43:43.223Z",
+    "stockNature": "PURCHASED",
+    "inventoryAccountId": "575dbc27-cb6f-4426-98b4-af8044299c43",
+    "stockVariationAccountId": "5843672d-c2c4-48be-90e5-78803f5364e4"
+  },
+  {
+    "id": "c5ce8cb6-679f-4cd6-bcfb-5a5044b76041",
+    "companyId": "default-company",
+    "sku": "STK-004",
+    "name": "Consommable - cartouches encre",
+    "description": null,
+    "unit": "PCS",
+    "isActive": true,
+    "minStockAlert": null,
+    "createdAt": "2026-04-13T16:43:43.243Z",
+    "updatedAt": "2026-04-13T16:43:43.243Z",
+    "stockNature": "PURCHASED",
+    "inventoryAccountId": "575dbc27-cb6f-4426-98b4-af8044299c43",
+    "stockVariationAccountId": "5843672d-c2c4-48be-90e5-78803f5364e4"
+  }
+]

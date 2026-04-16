@@ -1,0 +1,1505 @@
+[
+  {
+    "productId": "e5bc9a0d-e90a-40ba-b832-d12409ac04dd",
+    "companyId": null,
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2026-04-09T16:28:48.313Z",
+    "updatedAt": "2026-04-09T16:28:48.448Z"
+  },
+  {
+    "productId": "2672b227-d9f2-42d7-a8a7-49ad72d0ab02",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-06T12:10:28.109Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "c86bada9-e5e9-4d08-b16a-bafc6a305ecc",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-11T12:33:33.813Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "0530fd45-6851-42df-911c-58358e683a08",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T18:20:41.765Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "56c7c262-ef74-4151-969d-6eeea0d2485f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-15T12:39:31.234Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "faa79a83-3187-4e2c-895b-cf8cc2091c7d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "30",
+    "createdAt": "2025-12-19T17:50:08.965Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "70dcebcf-e58d-4532-879c-46f806374ecb",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "120",
+    "createdAt": "2025-12-19T17:50:09.031Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "aa7535b5-2c6c-428d-929d-46b73b2b5d3d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "45",
+    "createdAt": "2025-12-19T17:50:09.056Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "97f27bcc-e4fb-47f0-8d08-27089106d6b6",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "12",
+    "createdAt": "2025-12-19T17:50:09.081Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5b840cb3-3bef-46d6-8940-4835ae090f0d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "35",
+    "createdAt": "2025-12-19T17:50:09.110Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7624ce40-f0c4-41a2-8acc-3c3ab0ee8d6f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-09-29T19:31:48.631Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "a0e982f4-bd69-4600-8fa3-efb99c9e5eb6",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T16:11:38.043Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "289f7662-a0ee-4a7e-9415-4995f35e7e3f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T16:09:52.496Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "be93e2f7-4a07-404a-b376-224f6e83e874",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T14:01:52.328Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "edf91281-5665-46ed-82ef-ef55ab0e1a6b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-08T16:23:35.326Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7d1758d1-7cb6-4bf6-bf05-f5f58c8fd2e6",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T16:09:52.517Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "6ca46aad-0323-454c-b102-eb680f5651f4",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T00:11:10.131Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "ba60a4de-59f7-4631-8c7f-f2b7be74181f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T00:07:52.747Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "41ee0dab-ce51-4453-bf17-316111e21b8b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T18:20:42.071Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "4925f80c-6f0a-4e62-8f2b-687d76529c9f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-13T22:56:33.589Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "a8b8e4f1-bd7d-426b-a7c0-f662b1ed4667",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T18:13:12.379Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "0a1dc188-519b-4118-b038-cb14b9412f02",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-09-29T19:42:45.392Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "f34f4b96-10a2-4184-bf97-8c56982a289d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T19:23:15.587Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "30210910-760f-4fed-985b-51c392609076",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T19:23:15.904Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "94dc1d04-1de6-4897-a558-c70122d60b77",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-03T17:14:25.266Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "67579416-1d21-4bbc-bf91-ffec001051b5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T00:07:47.797Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "12272733-5fa5-4ecd-b3a8-9b0e955923c4",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-08T16:23:42.626Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "348196ff-d713-4670-881c-e6f7df6c2c84",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T00:11:06.963Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "3b84a3b2-75fa-430b-9dab-c1a3d8dbaeda",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T00:15:22.195Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "3d1ff574-3d6e-459a-a9bb-0b5031afea13",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T00:15:17.523Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "69e04ce5-f6d2-479e-8064-7608b3c3594a",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T23:13:50.974Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "862f2a18-1288-4800-9956-76a1fbc63186",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T16:11:38.061Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "d5c7108e-ec49-46cd-bcbb-17b65685a017",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T14:08:24.000Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "a2f9ba90-b37b-4022-a4aa-d1fdb4311002",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T22:23:48.897Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "a187f6fd-51ac-4931-af22-928a9e3fcee9",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T13:11:15.788Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fd250e3c-517f-4c1e-9b58-3862a004470c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T12:10:30.549Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e6c9b82c-3e92-4492-ad83-3b4009aed396",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T14:01:55.617Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e4989c04-ee0b-4be8-bd4f-772c9534c116",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T12:28:59.585Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "78e3b33b-5609-4f01-a930-a622c99efef8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T13:24:15.934Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "c3998c42-d6bf-4b94-8445-bbecff874b87",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T12:20:28.321Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "6655b531-5433-4993-af77-eff6b6a0fa6d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T15:48:14.493Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "04c21f4f-8b31-444b-8b0b-c540d7116c93",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T15:30:20.736Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b0f23cd7-0d76-4c73-9930-3d8117c9d509",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T13:52:10.303Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "d4b93742-ac8e-42cf-9171-538bddd02fe3",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T13:57:25.146Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fe478d57-4db6-4a3c-a896-be8de40906af",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "5",
+    "qtyStaged": "5",
+    "avgCost": "5.5",
+    "createdAt": "2026-04-09T17:13:14.148Z",
+    "updatedAt": "2026-04-09T17:13:16.806Z"
+  },
+  {
+    "productId": "4291ab5b-3ac3-4cf7-bbe5-ac2848859b03",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "4",
+    "avgCost": null,
+    "createdAt": "2026-04-09T17:13:16.813Z",
+    "updatedAt": "2026-04-09T17:13:16.817Z"
+  },
+  {
+    "productId": "b172562c-0023-4f93-8837-bd09a7352649",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-10T14:42:17.162Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "cadca37a-a7d8-48de-b0f4-b6c1104c9f73",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-15T11:37:15.105Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "965bfc55-26df-4957-aa81-a4b935e64c2e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-15T13:10:00.685Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "6d5a0e38-857e-48c8-b8c0-8e7ed25afc85",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T13:44:15.856Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fdd4837d-8cc0-4aa8-a633-39b409226b56",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T15:27:31.635Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "ce45c22d-6cb6-4a08-95cf-b171856039d4",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T12:22:14.702Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5616fab0-21b4-4655-8657-c083c562867e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T19:27:44.554Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "1b4d75b0-d02e-4403-960f-dc76c427c03a",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T16:11:38.052Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "258c89d6-4630-4cc1-bf1e-6b31c7280fbe",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.866Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "cb003798-4640-439d-957c-ea96677f853e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-01T15:05:02.411Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "0d210809-9670-4e21-b154-1b38522c258c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T16:10:08.375Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e3cafeae-5c5e-4983-954a-0997578b4279",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T15:29:37.704Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "da62d2e2-48a7-4c3a-aa38-42cbf1a1101c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-03T17:14:25.245Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "8cb9e47d-7988-4929-9da8-36f56ddbc018",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T14:12:04.397Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "2861a634-a03d-4b55-8dd8-34a3f84c419b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T14:12:04.424Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "560fa720-48ea-4d4a-873b-19b37d6260ac",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T14:12:46.924Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "d918bc2a-a60c-4ec9-bd75-66e8aa37630b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-06T14:12:46.932Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5d0ecda7-7c76-42bc-9cde-cdc321b41537",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T15:05:51.454Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b16c11b5-e957-4e9c-97e3-abd0b747fbaa",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T11:45:51.037Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "3bca8b7f-2c1b-440c-a142-c2da0309991e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-09T23:21:23.345Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "887c7240-aa46-4240-a6db-3f3c6c86d288",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T11:43:50.177Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "103e5501-daac-42c8-ba3a-e5825610d213",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-03T17:14:25.186Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "0b4268ec-a122-42c3-89ea-b6f160cf965a",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-11T18:09:07.113Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7923b8d1-f145-411f-a70e-012910fd4400",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-10T21:55:35.647Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "19b4983e-759a-470a-a16a-03dcef43fb19",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-11T18:19:22.020Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5f8e72d4-b785-4b5a-8722-8fa359eb33ff",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T13:53:57.829Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7336fec6-248f-4f6a-a182-8d56a21eac18",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T12:06:38.931Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "4ee88160-6235-4b95-80cb-9c27f18d34ce",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T15:19:18.704Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "ae7335f4-ac3c-4028-a7ed-8272cf3953f4",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T16:01:09.717Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "9733a9c3-4b84-4ce9-a90c-03781bcf095e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T13:09:36.683Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "48c7b18c-e55b-4162-a367-a435ddaba4ec",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T17:09:44.967Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "73740d7f-cbd5-452b-b854-9ce85e31f40d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T12:14:36.120Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7c42e8b1-f1a9-4bfb-a719-3cd88ce25a73",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T12:05:43.724Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "f05637c8-4c1a-4fdf-8e5b-243da47cde4c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T12:00:21.933Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "3ce3c5d5-4bf8-4008-8f51-8c14f5cee7e8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T11:53:55.334Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5c3aa2d3-482c-4b1e-ae4a-e6be1446c626",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T12:35:36.496Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fd23ff52-4a96-45d7-bd8e-5a4fc2d04a94",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T14:11:45.487Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "8e333f36-c4c8-42bb-b219-68a590fac721",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T14:30:11.914Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "1fe8dec1-62f6-4e10-86da-bf2c3ed81341",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T14:55:46.581Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "342ca0a8-7436-4c37-a160-0fe3a55eb5fa",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-04T19:23:29.705Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "42142000-cd7e-4567-a301-bd1ac31b3fa8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-14T13:07:42.628Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "90532a94-0a49-4b9a-b3ae-ca5963ac0701",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.837Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "96da0db3-f839-4ddc-b720-863b579bdc43",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.863Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "8084fdd6-de59-4f5f-bc44-2532e5961bf5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-01T15:05:02.373Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "55af28e9-326d-424b-bd3f-bd72af431f89",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:56.698Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e1be1368-2f27-4841-a89f-3f037ba60c23",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:57.859Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "a6af42a6-5bab-46e3-9146-839d5c849cd9",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "10",
+    "qtyStaged": "0",
+    "avgCost": "5.5",
+    "createdAt": "2026-04-09T17:17:15.314Z",
+    "updatedAt": "2026-04-09T17:17:17.509Z"
+  },
+  {
+    "productId": "91246321-7183-4447-a013-7c7af0a14c81",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "20",
+    "createdAt": "2026-04-09T17:17:16.836Z",
+    "updatedAt": "2026-04-09T17:17:17.668Z"
+  },
+  {
+    "productId": "8964b83b-4aa4-4ee9-864e-059c214ade2a",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "10",
+    "qtyStaged": "0",
+    "avgCost": "5.5",
+    "createdAt": "2026-04-09T17:22:24.157Z",
+    "updatedAt": "2026-04-09T17:22:26.380Z"
+  },
+  {
+    "productId": "92ad48e5-462e-4c9d-8682-b7bdaf931993",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "20",
+    "createdAt": "2026-04-09T17:22:25.710Z",
+    "updatedAt": "2026-04-09T17:22:26.548Z"
+  },
+  {
+    "productId": "10626468-82b9-4584-8e8a-25a57f6814ce",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "2",
+    "qtyStaged": "0",
+    "avgCost": "10",
+    "createdAt": "2026-04-09T17:23:40.098Z",
+    "updatedAt": "2026-04-09T17:23:41.296Z"
+  },
+  {
+    "productId": "6430f69b-857e-4a0e-8d50-9b80b9b6f4ef",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "10",
+    "qtyStaged": "0",
+    "avgCost": "5.5",
+    "createdAt": "2026-04-09T17:27:48.825Z",
+    "updatedAt": "2026-04-09T17:27:51.020Z"
+  },
+  {
+    "productId": "94e61ee4-6006-48c0-812a-ce7c38b90d6c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "20",
+    "createdAt": "2026-04-09T17:27:50.369Z",
+    "updatedAt": "2026-04-09T17:27:51.174Z"
+  },
+  {
+    "productId": "1f1b49cb-5f2b-45a1-99fe-1ce525ab164b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:10:20.616Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "c8741250-9149-4ed9-8899-f967407bb6b8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T18:14:03.746Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "21d492ae-f3fd-47a3-a47b-36b39e95fd46",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:10:35.292Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "aa7091fe-fbbf-4297-bbe7-7eab6821e391",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T23:11:35.176Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "6d1e3360-3bd6-4e83-b0ee-8c11c1355d6b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T23:47:05.797Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "ac2a90e1-3f34-472a-b3b2-3d4ca62ce5ae",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-16T00:07:38.519Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e9bfdb9e-5ede-4ec4-895b-0ffa4bba5477",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:58:42.262Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "26fabecc-74b9-48bf-83e7-0198b110a05d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-16T13:36:12.161Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b0463d6b-4d0c-4722-96cd-fa58885f8e70",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.958Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b841f6ee-4cb9-44c2-96ad-ebb5bc088411",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.930Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "880e901f-cca5-49d4-928f-c1165c422889",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.900Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "c9cedbc2-6b12-4faf-adab-d5519fecbaee",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.983Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b9271328-5386-48b2-925f-a3771cf2f63a",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.878Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e61e829b-d884-42f3-916e-153573ae49b2",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:23:38.651Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "f57d4851-89a9-40f3-b9c2-605568c27598",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:23:40.786Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "f47f231d-c043-438e-9b23-abd0922026a3",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.939Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "2786757c-b620-4f00-9a96-b2cb0630f909",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:58:44.065Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "82574ab8-bfde-4a2e-9596-87eff2a859fc",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-17T23:48:28.412Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "87672606-84c9-4de0-94e7-c3e9ff5a275c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-10-15T17:11:05.870Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "3a981866-381a-4160-b0c3-0b4dd54548f2",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:26:47.957Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "e1c0df6a-4c09-4de0-925e-ce98d724ac89",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T14:57:14.020Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "d46bc7ab-2dfd-47a7-8b60-9bcd9250f1bb",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:00:13.616Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fad31ccb-3cd2-401e-a399-f21759e20109",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T15:43:52.442Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "98999f91-a006-4fbd-becc-6b08e2b7c97d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:27:54.596Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5e7852d4-6df4-4cf0-ad14-36f3a4d712d5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T15:46:18.843Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "28fb3b13-4697-4d62-b9ba-806243ba39b5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T16:11:54.094Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5c6f2b30-e1e9-422f-a968-1424ecf3f436",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T23:00:44.188Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "c6090d5a-92a4-461c-b9f8-6f9cb00f7f88",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:02:06.500Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7367a499-3554-47d4-b854-d18f7ced1fc6",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:00:55.405Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b7beafe0-95e1-4112-b6d7-b80b8a8e3544",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:31:11.379Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "f9231b4b-1030-4a6f-b94b-7bcf4ad19be8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T23:32:02.337Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "dd2ed44a-3660-4027-93f2-b32a37366140",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-16T23:32:07.779Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "53095ce9-01d8-44f0-932e-063006cf6251",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:31:23.240Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "be9149ac-8734-456d-bb1b-98aa237d48c2",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T17:58:29.072Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "9915fc61-34f6-479b-84c3-3ab250a1dd81",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:00:11.793Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b437826f-7a29-49bd-ade6-ba890a9d72d5",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:13:53.102Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "410cb220-2ef7-4bc0-a0ed-b9677cb4f403",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:21.140Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "4155a610-e0b4-48a9-8a9b-864b9ed7d801",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:53:12.927Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "9496d523-3c9e-4a2d-98df-69d371d140c7",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:53:14.688Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "6c232e1b-9b52-4aae-a74d-6aac8925416e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:39.343Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "783e3c69-0005-4769-8848-ee67dab2c8ec",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:53:37.683Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5d7fc0db-a140-433d-9fd5-2553680412e8",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:13:54.766Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "a5c6eea0-54bb-4c3f-9297-96a2845e7777",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:57:11.304Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "3b578599-37c4-4798-a167-cb5b14c19eaf",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:04:01.273Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "4ab5ed02-181f-42e9-ad76-4bdfcc7e3b7e",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:58:18.477Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b44f210c-6c10-4582-9d3e-e9ee41fb7d7d",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T18:58:32.705Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "93535dff-24b0-42e2-b589-70a3955fe29f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:44.993Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "80270bee-2045-4400-8e1c-594d2cf7909f",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:46.494Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "61251276-d096-4061-8b07-1f64ec85e904",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:13:30.413Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "dd5a0544-ebc4-4069-a423-955afd60de40",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:01:52.222Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fb4ae979-bb6d-4071-8759-515d289d3a1a",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:08:50.468Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "7e33aa65-0bec-46d5-b3e5-e150a59bd882",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:38.178Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "be70297c-3e8e-43b5-b1ca-4c2f77191367",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:40.754Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b50ad8d0-b858-4275-9319-1133b8a968c7",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:10:01.565Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b611b682-cb54-4549-9f1a-7beeefbcc1b3",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:47.044Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "fa5e5c76-c61f-49ea-9d36-3c51226882ab",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:04.835Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "ae9d2e64-fbb6-4881-b673-fabe144689f9",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:28.976Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b4d425ed-8979-446d-b4ef-6f34b180233c",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:13:44.426Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "d1a965df-efae-4ee9-808e-290bbbe61abf",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:51.239Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "9385ff36-b34d-40ec-835a-7958cba8ea2b",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:11:52.517Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "f62eaec5-d02d-4503-b8d2-3e4489f51bdd",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:14:07.063Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "47a29479-49c1-4375-9618-0b04068a9a93",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "0",
+    "qtyStaged": "0",
+    "avgCost": null,
+    "createdAt": "2025-11-17T19:14:01.266Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "06a16daf-225f-4dee-8ec4-5786ce0b2e67",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-10T17:43:09.700Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "5cb61b1f-ea0c-44df-bb8e-db458e352094",
+    "companyId": "uuid-existant-ou-nouveau",
+    "qtyOnHand": "4",
+    "qtyStaged": "0",
+    "avgCost": "5",
+    "createdAt": "2025-12-15T12:03:07.116Z",
+    "updatedAt": "2026-02-03T19:34:34.558Z"
+  },
+  {
+    "productId": "b5ce4294-7503-4f4b-92b3-d5424e2ff5ac",
+    "companyId": null,
+    "qtyOnHand": "5",
+    "qtyStaged": "0",
+    "avgCost": "800",
+    "createdAt": "2026-04-12T14:23:19.222Z",
+    "updatedAt": "2026-04-12T14:23:19.252Z"
+  },
+  {
+    "productId": "3caa879d-fa91-4f95-ba12-a69535d43ff5",
+    "companyId": null,
+    "qtyOnHand": "100",
+    "qtyStaged": "0",
+    "avgCost": "25",
+    "createdAt": "2026-04-12T14:23:19.289Z",
+    "updatedAt": "2026-04-12T14:23:19.295Z"
+  },
+  {
+    "productId": "3d921cc9-33c1-4fd5-a9d9-e2e953f50717",
+    "companyId": null,
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "150",
+    "createdAt": "2026-04-12T14:23:19.304Z",
+    "updatedAt": "2026-04-12T14:23:19.306Z"
+  },
+  {
+    "productId": "9bdab8f7-0da3-42af-9fe0-1c70c9c1e7b6",
+    "companyId": null,
+    "qtyOnHand": "50",
+    "qtyStaged": "0",
+    "avgCost": "45",
+    "createdAt": "2026-04-12T14:23:19.316Z",
+    "updatedAt": "2026-04-12T14:23:19.318Z"
+  }
+]

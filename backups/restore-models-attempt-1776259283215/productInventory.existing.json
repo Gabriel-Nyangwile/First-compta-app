@@ -1,0 +1,38 @@
+[
+  {
+    "productId": "2050d377-5396-4d50-b3fb-794d69e77e68",
+    "companyId": null,
+    "qtyOnHand": "5",
+    "qtyStaged": "0",
+    "avgCost": "800",
+    "createdAt": "2026-04-13T16:43:43.131Z",
+    "updatedAt": "2026-04-13T16:43:43.150Z"
+  },
+  {
+    "productId": "2919356e-4226-4fb1-ab65-6afee5b7777d",
+    "companyId": null,
+    "qtyOnHand": "100",
+    "qtyStaged": "0",
+    "avgCost": "25",
+    "createdAt": "2026-04-13T16:43:43.201Z",
+    "updatedAt": "2026-04-13T16:43:43.206Z"
+  },
+  {
+    "productId": "f6e01dda-8aa5-4e75-a0c9-3eec6fb173e5",
+    "companyId": null,
+    "qtyOnHand": "20",
+    "qtyStaged": "0",
+    "avgCost": "150",
+    "createdAt": "2026-04-13T16:43:43.226Z",
+    "updatedAt": "2026-04-13T16:43:43.230Z"
+  },
+  {
+    "productId": "c5ce8cb6-679f-4cd6-bcfb-5a5044b76041",
+    "companyId": null,
+    "qtyOnHand": "50",
+    "qtyStaged": "0",
+    "avgCost": "45",
+    "createdAt": "2026-04-13T16:43:43.245Z",
+    "updatedAt": "2026-04-13T16:43:43.248Z"
+  }
+]

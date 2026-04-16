@@ -31,9 +31,10 @@ async function main() {
     argValue("--date") || process.env.OPENING_DATE || "2026-01-01";
   const companyId =
     argValue("--company") || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID;
+  const dryRun = process.argv.includes("--dry-run");
 
   if (!file) {
-    console.error("Usage: node --env-file=.env.local scripts/import-opening-balance.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD]");
+    console.error("Usage: node --env-file=.env.local scripts/import-opening-balance.js --file <xlsx> [--sheet <name>] [--date YYYY-MM-DD] [--dry-run]");
     process.exit(1);
   }
   if (!companyId) {
@@ -101,6 +102,26 @@ async function main() {
   }
 
   const date = new Date(openingDate);
+
+  if (dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          mode: "DRY-RUN",
+          companyId,
+          openingDate,
+          lines: lines.length,
+          totalDebit: Number(totalDebit.toFixed(2)),
+          totalCredit: Number(totalCredit.toFixed(2)),
+          preview: lines.slice(0, 10),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     const txns = [];
     for (const line of lines) {

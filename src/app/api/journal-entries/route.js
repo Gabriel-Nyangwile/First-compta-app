@@ -9,7 +9,7 @@ const toNumber = (value) => {
   return value.toNumber?.() ?? Number(value) ?? 0;
 };
 
-// GET /api/journal-entries?page=&pageSize=&sourceType=&status=&dateFrom=&dateTo=&letterStatus=&accountId=&q=
+// GET /api/journal-entries?page=&pageSize=&sourceType=&status=&dateFrom=&dateTo=&letterStatus=&accountId=&accountNumber=&q=&format=
 export async function GET(request) {
   try {
     const companyId = requireCompanyId(request);
@@ -21,10 +21,12 @@ export async function GET(request) {
     );
     const sourceType = searchParams.get("sourceType") || undefined;
     const status = searchParams.get("status") || undefined;
+    const format = searchParams.get("format") || undefined;
     const numberQuery = searchParams.get("number")?.trim();
     const sourceId = searchParams.get("sourceId")?.trim();
     const letterStatus = searchParams.get("letterStatus") || undefined;
     const accountId = searchParams.get("accountId") || undefined;
+    const accountNumber = searchParams.get("accountNumber")?.trim();
     const q = searchParams.get("q")?.trim();
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -51,6 +53,11 @@ export async function GET(request) {
     const lineFilters = [];
     if (letterStatus) lineFilters.push({ letterStatus });
     if (accountId) lineFilters.push({ accountId });
+    if (accountNumber) {
+      lineFilters.push({
+        account: { number: { contains: accountNumber, mode: "insensitive" } },
+      });
+    }
     if (lineFilters.length) {
       filters.push({ lines: { some: { AND: lineFilters } } });
     }
@@ -85,8 +92,8 @@ export async function GET(request) {
     const entries = await prisma.journalEntry.findMany({
       where,
       orderBy: [{ date: "desc" }, { number: "desc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: format === "csv" ? undefined : (page - 1) * pageSize,
+      take: format === "csv" ? undefined : pageSize,
       include: {
         lines: {
           orderBy: [{ date: "asc" }, { id: "asc" }],
@@ -113,6 +120,7 @@ export async function GET(request) {
         totalOutstanding += outstanding;
         return {
           id: line.id,
+          accountId: line.account?.id,
           accountNumber: line.account?.number,
           accountLabel: line.account?.label,
           debit: line.direction === "DEBIT" ? amount : 0,
@@ -151,6 +159,44 @@ export async function GET(request) {
       };
     });
 
+    if (format === "csv") {
+      const header = [
+        "Journal",
+        "Date",
+        "Source",
+        "Référence source",
+        "Statut",
+        "Débit",
+        "Crédit",
+        "Lettré",
+        "Reste",
+        "Lignes",
+        "Équilibrée",
+        "Libellé",
+      ];
+      const lines = items.map((item) =>
+        [
+          item.reference,
+          item.date ? new Date(item.date).toISOString().slice(0, 10) : "",
+          item.sourceType || "",
+          item.sourceId || "",
+          item.status || "",
+          item.totalDebit.toFixed(2),
+          item.totalCredit.toFixed(2),
+          item.totalLettered.toFixed(2),
+          item.totalOutstanding.toFixed(2),
+          String(item.lineCount || 0),
+          item.isBalanced ? "Oui" : "Non",
+          `"${(item.description || "").replace(/"/g, '""')}"`,
+        ].join(";")
+      );
+      const csv = [header.join(";"), ...lines].join("\n");
+      return new Response(csv, {
+        status: 200,
+        headers: { "Content-Type": "text/csv; charset=utf-8" },
+      });
+    }
+
     return NextResponse.json({
       items,
       pagination: {
@@ -163,6 +209,9 @@ export async function GET(request) {
         dateStart: dateFrom || null,
         dateEnd: dateTo || null,
         sourceType: sourceType || null,
+        number: numberQuery || null,
+        sourceId: sourceId || null,
+        accountNumber: accountNumber || null,
         search: q || null,
       },
     });

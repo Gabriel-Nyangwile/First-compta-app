@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 
-export default function SettlementButton({ periodId, periodRef }) {
+export default function SettlementButton({ periodId, liabilityCode = 'NET_PAY', buttonLabel = 'Régler', employeeId = null }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [ok, setOk] = useState(null);
@@ -13,7 +13,7 @@ export default function SettlementButton({ periodId, periodRef }) {
       const res = await fetch('/api/payroll/settlement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ periodId }),
+        body: JSON.stringify({ periodId, liabilityCode, employeeId }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json?.error) throw new Error(json.error || 'Règlement échoué');
@@ -30,7 +30,7 @@ export default function SettlementButton({ periodId, periodRef }) {
   return (
     <div className="inline-flex items-center gap-2">
       <button onClick={settle} disabled={loading} className="px-2 py-1 rounded bg-emerald-700 text-white text-xs disabled:opacity-50">
-        {loading ? 'Paiement...' : 'Régler net'}
+        {loading ? 'Paiement...' : buttonLabel}
       </button>
       {message && <span className={`text-xs ${ok === null ? 'text-gray-700' : ok ? 'text-green-700' : 'text-amber-700'}`}>{message}</span>}
     </div>

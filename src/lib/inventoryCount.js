@@ -1,8 +1,8 @@
-import prisma from "@/lib/prisma";
-import { nextSequence } from "@/lib/sequence";
-import { applyAdjustMovement } from "@/lib/inventory";
-import { finalizeBatchToJournal } from "@/lib/journal";
-import { sendInventoryCountNotification } from "@/lib/notifications";
+import prisma from "./prisma.js";
+import { nextSequence } from "./sequence.js";
+import { applyAdjustMovement } from "./inventory.js";
+import { finalizeBatchToJournal } from "./journal.js";
+import { sendInventoryCountNotification } from "./notifications.js";
 
 const COUNT_INCLUDE = {
   createdBy: { select: { id: true, username: true, email: true } },

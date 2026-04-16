@@ -376,6 +376,18 @@ export async function PUT(request, rawContext) {
           data: {
             companyId,
             productId: line.productId,
+            movementType: "ADJUST",
+            stage: "STAGED",
+            quantity: (-qtyNum).toFixed(3),
+            unitCost: cost.toFixed(4),
+            totalCost: (-(qtyNum * cost)).toFixed(2),
+            goodsReceiptLineId: lineId,
+          },
+        });
+        await tx.stockMovement.create({
+          data: {
+            companyId,
+            productId: line.productId,
             movementType: "IN",
             stage: "AVAILABLE",
             quantity: qtyNum.toFixed(3),

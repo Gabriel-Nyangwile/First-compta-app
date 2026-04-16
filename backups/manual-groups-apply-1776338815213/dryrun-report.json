@@ -1,0 +1,9 @@
+{
+  "file": "backups/manual-groups.csv",
+  "apply": false,
+  "tolerance": 0.01,
+  "groups": [],
+  "totals": {
+    "groups": 0
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "file": "backups/manual-groups.csv",
+  "apply": false,
+  "tolerance": 0.01,
+  "groups": [
+    {
+      "key": "ADJOUV",
+      "requestedIds": [
+        "09c97f99-9840-49d2-9305-eefd7b28454b",
+        "5d225f81-6752-4f2f-9b2d-349fe04ffc57",
+        "5d5c9d9d-4953-46de-a8ab-5224b7726aec",
+        "aa3659b1-cd94-4640-b62d-3805163d7689",
+        "ad9ae34a-5c12-4082-afbc-eb003c75ec86",
+        "c0fd5963-e90f-494e-a36d-aad77a749795",
+        "cadfc755-1041-475c-8d25-89a59a4087cf",
+        "eee4e370-0272-41cd-897e-612070dee1ab",
+        "fc1fed46-ca21-47e9-a5a7-77d349c2b60c"
+      ],
+      "foundCount": 9,
+      "missing": [],
+      "debit": 70000,
+      "credit": 70000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "ASS001",
+      "requestedIds": [
+        "bef7bc00-7fca-4de4-8208-b7eacf9c41c4",
+        "ccb9a363-c065-49e8-babd-9bd1ff45e557",
+        "ec5293dc-7b42-4cf7-a632-22a6489f8f09"
+      ],
+      "foundCount": 3,
+      "missing": [],
+      "debit": 25000,
+      "credit": 25000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "ASS002",
+      "requestedIds": [
+        "0d6e95a4-9821-468a-99cd-74c659280cbc",
+        "32683c58-3566-4867-b390-033a0592209e",
+        "ab512cb8-2667-44dc-8ef7-0ad49b0063cc"
+      ],
+      "foundCount": 3,
+      "missing": [],
+      "debit": 25000,
+      "credit": 25000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "ASS003",
+      "requestedIds": [
+        "4b11de38-2165-4e93-8c94-9feb2753fc48",
+        "4e16fdc7-cf26-4d68-821e-543bdbf224ba",
+        "5e32e89e-ed42-440e-9c5c-8dae48d7a537"
+      ],
+      "foundCount": 3,
+      "missing": [],
+      "debit": 1200,
+      "credit": 1200,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "ASS004",
+      "requestedIds": [
+        "2caa95aa-b17f-49f0-b4f2-2744246254d5",
+        "b2be77d1-5a2f-4f68-a4b5-25d8e83e6b90",
+        "df88229a-d0d0-4c40-a940-cc56d3aaa70b"
+      ],
+      "foundCount": 3,
+      "missing": [],
+      "debit": 8000,
+      "credit": 8000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "ASS005",
+      "requestedIds": [
+        "7cd47419-bc13-46c6-ac04-d29fb95de318",
+        "80c5c1d9-c715-494e-9c88-b18cba93e80b",
+        "86032d15-7ada-4b61-87ce-60396f28eb2d"
+      ],
+      "foundCount": 3,
+      "missing": [],
+      "debit": 15000,
+      "credit": 15000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "CLAIREDUBOIS",
+      "requestedIds": [
+        "057efa4d-becc-46d3-b2ce-4de9c666e937",
+        "ad095c12-810c-4a70-b412-d1e5798de23a"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 5600,
+      "credit": 5600,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "DUPFILS",
+      "requestedIds": [
+        "59d6a111-a707-47a8-ba16-22484d1a2478",
+        "d0ae7580-06ba-4172-9bd3-cf243a543b0f"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 15000,
+      "credit": 15000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "FFBUREAU",
+      "requestedIds": [
+        "58c231e4-27e7-4fc0-9e16-1f89447bc76f",
+        "8c17ccd5-85ae-4ebb-bdbd-dfe80134e4b0"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 12000,
+      "credit": 12000,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "FIPLUS",
+      "requestedIds": [
+        "bb01d8d8-3af1-4445-84a5-95af24707990",
+        "c6fcd42a-1981-40c4-8ade-b090dc137e7b"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 9500,
+      "credit": 9500,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "JEANMARTIN",
+      "requestedIds": [
+        "438f18e6-ebae-4474-bcf0-8f5e0eb04608",
+        "da754b67-97c9-4d38-a5f8-90e5dd963ffc"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 8750,
+      "credit": 8750,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "PLEROY",
+      "requestedIds": [
+        "46742bb9-883c-42bf-9905-9e7a34f067fc",
+        "94c49047-9640-4025-a6b0-f54baacb882c"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 18750,
+      "credit": 18750,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "SOPHIEBERNARD",
+      "requestedIds": [
+        "3258c7b0-55b9-4ff2-840d-e23cd18351ac",
+        "5b91c298-26dd-4c7f-bb68-7d802605b623"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 6800,
+      "credit": 6800,
+      "diff": 0,
+      "balanced": true
+    },
+    {
+      "key": "TECHSOL",
+      "requestedIds": [
+        "760086be-ef4c-4666-9955-5b659ef9e0d4",
+        "a1826c05-5013-44ec-8d7d-bce5246579b5"
+      ],
+      "foundCount": 2,
+      "missing": [],
+      "debit": 22300,
+      "credit": 22300,
+      "diff": 0,
+      "balanced": true
+    }
+  ],
+  "totals": {
+    "groups": 14
+  }
+}

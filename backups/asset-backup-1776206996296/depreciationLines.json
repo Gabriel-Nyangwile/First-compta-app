@@ -1,0 +1,67 @@
+[
+  {
+    "id": "e03ab781-aef3-450e-96ec-dcc595d265f5",
+    "companyId": "default-company",
+    "assetId": "445e5da6-decb-4f70-a96a-9e014f813490",
+    "year": 2025,
+    "month": 8,
+    "amount": "5000",
+    "cumulative": "5000",
+    "status": "POSTED",
+    "journalEntryId": null,
+    "postedAt": "2025-07-31T23:00:00.000Z",
+    "createdAt": "2026-04-13T16:51:28.771Z"
+  },
+  {
+    "id": "7610cf7d-a3dc-4ad9-8ba1-14dd29c650bc",
+    "companyId": "default-company",
+    "assetId": "55e9605d-ccbe-42fd-9e84-f349d8c8129b",
+    "year": 2025,
+    "month": 8,
+    "amount": "5000",
+    "cumulative": "5000",
+    "status": "POSTED",
+    "journalEntryId": null,
+    "postedAt": "2025-07-31T23:00:00.000Z",
+    "createdAt": "2026-04-13T16:55:02.539Z"
+  },
+  {
+    "id": "ccfd43bb-46dc-4d48-acae-64f3e81fc784",
+    "companyId": "default-company",
+    "assetId": "8a29c866-9035-4f05-a5be-576579c67fce",
+    "year": 2025,
+    "month": 8,
+    "amount": "240",
+    "cumulative": "240",
+    "status": "POSTED",
+    "journalEntryId": null,
+    "postedAt": "2025-07-31T23:00:00.000Z",
+    "createdAt": "2026-04-13T16:55:02.583Z"
+  },
+  {
+    "id": "89a6bb7c-ae6b-4bab-a19c-2e06d1803b19",
+    "companyId": "default-company",
+    "assetId": "3c61a6fc-70ac-4dd9-b924-19c7310b0365",
+    "year": 2025,
+    "month": 8,
+    "amount": "3200",
+    "cumulative": "3200",
+    "status": "POSTED",
+    "journalEntryId": null,
+    "postedAt": "2025-07-31T23:00:00.000Z",
+    "createdAt": "2026-04-13T16:55:02.616Z"
+  },
+  {
+    "id": "b79a24da-1df5-4353-afe2-f3ab2ab98f29",
+    "companyId": "default-company",
+    "assetId": "5649d808-5ec8-4161-ac91-a0351fab2808",
+    "year": 2025,
+    "month": 8,
+    "amount": "3000",
+    "cumulative": "3000",
+    "status": "POSTED",
+    "journalEntryId": null,
+    "postedAt": "2025-07-31T23:00:00.000Z",
+    "createdAt": "2026-04-13T16:55:02.653Z"
+  }
+]

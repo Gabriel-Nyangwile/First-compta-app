@@ -476,7 +476,7 @@ async function closePO(po) {
       supplier.id,
       "PO approuvé mais non réceptionné"
     );
-    await createPartialReceipt(workingPO, pA);
+    const partialReceiptCreated = await createPartialReceipt(workingPO, pA);
     let refreshed = await fetchPO(workingPO.id);
     console.log("[INFO] Status with staged qty (before QC):", refreshed.status);
     if (refreshed.status !== "STAGED")
@@ -486,7 +486,11 @@ async function closePO(po) {
       supplier.id,
       "Réception en cours (STAGED)"
     );
-    const partialReceipt = refreshed.goodsReceipts.at(-1);
+    const partialReceipt = refreshed.goodsReceipts.find(
+      (receipt) => receipt.id === partialReceiptCreated.id
+    );
+    if (!partialReceipt)
+      throw new Error("Partial receipt introuvable après rafraîchissement");
     await acceptAllLines(partialReceipt);
     await putAwayAllLines(partialReceipt);
     refreshed = await fetchPO(workingPO.id);
@@ -499,12 +503,16 @@ async function closePO(po) {
       "Réception partielle"
     );
     // Utiliser la version rafraîchie (pour lines & receivedQty) pour la réception finale
-    await createFinalReceipt(refreshed, pA, pB);
+    const finalReceiptCreated = await createFinalReceipt(refreshed, pA, pB);
     refreshed = await fetchPO(workingPO.id);
     console.log("[INFO] Status before final QC:", refreshed.status);
     if (refreshed.status !== "STAGED")
       throw new Error("Expected STAGED before final QC/put-away");
-    const finalReceipt = refreshed.goodsReceipts.at(-1);
+    const finalReceipt = refreshed.goodsReceipts.find(
+      (receipt) => receipt.id === finalReceiptCreated.id
+    );
+    if (!finalReceipt)
+      throw new Error("Final receipt introuvable après rafraîchissement");
     await acceptAllLines(finalReceipt);
     await putAwayAllLines(finalReceipt);
     refreshed = await fetchPO(workingPO.id);

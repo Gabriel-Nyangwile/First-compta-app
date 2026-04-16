@@ -250,7 +250,6 @@ export async function POST(req) {
       const entryNumber = await generateNextEntryNumber(tx, companyId);
       const created = await tx.incomingInvoice.create({
         data: {
-          companyId,
           entryNumber,
           supplierInvoiceNumber: String(supplierInvoiceNumber).trim(),
           receiptDate: receiptDate ? new Date(receiptDate) : undefined,
@@ -263,6 +262,7 @@ export async function POST(req) {
           // Initialize paid/outstanding consistently to satisfy audits immediately
           paidAmount: "0",
           outstandingAmount: String(totalTtc),
+          company: { connect: { id: companyId } },
           supplier: { connect: { id: supplierId } },
           ...(po ? { purchaseOrder: { connect: { id: po.id } } } : {}),
         },

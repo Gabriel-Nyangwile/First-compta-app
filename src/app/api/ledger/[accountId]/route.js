@@ -81,8 +81,8 @@ export async function GET(request, { params }) {
     const transactions = await prisma.transaction.findMany({
       where,
       orderBy: [{ date: "desc" }, { id: "desc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: format === "csv" ? undefined : (page - 1) * pageSize,
+      take: format === "csv" ? undefined : pageSize,
       include: {
         journalEntry: {
           select: {

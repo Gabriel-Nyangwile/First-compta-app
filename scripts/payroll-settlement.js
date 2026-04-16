@@ -13,19 +13,20 @@ function parseArgs() {
   return {
     ref: get('ref'),
     accountNumber: get('accountNumber'),
+    companyId: get('companyId') || process.env.DEFAULT_COMPANY_ID || null,
     dryRun: args.includes('--dry-run'),
   };
 }
 
 async function main() {
-  const { ref, accountNumber, dryRun } = parseArgs();
+  const { ref, accountNumber, companyId, dryRun } = parseArgs();
   if (!ref) {
-    console.error('Usage: node scripts/payroll-settlement.js --ref=PP-000123 [--accountNumber=521000] [--dry-run]');
+    console.error('Usage: node scripts/payroll-settlement.js --ref=PP-000123 [--accountNumber=521000] [--companyId=<uuid>] [--dry-run]');
     process.exit(1);
   }
-  const period = await prisma.payrollPeriod.findUnique({ where: { ref } });
+  const period = await prisma.payrollPeriod.findFirst({ where: { ref, ...(companyId ? { companyId } : {}) } });
   if (!period) throw new Error(`Période ${ref} introuvable`);
-  const res = await postPayrollSettlement(period.id, { accountNumber, dryRun });
+  const res = await postPayrollSettlement(period.id, { accountNumber, dryRun, companyId: companyId || period.companyId || null });
   console.log('[settlement]', dryRun ? 'DRY-RUN' : 'DONE', res);
   await prisma.$disconnect();
 }

@@ -13,6 +13,8 @@ export async function GET(req, { params }) {
   try {
     const companyId = requireCompanyId(req);
     const { id } = params;
+    const { searchParams } = new URL(req.url);
+    const format = searchParams.get("format") || undefined;
     const entry = await prisma.journalEntry.findFirst({
       where: { id, companyId },
       include: {
@@ -55,6 +57,7 @@ export async function GET(req, { params }) {
       return {
         index: index + 1,
         id: line.id,
+        accountId: line.account?.id,
         accountNumber: line.account?.number,
         accountLabel: line.account?.label,
         debit: line.direction === "DEBIT" ? amount : 0,
@@ -68,6 +71,28 @@ export async function GET(req, { params }) {
         letteredAmount,
         letteredAt: line.letteredAt,
         outstanding,
+        client: line.client
+          ? { id: line.client.id, name: line.client.name }
+          : null,
+        supplier: line.supplier
+          ? { id: line.supplier.id, name: line.supplier.name }
+          : null,
+        invoice: line.invoice
+          ? { id: line.invoice.id, reference: line.invoice.invoiceNumber }
+          : null,
+        incomingInvoice: line.incomingInvoice
+          ? {
+              id: line.incomingInvoice.id,
+              reference: line.incomingInvoice.entryNumber,
+            }
+          : null,
+        moneyMovement: line.moneyMovement
+          ? {
+              id: line.moneyMovement.id,
+              reference: line.moneyMovement.voucherRef,
+              kind: line.moneyMovement.kind,
+            }
+          : null,
         clientId: line.client?.id,
         supplierId: line.supplier?.id,
         invoiceId: line.invoice?.id,
@@ -77,6 +102,52 @@ export async function GET(req, { params }) {
     });
 
     const isBalanced = Math.abs(totalDebit - totalCredit) < 0.001;
+
+    if (format === "csv") {
+      const header = [
+        "Index",
+        "Compte",
+        "Libellé compte",
+        "Description",
+        "Type",
+        "Débit",
+        "Crédit",
+        "Statut lettrage",
+        "Réf. lettrage",
+        "Lettré",
+        "Reste",
+        "Client",
+        "Fournisseur",
+        "Facture client",
+        "Facture fournisseur",
+        "Mouvement trésorerie",
+      ];
+      const csvLines = lines.map((line) =>
+        [
+          String(line.index),
+          line.accountNumber || "",
+          `"${(line.accountLabel || "").replace(/"/g, '""')}"`,
+          `"${(line.description || "").replace(/"/g, '""')}"`,
+          line.kind || "",
+          line.debit ? line.debit.toFixed(2) : "",
+          line.credit ? line.credit.toFixed(2) : "",
+          line.letterStatus || "",
+          line.letterRef || "",
+          line.letteredAmount ? line.letteredAmount.toFixed(2) : "",
+          line.outstanding ? line.outstanding.toFixed(2) : "",
+          `"${(line.client?.name || "").replace(/"/g, '""')}"`,
+          `"${(line.supplier?.name || "").replace(/"/g, '""')}"`,
+          line.invoice?.reference || "",
+          line.incomingInvoice?.reference || "",
+          line.moneyMovement?.reference || "",
+        ].join(";")
+      );
+      const csv = [header.join(";"), ...csvLines].join("\n");
+      return new Response(csv, {
+        status: 200,
+        headers: { "Content-Type": "text/csv; charset=utf-8" },
+      });
+    }
 
     return NextResponse.json({
       id: entry.id,

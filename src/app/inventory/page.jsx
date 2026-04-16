@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { listInventoryCounts } from "@/lib/inventoryCount";
+import { cookies } from "next/headers";
+import { getCompanyIdFromCookies } from "@/lib/tenant";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -46,7 +48,13 @@ function statusBadge(status) {
 export const dynamic = "force-dynamic";
 
 export default async function InventoryOverviewPage() {
-  const counts = await listInventoryCounts();
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return <main className="u-main-container u-padding-content-container">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</main>;
+  }
+
+  const counts = await listInventoryCounts({ companyId });
 
   const summary = counts.reduce(
     (acc, count) => {

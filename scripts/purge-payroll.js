@@ -1,6 +1,7 @@
 // Purge complète paie : reverse journaux paie, supprime règlements/demo et remet à zéro périodes + séquences.
 // Dry-run par défaut : lancez avec DRY_RUN=false pour exécuter.
 import prisma from '../src/lib/prisma.js';
+import { PAYROLL_SETTLEMENT_CONFIGS } from '../src/lib/payroll/settlement-config.js';
 
 async function main() {
   const dry = (process.env.DRY_RUN ?? 'true').toLowerCase() !== 'false';
@@ -45,11 +46,13 @@ async function main() {
     }
   }
 
-  // 2) Supprimer règlements paie (voucherRef PAYSET-)
-  const settlementJes = await prisma.journalEntry.findMany({
-    where: { sourceType: 'PAYROLL', voucherRef: { startsWith: 'PAYSET-' } },
-    select: { id: true, number: true }
+  // 2) Supprimer règlements paie (voucherRef PAYSET-/PAYCNSS-/PAYONEM-/PAYINPP-/PAYIPR-)
+  const settlementPrefixes = Object.values(PAYROLL_SETTLEMENT_CONFIGS).map((config) => config.prefix);
+  const allPayrollJournals = await prisma.journalEntry.findMany({
+    where: { sourceType: 'PAYROLL' },
+    select: { id: true, number: true, voucherRef: true, description: true },
   });
+  const settlementJes = allPayrollJournals.filter((journal) => settlementPrefixes.some((prefix) => journal.voucherRef?.startsWith(prefix) || journal.description?.includes(prefix)));
   console.log(`Journaux règlements à supprimer: ${settlementJes.length}`);
   if (!dry) {
     const txnIds = (await prisma.transaction.findMany({ where: { journalEntryId: { in: settlementJes.map(j => j.id) } }, select: { id: true } }))
@@ -78,8 +81,8 @@ async function main() {
   console.log(`Delete auditLog PAYROLL_PERIOD: ${auditCount}`);
   if (!dry && auditCount) await prisma.auditLog.deleteMany({ where: { entityType: 'PAYROLL_PERIOD' } });
 
-  // 5) Reset séquences PP- et PAYSET-
-  const seqNames = ['PAYROLL_PERIOD', 'PAYROLL_SETTLEMENT'];
+  // 5) Reset séquences PP- et règlements paie
+  const seqNames = ['PAYROLL_PERIOD', ...Object.values(PAYROLL_SETTLEMENT_CONFIGS).map((config) => config.sequenceName)];
   for (const name of seqNames) {
     if (dry) { console.log(`Would reset sequence ${name} -> 0`); continue; }
     await prisma.sequence.upsert({ where: { name }, update: { value: 0 }, create: { name, value: 0 } });

@@ -10,6 +10,35 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function getAccountDisplay(row) {
+  if (row?.account) return row.account;
+  return row || {};
+}
+
+function getDebitCredit(row) {
+  if (typeof row?.debit !== 'undefined' || typeof row?.credit !== 'undefined') {
+    return {
+      debit: toNumber(row?.debit),
+      credit: toNumber(row?.credit),
+    };
+  }
+
+  const transactions = row?.transactions || [];
+  let debit = 0;
+  let credit = 0;
+  for (const tx of transactions) {
+    const amount = toNumber(tx?.amount ?? tx?.debit ?? tx?.credit);
+    if (tx?.direction === 'DEBIT') debit += amount;
+    else if (tx?.direction === 'CREDIT') credit += amount;
+    else {
+      debit += toNumber(tx?.debit);
+      credit += toNumber(tx?.credit);
+    }
+  }
+
+  return { debit, credit };
+}
+
 export async function generateTrialBalancePdf({ rows = [] }) {
   const pdfDoc = await PDFDocument.create();
   const font = await loadPrimaryFont(pdfDoc);
@@ -36,14 +65,14 @@ export async function generateTrialBalancePdf({ rows = [] }) {
 
   for (const account of rows) {
     if (y < 80) newPage();
-    const debit = (account.transactions || []).reduce((sum, t) => sum + toNumber(t.debit), 0);
-    const credit = (account.transactions || []).reduce((sum, t) => sum + toNumber(t.credit), 0);
+    const accountDisplay = getAccountDisplay(account);
+    const { debit, credit } = getDebitCredit(account);
     const balance = debit - credit;
 
     totalDebit += debit;
     totalCredit += credit;
 
-    page.drawText(`${account.number || ''} ${account.label || ''}`.trim(), { x: 40, y, size: 9, font, color: rgb(0.1, 0.1, 0.4) });
+    page.drawText(`${accountDisplay.number || ''} ${accountDisplay.label || ''}`.trim(), { x: 40, y, size: 9, font, color: rgb(0.1, 0.1, 0.4) });
     if (debit) page.drawText(formatAmountPlain(debit), { x: 240, y, size: 9, font });
     if (credit) page.drawText(formatAmountPlain(credit), { x: 320, y, size: 9, font });
     page.drawText(formatAmountPlain(balance), { x: 420, y, size: 9, font });

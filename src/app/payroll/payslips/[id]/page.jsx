@@ -10,6 +10,7 @@ import { sanitizePlain } from '@/lib/sanitizePlain';
 import PayButton from '../PayButton.jsx';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
+import { listPayrollSettlements } from '@/lib/payroll/settlement';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,13 +57,16 @@ export default async function PayslipDetailPage({ params }) {
   const netEstEur = roundEur(grossEur - cnssEur - iprEur);
   const netPlusAllocEur = roundEur(netEstEur + allocFamEur);
   // Déterminer si un règlement PAYSET existe pour l'employé dans cette période
-  const settlements = ps.period?.id
-    ? await prisma.journalEntry.findMany({
-        where: { sourceType: 'PAYROLL', sourceId: ps.period.id, companyId, description: { contains: 'PAYSET-' } },
-        select: { id: true, description: true, date: true },
-      })
-    : [];
-  const hasSettlement = settlements.some(j => j.description?.includes(ps.employee.id) || j.description?.includes('PAYSET-'));
+  const settlements = ps.period?.id ? await listPayrollSettlements(ps.period.id, companyId, { liabilityCode: 'NET_PAY' }) : [];
+  const hasGlobalSettlement = settlements.some((settlement) => !settlement.employeeId);
+  const hasEmployeeSettlement = settlements.some((settlement) => settlement.employeeId === ps.employee.id);
+  const hasSettlement = hasGlobalSettlement || hasEmployeeSettlement;
+  const settledAmount = hasGlobalSettlement
+    ? Number(ps.netAmount ?? 0)
+    : settlements
+        .filter((settlement) => settlement.employeeId === ps.employee.id)
+        .reduce((sum, settlement) => sum + Number(settlement.amount || 0), 0);
+  const remainingAmount = Math.max(0, Number((Number(ps.netAmount ?? 0) - settledAmount).toFixed(2)));
   const grouped = lines.reduce((acc, l) => {
     const key = l.kind || 'AUTRE';
     acc[key] = acc[key] || [];
@@ -83,9 +87,9 @@ export default async function PayslipDetailPage({ params }) {
         <div>Période: {ps.period.month}/{ps.period.year}</div>
         {hasSettlement && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">Payé (PAYSET)</span>}
       </div>
-      <div className="text-sm flex items-center gap-4 flex-wrap">Brut: {ps.grossAmount?.toFixed?.(2) ?? ps.grossAmount} | Net (stocké): {ps.netAmount?.toFixed?.(2) ?? ps.netAmount} <ExportPayslipJson payslip={ps} /></div>
+      <div className="text-sm flex items-center gap-4 flex-wrap">Brut: {ps.grossAmount?.toFixed?.(2) ?? ps.grossAmount} | Net (stocké): {ps.netAmount?.toFixed?.(2) ?? ps.netAmount} | Réglé: {settledAmount.toFixed(2)} | Reste: {remainingAmount.toFixed(2)} <ExportPayslipJson payslip={ps} /></div>
       {!ps.locked && <RecalcButton payslipId={ps.id} />}
-      {ps.period?.status === 'POSTED' && <PayButton periodId={ps.period.id} employeeId={ps.employee.id} />}
+      {ps.period?.status === 'POSTED' && <PayButton periodId={ps.period.id} employeeId={ps.employee.id} disabled={hasSettlement} />}
       <div className="border rounded p-3 bg-white text-sm grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <div className="font-medium mb-1">Montants clés</div>

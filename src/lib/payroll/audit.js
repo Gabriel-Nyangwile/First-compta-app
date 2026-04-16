@@ -1,4 +1,6 @@
 import prisma from '../prisma.js';
+import { isPayrollSettlementDescription } from './settlement-config.js';
+import { getCurrentPayrollJournal } from './journals.js';
 
 function toNum(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
@@ -32,7 +34,15 @@ export async function auditPayrollPeriod(periodId, db = prisma, companyId = null
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) }, include: { payslips: { include: { lines: true } } } });
   if (!period) throw new Error('Period not found');
   const scopedCompanyId = period?.companyId || companyId || null;
-  const journal = await db.journalEntry.findFirst({ where: { sourceType: 'PAYROLL', sourceId: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
+  const journals = await db.journalEntry.findMany({
+    where: {
+      sourceType: 'PAYROLL',
+      sourceId: period.id,
+      ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}),
+    },
+    orderBy: { date: 'desc' },
+  });
+  const journal = await getCurrentPayrollJournal(db, period.id, scopedCompanyId);
   if (!journal) throw new Error('No journal linked to period');
 
   let baseSalaryTotal = 0, bonusTotal = 0, employerSocialTotal = 0;

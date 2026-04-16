@@ -37,30 +37,32 @@ export async function GET(request) {
       ? { AND: [{ companyId }, ...filters] }
       : { companyId };
 
-    const transactions = await prisma.transaction.findMany({
-      where,
-      include: { account: { select: { id: true, number: true, label: true } } },
+    const [accounts, groups] = await Promise.all([
+      prisma.account.findMany({
+        where: { companyId },
+        select: { id: true, number: true, label: true },
+        orderBy: { number: "asc" },
+      }),
+      prisma.transaction.groupBy({
+        where,
+        by: ["accountId", "direction"],
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const rowsMap = new Map(
+      accounts.map((account) => [account.id, { account, debit: 0, credit: 0 }])
+    );
+
+    groups.forEach((group) => {
+      const row = rowsMap.get(group.accountId);
+      if (!row) return;
+      const amount = toNumber(group._sum.amount);
+      if (group.direction === "DEBIT") row.debit = amount;
+      else if (group.direction === "CREDIT") row.credit = amount;
     });
 
-    const map = new Map();
-    for (const tx of transactions) {
-      const key = tx.account.id;
-      if (!map.has(key)) {
-        map.set(key, {
-          account: tx.account,
-          debit: 0,
-          credit: 0,
-        });
-      }
-      const bucket = map.get(key);
-      const amount = toNumber(tx.amount);
-      if (tx.direction === "DEBIT") bucket.debit += amount;
-      else bucket.credit += amount;
-    }
-
-    let rows = [...map.values()].sort((a, b) =>
-      a.account.number.localeCompare(b.account.number)
-    );
+    let rows = [...rowsMap.values()];
     if (!includeZero) {
       rows = rows.filter((row) => row.debit !== 0 || row.credit !== 0);
     }
