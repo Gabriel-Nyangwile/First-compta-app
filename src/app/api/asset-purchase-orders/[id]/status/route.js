@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { checkPerm, getUserRole } from '@/lib/authz';
+import { checkPerm } from '@/lib/authz';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 const allowedTransitions = {
@@ -15,7 +16,7 @@ export async function POST(req, { params }) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
   try {
-    const role = await getUserRole(req);
+    const role = await getRequestRole(req, { companyId });
     if (!checkPerm('approveAssetPO', role) && !checkPerm('receiveAssetPO', role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

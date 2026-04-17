@@ -245,7 +245,7 @@ export async function recordInventoryCountLine({
     }
 
     const updated = await tx.inventoryCountLine.update({
-      where: { id: lineId },
+      where: { id: lineId, companyId },
       data: {
         countedQty:
           qtyValue == null ? null : toFixedString(qtyValue, 3),
@@ -279,7 +279,7 @@ export async function completeInventoryCount(id, companyId) {
       );
     }
     await tx.inventoryCount.update({
-      where: { id },
+      where: { id, companyId },
       data: { status: "COMPLETED" },
     });
     const refreshed = await tx.inventoryCount.findFirst({
@@ -491,7 +491,7 @@ export async function postInventoryCount(id, companyId = null) {
         journalEntryId = journalEntry?.id ?? null;
 
         await tx.inventoryCountLine.update({
-          where: { id: line.id },
+          where: { id: line.id, companyId: scopedCompanyId },
           data: {
             deltaQty: toFixedString(deltaQty, 3),
             deltaValue: toFixedString(deltaValue, 2),
@@ -501,7 +501,7 @@ export async function postInventoryCount(id, companyId = null) {
         });
       } else {
         await tx.inventoryCountLine.update({
-          where: { id: line.id },
+          where: { id: line.id, companyId: scopedCompanyId },
           data: {
             deltaQty: "0.000",
             deltaValue: "0.00",
@@ -513,7 +513,7 @@ export async function postInventoryCount(id, companyId = null) {
     }
 
     await tx.inventoryCount.update({
-      where: { id },
+      where: { id, companyId: scopedCompanyId },
       data: { status: "POSTED", postedAt },
     });
 
@@ -532,4 +532,3 @@ export async function postInventoryCount(id, companyId = null) {
   }
   return normalized;
 }
-

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { checkPerm, getUserRole } from "@/lib/authz";
+import { checkPerm } from "@/lib/authz";
 import bcrypt from "bcryptjs";
 import { requireCompanyId } from "@/lib/tenant";
+import { getRequestActor, getRequestRole } from "@/lib/requestAuth";
 
 const allowedRoles = [
   "SUPERADMIN",
@@ -23,24 +24,28 @@ function normalizeRole(role) {
 }
 
 export async function GET(req) {
-  const role = await getUserRole(req);
+  const actor = await getRequestActor(req);
+  const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
+  const companyId = isPlatformAdmin ? null : requireCompanyId(req);
+  const role = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const companyId = requireCompanyId(req);
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
-  if (!company) {
-    return NextResponse.json(
-      { error: "companyId invalide (aucune société trouvée)." },
-      { status: 400 }
-    );
+  if (companyId) {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+    if (!company) {
+      return NextResponse.json(
+        { error: "companyId invalide (aucune société trouvée)." },
+        { status: 400 }
+      );
+    }
   }
   const url = new URL(req.url);
   const page = Math.max(1, Number(url.searchParams.get("page") || 1));
   const pageSize = Math.min(50, Math.max(5, Number(url.searchParams.get("pageSize") || 10)));
   const q = url.searchParams.get("q");
   const where = {
-    companyId,
+    ...(companyId ? { companyId } : {}),
     ...(q
       ? {
           OR: [
@@ -58,27 +63,31 @@ export async function GET(req) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true },
+      select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true, canCreateCompany: true, companyId: true },
     }),
   ]);
   return NextResponse.json({ users, total, page, pageSize });
 }
 
 export async function POST(req) {
-  const callerRole = await getUserRole(req);
+  const actor = await getRequestActor(req);
+  const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
+  const companyId = isPlatformAdmin ? null : requireCompanyId(req);
+  const callerRole = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const companyId = requireCompanyId(req);
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
-  if (!company) {
-    return NextResponse.json(
-      { error: "companyId invalide (aucune société trouvée)." },
-      { status: 400 }
-    );
+  if (companyId) {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+    if (!company) {
+      return NextResponse.json(
+        { error: "companyId invalide (aucune société trouvée)." },
+        { status: 400 }
+      );
+    }
   }
   const body = await req.json();
-  const { username, email, password, role } = body || {};
+  const { username, email, password, role, canCreateCompany } = body || {};
   if (!username || !email || !password) {
     return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
   }
@@ -89,8 +98,26 @@ export async function POST(req) {
   const hashed = await bcrypt.hash(password, 10);
   const userRole = normalizeRole(role);
   const user = await prisma.user.create({
-    data: { companyId, username, email, password: hashed, role: userRole },
-    select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true },
+    data: {
+      companyId,
+      username,
+      email,
+      password: hashed,
+      role: userRole,
+      isActive: true,
+      canCreateCompany: isPlatformAdmin ? !!canCreateCompany : false,
+      memberships: companyId
+        ? {
+            create: {
+              companyId,
+              role: userRole,
+              isActive: true,
+              isDefault: !actor?.user?.companyId,
+            },
+          }
+        : undefined,
+    },
+    select: { id: true, email: true, username: true, role: true, createdAt: true, isActive: true, canCreateCompany: true, companyId: true },
   });
   return NextResponse.json({ user }, { status: 201 });
 }

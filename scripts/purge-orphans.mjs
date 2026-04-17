@@ -4,7 +4,10 @@ import path from 'path';
 import prisma from '../src/lib/prisma.js';
 
 const apply = process.argv.includes('--apply');
-const companyId = process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || null;
+const argCompanyIndex = process.argv.indexOf('--company');
+const companyId = argCompanyIndex >= 0 ? process.argv[argCompanyIndex+1] : (process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || null);
+const idsFileIndex = process.argv.indexOf('--ids-file');
+const idsFile = idsFileIndex >= 0 ? process.argv[idsFileIndex+1] : null;
 
 async function toCSV(rows){
   if(rows.length===0) return '';
@@ -18,7 +21,17 @@ async function main(){
   const outDir = path.resolve('backups', `purge-orphans-${Date.now()}`);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const orphans = await prisma.transaction.findMany({ where: { companyId, journalEntryId: null } });
+  let orphans = [];
+  if(idsFile){
+    if(!fs.existsSync(idsFile)) { console.error('IDs file not found:', idsFile); process.exit(1); }
+    const txt = fs.readFileSync(idsFile,'utf8');
+    try{ const parsed = JSON.parse(txt); const ids = parsed.map(p=>p.id || p); orphans = await prisma.transaction.findMany({ where: { id: { in: ids } } }); }
+    catch(e){ console.error('Failed to parse ids file as JSON array of objects or ids'); process.exit(1); }
+  } else {
+    const where = { groupId: null };
+    if(companyId) where.companyId = companyId;
+    orphans = await prisma.transaction.findMany({ where });
+  }
   console.log('Orphan transactions found:', orphans.length);
 
   fs.writeFileSync(path.join(outDir,'orphans.json'), JSON.stringify(orphans, null, 2));

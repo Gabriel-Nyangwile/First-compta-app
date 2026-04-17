@@ -1,0 +1,684 @@
+{
+  "company": {
+    "id": "uuid-existant-ou-nouveau",
+    "name": "Strategic Business Démo"
+  },
+  "generatedAt": "2026-04-16T21:33:51.698Z",
+  "journalCount": 74,
+  "byType": {
+    "PAYROLL": 28,
+    "INCOMING_INVOICE": 11,
+    "MANUAL": 6,
+    "GOODS_RECEIPT": 16,
+    "MONEY_MOVEMENT": 2,
+    "OTHER": 11
+  },
+  "journals": [
+    {
+      "id": "cb78280d-511f-46ab-9aad-917dc44dae4f",
+      "number": "JRN-000187",
+      "sourceType": "PAYROLL",
+      "sourceId": "dcc4b549-aa5b-445e-871b-fbae19fd638b",
+      "description": "Journal paie 10/2025",
+      "date": "2025-11-23T14:01:33.053Z",
+      "createdAt": "2025-11-23T14:01:33.109Z"
+    },
+    {
+      "id": "cb1703fe-8864-4fd9-805a-cb50488feb5a",
+      "number": "JRN-000188",
+      "sourceType": "PAYROLL",
+      "sourceId": "b4ea38f2-a50c-4b3e-be72-8d4ede9348e7",
+      "description": "Journal paie 10/2025",
+      "date": "2025-11-23T14:11:11.933Z",
+      "createdAt": "2025-11-23T14:11:11.973Z"
+    },
+    {
+      "id": "7ac20cd1-54fe-4450-aef6-4e9a2b9584a0",
+      "number": "JRN-000190",
+      "sourceType": "PAYROLL",
+      "sourceId": "17852c7b-7418-46a6-a75f-306a73064357",
+      "description": "Journal paie 11/2025",
+      "date": "2025-11-23T14:18:44.608Z",
+      "createdAt": "2025-11-23T14:18:44.644Z"
+    },
+    {
+      "id": "6e226161-1b6f-4c5f-8b40-2f2edd518678",
+      "number": "JRN-000191",
+      "sourceType": "PAYROLL",
+      "sourceId": null,
+      "description": "Journal paie 11/2025",
+      "date": "2025-11-24T00:10:27.993Z",
+      "createdAt": "2025-11-24T00:10:28.039Z"
+    },
+    {
+      "id": "104cc0ba-d767-47f4-adcc-52a856bda88e",
+      "number": "JRN-000192",
+      "sourceType": "PAYROLL",
+      "sourceId": "55f6fc58-7da6-4491-8286-433481abe57c",
+      "description": "Annulation paie 11/2025 (reversal JRN-000191)",
+      "date": "2025-11-24T00:17:53.294Z",
+      "createdAt": "2025-11-24T00:17:53.327Z"
+    },
+    {
+      "id": "0198eddb-c2d7-49ea-9f6a-6e0a988c143b",
+      "number": "JRN-000193",
+      "sourceType": "PAYROLL",
+      "sourceId": "55f6fc58-7da6-4491-8286-433481abe57c",
+      "description": "Journal paie 11/2025",
+      "date": "2025-11-24T00:18:14.188Z",
+      "createdAt": "2025-11-24T00:18:14.227Z"
+    },
+    {
+      "id": "cb65e80a-961d-4193-adb7-572b35f8d121",
+      "number": "JRN-000194",
+      "sourceType": "PAYROLL",
+      "sourceId": "55f6fc58-7da6-4491-8286-433481abe57c",
+      "description": "Règlement net paie PP-000035 PAYSET-000005",
+      "date": "2025-11-24T00:24:52.670Z",
+      "createdAt": "2025-11-24T00:24:52.712Z"
+    },
+    {
+      "id": "00f0eac3-97f2-4582-90b9-47df22abf4e6",
+      "number": "JRN-000195",
+      "sourceType": "PAYROLL",
+      "sourceId": "55f6fc58-7da6-4491-8286-433481abe57c",
+      "description": "Règlement net paie PP-000035 PAYSET-000006",
+      "date": "2025-11-24T00:25:03.294Z",
+      "createdAt": "2025-11-24T00:25:03.317Z"
+    },
+    {
+      "id": "45507729-9c35-4ffc-bd73-d2c096a7b9e9",
+      "number": "JRN-000196",
+      "sourceType": "PAYROLL",
+      "sourceId": "8bd3b6a4-af35-46ab-aa3e-235910e575f5",
+      "description": "Journal paie 11/2025",
+      "date": "2025-11-24T14:29:22.649Z",
+      "createdAt": "2025-11-24T14:29:22.698Z"
+    },
+    {
+      "id": "d8f43410-6886-41ea-89e6-bd065cca8dd5",
+      "number": "JRN-000197",
+      "sourceType": "PAYROLL",
+      "sourceId": "8bd3b6a4-af35-46ab-aa3e-235910e575f5",
+      "description": "Règlement net paie PP-000036 employé 68776e00-bf74-4c5b-83c7-1b92673c7570 PAYSET-000007",
+      "date": "2025-11-24T15:01:15.400Z",
+      "createdAt": "2025-11-24T15:01:15.463Z"
+    },
+    {
+      "id": "04278e7b-f715-44be-914a-3a0deddfa203",
+      "number": "JRN-000198",
+      "sourceType": "PAYROLL",
+      "sourceId": "b4ea38f2-a50c-4b3e-be72-8d4ede9348e7",
+      "description": "Règlement net paie PP-000002 employé 74160326-3dfd-4290-bb5e-d7aafeb85e42 PAYSET-000008",
+      "date": "2025-11-24T15:05:54.847Z",
+      "createdAt": "2025-11-24T15:05:54.864Z"
+    },
+    {
+      "id": "2256748a-d39a-4f47-adb4-a3cd933cdd6d",
+      "number": "JRN-000199",
+      "sourceType": "PAYROLL",
+      "sourceId": "17852c7b-7418-46a6-a75f-306a73064357",
+      "description": "Règlement net paie PP-000034 employé 2b630362-b0d8-496b-8621-a7704dc17950 PAYSET-000009",
+      "date": "2025-11-24T15:08:49.283Z",
+      "createdAt": "2025-11-24T15:08:49.290Z"
+    },
+    {
+      "id": "1bb987f4-63ae-4a44-9f7a-503db4822904",
+      "number": "JRN-000200",
+      "sourceType": "PAYROLL",
+      "sourceId": "17852c7b-7418-46a6-a75f-306a73064357",
+      "description": "Règlement net paie PP-000034 employé 2b630362-b0d8-496b-8621-a7704dc17950 PAYSET-000010",
+      "date": "2025-11-24T15:35:31.592Z",
+      "createdAt": "2025-11-24T15:35:31.665Z"
+    },
+    {
+      "id": "91310faa-abb1-49a2-8e65-12b54b983c40",
+      "number": "JRN-000201",
+      "sourceType": "PAYROLL",
+      "sourceId": "8bd3b6a4-af35-46ab-aa3e-235910e575f5",
+      "description": "Règlement net paie PP-000036 employé a6690dac-4572-4774-9970-108a56e8c417 PAYSET-000011",
+      "date": "2025-11-25T18:53:16.109Z",
+      "createdAt": "2025-11-25T18:53:16.169Z"
+    },
+    {
+      "id": "e0f28a1e-4622-415d-b0b6-d7ea68b05433",
+      "number": "JRN-000202",
+      "sourceType": "PAYROLL",
+      "sourceId": "8bd3b6a4-af35-46ab-aa3e-235910e575f5",
+      "description": "Règlement net paie PP-000036 employé 74160326-3dfd-4290-bb5e-d7aafeb85e42 PAYSET-000012",
+      "date": "2025-11-25T18:53:35.169Z",
+      "createdAt": "2025-11-25T18:53:35.179Z"
+    },
+    {
+      "id": "295d7cf9-f721-429b-b709-154da238d38d",
+      "number": "JRN-000203",
+      "sourceType": "PAYROLL",
+      "sourceId": "b512fcf4-2607-4106-9291-832b83320ea5",
+      "description": "Journal paie 11/2025",
+      "date": "2025-11-25T19:19:58.818Z",
+      "createdAt": "2025-11-25T19:19:58.853Z"
+    },
+    {
+      "id": "7805f8d0-fb1a-4c71-b73d-61cefa4c63ad",
+      "number": "JRN-000204",
+      "sourceType": "PAYROLL",
+      "sourceId": "933123d7-5a98-46f2-911a-a1abae7ab8e8",
+      "description": "Journal paie 12/2025",
+      "date": "2025-11-26T17:01:50.360Z",
+      "createdAt": "2025-11-26T17:01:50.405Z"
+    },
+    {
+      "id": "ade13c82-594a-4a0e-a46f-6b4fd69aacce",
+      "number": "JRN-000212",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "a5842551-a13a-462f-9ad4-dc365c291e45",
+      "description": "Facture fournisseur immob EI-2025-0003",
+      "date": "2025-12-02T13:38:07.219Z",
+      "createdAt": "2025-12-02T13:38:07.556Z"
+    },
+    {
+      "id": "5e3d7c28-00bd-44d2-9e3b-23e2cc22d3c8",
+      "number": "JRN-000213",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "fedbce8b-4729-4fb5-90e9-6ac9f13db5b8",
+      "description": "Facture fournisseur immob EI-2025-0004",
+      "date": "2025-12-04T13:35:17.989Z",
+      "createdAt": "2025-12-04T13:35:18.216Z"
+    },
+    {
+      "id": "ad41b29d-4e8b-4496-b56b-c3cbf6d8f239",
+      "number": "JRN-000215",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "e8abe519-2a2a-4275-b3d2-de6e7b5c20d9",
+      "description": "Facture fournisseur immob EI-2025-0005",
+      "date": "2025-12-06T00:00:00.000Z",
+      "createdAt": "2025-12-06T13:10:04.744Z"
+    },
+    {
+      "id": "acf57de4-c08b-4efc-9277-1d8df1c3e987",
+      "number": "JRN-000220",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "3bf15b1e-5d7c-41e7-af98-6e0e43af21f1",
+      "description": "Facture fournisseur immob EI-2025-0006",
+      "date": "2025-12-10T00:00:00.000Z",
+      "createdAt": "2025-12-10T17:37:08.550Z"
+    },
+    {
+      "id": "7a6603e1-db7e-40e6-8d4c-e88313db59d1",
+      "number": "JRN-000221",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "275d999b-bfd1-41e9-84c1-f691d893ed22",
+      "description": "Facture fournisseur immob EI-2025-0007",
+      "date": "2025-11-01T00:00:00.000Z",
+      "createdAt": "2025-12-10T18:12:29.388Z"
+    },
+    {
+      "id": "53dfe047-9a2e-48f5-85af-e3a0c2f06184",
+      "number": "JRN-000222",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "c61f5722-256b-47ba-905f-ef2f5365bec7",
+      "description": "Facture fournisseur immob EI-2025-0008",
+      "date": "2025-11-04T00:00:00.000Z",
+      "createdAt": "2025-12-11T11:32:01.555Z"
+    },
+    {
+      "id": "972bdd18-68cb-498a-9ee7-21028592adb5",
+      "number": "JRN-000226",
+      "sourceType": "MANUAL",
+      "sourceId": null,
+      "description": "OD e8abe519-2a2a-4275-b3d2-de6e7b5c20d9",
+      "date": "2025-12-11T11:08:48.359Z",
+      "createdAt": "2025-12-11T13:05:59.568Z"
+    },
+    {
+      "id": "e558ea8e-417d-44e4-b431-9d1af215fd74",
+      "number": "JRN-000227",
+      "sourceType": "MANUAL",
+      "sourceId": null,
+      "description": "OD 3bf15b1e-5d7c-41e7-af98-6e0e43af21f1",
+      "date": "2025-12-11T11:10:04.797Z",
+      "createdAt": "2025-12-11T13:06:03.257Z"
+    },
+    {
+      "id": "09e8ac92-2508-43ea-82a4-7c911764167b",
+      "number": "JRN-000228",
+      "sourceType": "MANUAL",
+      "sourceId": null,
+      "description": "OD c61f5722-256b-47ba-905f-ef2f5365bec7",
+      "date": "2025-12-11T13:22:49.794Z",
+      "createdAt": "2025-12-11T13:25:06.371Z"
+    },
+    {
+      "id": "a9eb24b1-e38d-4eb0-9a6e-a4536ec83247",
+      "number": "JRN-000229",
+      "sourceType": "MANUAL",
+      "sourceId": null,
+      "description": "OD 275d999b-bfd1-41e9-84c1-f691d893ed22",
+      "date": "2025-12-11T13:23:31.023Z",
+      "createdAt": "2025-12-11T13:25:14.215Z"
+    },
+    {
+      "id": "db9de307-388d-4784-80c8-2d4c7e91b199",
+      "number": "JRN-000230",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "5759c8f8-20c4-45eb-be8d-d6f76a2ebb0e",
+      "description": "Facture fournisseur immob EI-2025-0009",
+      "date": "2025-12-02T00:00:00.000Z",
+      "createdAt": "2025-12-15T11:52:40.798Z"
+    },
+    {
+      "id": "0c4ae3c8-3a51-4156-aa5e-c4efeb6d1af3",
+      "number": "JRN-000232",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "ff421e85-2919-4645-bf2d-df06a7868a58",
+      "description": "Facture fournisseur immob EI-2025-0010",
+      "date": "2025-12-16T00:00:00.000Z",
+      "createdAt": "2025-12-16T14:51:34.932Z"
+    },
+    {
+      "id": "dcb5206a-e28a-4078-b602-83be420f81b0",
+      "number": "JRN-000234",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "1d645025-1fa7-4574-b8b9-bfb4c6b1b716",
+      "description": "Mise en stock GR-000116 SKU MB-ATX-B52",
+      "date": "2025-12-19T17:50:08.898Z",
+      "createdAt": "2025-12-19T17:55:20.383Z"
+    },
+    {
+      "id": "fe7b63fe-739b-4a56-983a-8216af77e2e6",
+      "number": "JRN-000235",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "1d645025-1fa7-4574-b8b9-bfb4c6b1b716",
+      "description": "Mise en stock GR-000116 SKU CRTSSD-SATA-STOCK",
+      "date": "2025-12-19T17:50:08.898Z",
+      "createdAt": "2025-12-19T17:56:07.972Z"
+    },
+    {
+      "id": "7ae342d3-ec50-4186-baf9-52f30e8efa98",
+      "number": "JRN-000236",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "1d645025-1fa7-4574-b8b9-bfb4c6b1b716",
+      "description": "Mise en stock GR-000116 SKU MEMDDR4-RAM16GO",
+      "date": "2025-12-19T17:50:08.898Z",
+      "createdAt": "2025-12-19T17:56:30.183Z"
+    },
+    {
+      "id": "2651fea1-d135-46c3-8554-42655b8699b2",
+      "number": "JRN-000237",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "1d645025-1fa7-4574-b8b9-bfb4c6b1b716",
+      "description": "Mise en stock GR-000116 SKU ALI-PSU-750W",
+      "date": "2025-12-19T17:50:08.898Z",
+      "createdAt": "2025-12-19T17:56:52.536Z"
+    },
+    {
+      "id": "0944da8a-76f1-4857-a5fd-d1466a01a159",
+      "number": "JRN-000238",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "1d645025-1fa7-4574-b8b9-bfb4c6b1b716",
+      "description": "Mise en stock GR-000116 SKU BOITIER-CASE-ATX",
+      "date": "2025-12-19T17:50:08.898Z",
+      "createdAt": "2025-12-19T17:57:09.573Z"
+    },
+    {
+      "id": "ee908945-43f6-4a68-bf0d-c5f30cb562ad",
+      "number": "JRN-000239",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "89b65779-f97d-4f1a-9753-404bf880323d",
+      "description": "Facture fournisseur EI-2025-0011",
+      "date": "2025-12-19T00:00:00.000Z",
+      "createdAt": "2025-12-19T18:10:08.446Z"
+    },
+    {
+      "id": "e1b48e04-7dac-4885-8229-5dc714902cb7",
+      "number": "JRN-000240",
+      "sourceType": "MANUAL",
+      "sourceId": null,
+      "description": "OD 5759c8f8-20c4-45eb-be8d-d6f76a2ebb0e",
+      "date": "2025-12-16T13:48:09.708Z",
+      "createdAt": "2025-12-19T18:31:30.148Z"
+    },
+    {
+      "id": "0d2a6662-a962-4c76-a800-5cc8da974645",
+      "number": "JRN-000241",
+      "sourceType": "MANUAL",
+      "sourceId": null,
+      "description": "OD ff421e85-2919-4645-bf2d-df06a7868a58",
+      "date": "2025-12-16T14:54:20.624Z",
+      "createdAt": "2025-12-19T18:31:35.746Z"
+    },
+    {
+      "id": "4bf7038e-dae5-42b9-b1ef-14a23ccf6ed2",
+      "number": "JRN-000290",
+      "sourceType": "MONEY_MOVEMENT",
+      "sourceId": "fe913113-2709-46e1-b49d-5f52bca4a582",
+      "description": "Encaissement test",
+      "date": "2026-04-09T17:01:40.519Z",
+      "createdAt": "2026-04-09T17:01:40.556Z"
+    },
+    {
+      "id": "1147303e-2309-4799-8b95-82ef8ce2de4d",
+      "number": "JRN-000291",
+      "sourceType": "MONEY_MOVEMENT",
+      "sourceId": "f8264ce4-cb89-414b-a053-633e36125a21",
+      "description": "Décaissement test",
+      "date": "2026-04-09T17:01:40.612Z",
+      "createdAt": "2026-04-09T17:01:40.625Z"
+    },
+    {
+      "id": "75f14b9d-cf13-47c5-9581-61ce6a0ee887",
+      "number": "JRN-000292",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "747a4658-1145-4630-80a3-20c04cf584a2",
+      "description": "Mise en stock GR-000118 SKU SKU-jc2jr3",
+      "date": "2026-04-09T17:13:14.135Z",
+      "createdAt": "2026-04-09T17:13:16.308Z"
+    },
+    {
+      "id": "301de8dc-b0d4-409e-a631-32d3f782659d",
+      "number": "JRN-000293",
+      "sourceType": "PAYROLL",
+      "sourceId": null,
+      "description": "Journal paie 4/2026",
+      "date": "2026-04-09T17:14:10.002Z",
+      "createdAt": "2026-04-09T17:14:10.042Z"
+    },
+    {
+      "id": "8701a838-9dbe-40c4-8b06-98b2905ca369",
+      "number": "JRN-000294",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "853fff35-0fdb-42b7-a510-8fa88ebeaf7c",
+      "description": "Mise en stock GR-000120 SKU SKU-bu40yt",
+      "date": "2026-04-09T17:17:15.310Z",
+      "createdAt": "2026-04-09T17:17:16.372Z"
+    },
+    {
+      "id": "de946528-b6fa-4acc-9a67-9bd68616899b",
+      "number": "JRN-000295",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "30653d49-03ce-40e7-9c52-39f7875f43c7",
+      "description": "Mise en stock GR-000121 SKU SKU-bu40yt",
+      "date": "2026-04-09T17:17:16.813Z",
+      "createdAt": "2026-04-09T17:17:17.525Z"
+    },
+    {
+      "id": "7e37cff2-631c-4924-819f-1e12819c6f3d",
+      "number": "JRN-000296",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "30653d49-03ce-40e7-9c52-39f7875f43c7",
+      "description": "Mise en stock GR-000121 SKU SKU-tezn0l",
+      "date": "2026-04-09T17:17:16.813Z",
+      "createdAt": "2026-04-09T17:17:17.681Z"
+    },
+    {
+      "id": "2a115857-bf20-4e01-8b9d-306566006c7f",
+      "number": "JRN-000297",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "9251aa20-6522-4669-90fc-9a4102b6aeb3",
+      "description": "Mise en stock GR-000122 SKU SKU-b7erc3",
+      "date": "2026-04-09T17:22:24.149Z",
+      "createdAt": "2026-04-09T17:22:25.233Z"
+    },
+    {
+      "id": "92ac1ed0-de1c-4eaf-9641-b82a7b6aa4c8",
+      "number": "JRN-000298",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "5002bff5-02f7-4cb1-bc9a-f95e9ac4c817",
+      "description": "Mise en stock GR-000123 SKU SKU-b7erc3",
+      "date": "2026-04-09T17:22:25.688Z",
+      "createdAt": "2026-04-09T17:22:26.401Z"
+    },
+    {
+      "id": "d9249561-c169-42ff-9376-224419402468",
+      "number": "JRN-000299",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "5002bff5-02f7-4cb1-bc9a-f95e9ac4c817",
+      "description": "Mise en stock GR-000123 SKU SKU-a7jiwf",
+      "date": "2026-04-09T17:22:25.688Z",
+      "createdAt": "2026-04-09T17:22:26.566Z"
+    },
+    {
+      "id": "017ad720-77f6-4041-93af-27fe9388b440",
+      "number": "JRN-000300",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "51f927c4-2178-426a-883a-a5a3b1bcbc17",
+      "description": "Facture fournisseur EI-2026-0001",
+      "date": "2026-04-09T17:22:27.108Z",
+      "createdAt": "2026-04-09T17:22:27.188Z"
+    },
+    {
+      "id": "a98ff63d-d99f-49cc-831e-2bbd74973bc0",
+      "number": "JRN-000301",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "6c94eef9-b1c9-4dde-a9b8-3a78951b9dde",
+      "description": "Mise en stock GR-000124 SKU SKU-wruv8y",
+      "date": "2026-04-09T17:23:40.094Z",
+      "createdAt": "2026-04-09T17:23:41.328Z"
+    },
+    {
+      "id": "87fcf300-ae73-4446-be17-86562e835a4d",
+      "number": "JRN-000302",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "bc60438d-d1e2-424b-b2b2-14558b80a0ca",
+      "description": "Mise en stock GR-000125 SKU SKU-u3gcgk",
+      "date": "2026-04-09T17:27:48.814Z",
+      "createdAt": "2026-04-09T17:27:49.877Z"
+    },
+    {
+      "id": "83b714aa-1b0b-4d0a-befb-53f7f496b465",
+      "number": "JRN-000303",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "f8eece3b-ee13-4c74-a49d-045f3fdcb435",
+      "description": "Mise en stock GR-000126 SKU SKU-u3gcgk",
+      "date": "2026-04-09T17:27:50.346Z",
+      "createdAt": "2026-04-09T17:27:51.037Z"
+    },
+    {
+      "id": "05f71760-c025-4e9d-8fce-799f0634123f",
+      "number": "JRN-000304",
+      "sourceType": "GOODS_RECEIPT",
+      "sourceId": "f8eece3b-ee13-4c74-a49d-045f3fdcb435",
+      "description": "Mise en stock GR-000126 SKU SKU-a4p02z",
+      "date": "2026-04-09T17:27:50.346Z",
+      "createdAt": "2026-04-09T17:27:51.192Z"
+    },
+    {
+      "id": "161cabd7-7276-4644-bc90-6f17f1a65620",
+      "number": "JRN-000305",
+      "sourceType": "INCOMING_INVOICE",
+      "sourceId": "f15ffcb3-d43c-4f0a-bff1-d5230337f330",
+      "description": "Facture fournisseur EI-2026-0002",
+      "date": "2026-04-09T17:27:51.729Z",
+      "createdAt": "2026-04-09T17:27:51.767Z"
+    },
+    {
+      "id": "7a81b11c-836a-42c2-a2f8-d46f1252a301",
+      "number": "JRN-000306",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Annulation paie 4/2026 (reversal JRN-000293)",
+      "date": "2026-04-09T18:06:33.794Z",
+      "createdAt": "2026-04-09T18:06:33.839Z"
+    },
+    {
+      "id": "5561a155-0a13-464a-88e2-f12769763244",
+      "number": "JRN-000307",
+      "sourceType": "PAYROLL",
+      "sourceId": "cbaa2b89-26d9-42fb-b98f-aeeb5afc24ac",
+      "description": "Journal paie 12/2025",
+      "date": "2026-04-09T18:17:52.270Z",
+      "createdAt": "2026-04-09T18:17:52.348Z"
+    },
+    {
+      "id": "69f0c1aa-ae92-4829-94b0-46f3f1cf9f11",
+      "number": "JRN-000308",
+      "sourceType": "PAYROLL",
+      "sourceId": "cbaa2b89-26d9-42fb-b98f-aeeb5afc24ac",
+      "description": "Règlement net paie PP-000047 PAYSET-000013",
+      "date": "2026-04-09T18:18:26.305Z",
+      "createdAt": "2026-04-09T18:18:26.327Z"
+    },
+    {
+      "id": "780581eb-f463-4e06-89b9-f72be8fbc33c",
+      "number": "JRN-000309",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Journal paie 4/2026",
+      "date": "2026-04-09T18:53:00.388Z",
+      "createdAt": "2026-04-09T18:53:00.452Z"
+    },
+    {
+      "id": "a5f290aa-7eaf-40c4-959d-380562af2210",
+      "number": "JRN-000310",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Règlement net paie PP-000048 employé a6690dac-4572-4774-9970-108a56e8c417 PAYSET-000014",
+      "date": "2026-04-09T18:54:08.200Z",
+      "createdAt": "2026-04-09T18:54:08.220Z"
+    },
+    {
+      "id": "042ddb30-48f1-4211-93fc-c6b565240e6d",
+      "number": "JRN-000311",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Règlement ONEM PP-000048 PAYONEM-000001",
+      "date": "2026-04-10T17:10:33.631Z",
+      "createdAt": "2026-04-10T17:10:33.779Z"
+    },
+    {
+      "id": "ab7d8bbb-1879-4cca-bac9-34e01f6999ba",
+      "number": "JRN-000312",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Règlement CNSS PP-000048 PAYCNSS-000001",
+      "date": "2026-04-10T17:28:50.972Z",
+      "createdAt": "2026-04-10T17:28:51.055Z"
+    },
+    {
+      "id": "98700060-7d32-42f9-9777-4acb1430fa9d",
+      "number": "JRN-000313",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Règlement INPP PP-000048 PAYINPP-000001",
+      "date": "2026-04-10T17:28:51.172Z",
+      "createdAt": "2026-04-10T17:28:51.186Z"
+    },
+    {
+      "id": "f2905dc1-df7c-47e5-813e-ad5043c2ef83",
+      "number": "JRN-000314",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Règlement IPR PP-000048 PAYIPR-000001",
+      "date": "2026-04-10T17:28:51.285Z",
+      "createdAt": "2026-04-10T17:28:51.298Z"
+    },
+    {
+      "id": "0282d17d-0824-42f9-ad40-f165c089193a",
+      "number": "JRN-000315",
+      "sourceType": "PAYROLL",
+      "sourceId": "f1662b62-216d-4a83-8777-38576f7f24ee",
+      "description": "Règlement net paie PP-000048 PAYSET-000015",
+      "date": "2026-04-10T17:50:11.258Z",
+      "createdAt": "2026-04-10T17:50:11.326Z"
+    },
+    {
+      "id": "a50572f9-4741-4465-b69e-4846604782bb",
+      "number": "JRN-000316",
+      "sourceType": "OTHER",
+      "sourceId": null,
+      "description": "Ouverture 2026-01-01",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-11T20:30:51.613Z"
+    },
+    {
+      "id": "19513f5e-621b-4197-bf32-56a5d3203372",
+      "number": "JRN-000317",
+      "sourceType": "OTHER",
+      "sourceId": null,
+      "description": "Ouverture 2026-01-01",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:23:00.955Z"
+    },
+    {
+      "id": "17c78f2d-f90a-4db8-9340-0c40b2ffa41d",
+      "number": "JRN-000318",
+      "sourceType": "OTHER",
+      "sourceId": "8b1ceca5-6ac6-4e0d-b865-6017ab751fae",
+      "description": "Ouverture client SARL Dupont & Fils",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:14.804Z"
+    },
+    {
+      "id": "480fc5dd-330c-4a52-a5aa-ded4ca7bdba8",
+      "number": "JRN-000319",
+      "sourceType": "OTHER",
+      "sourceId": "f3808eaa-a525-4625-a245-143d8da194ad",
+      "description": "Ouverture client M. Jean Martin",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:14.832Z"
+    },
+    {
+      "id": "60177744-a5ae-4870-b271-0eebe7e8d443",
+      "number": "JRN-000320",
+      "sourceType": "OTHER",
+      "sourceId": "c5b4fcd6-e5c8-4f27-8b51-2f6a203eafac",
+      "description": "Ouverture client SAS Tech Solutions",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:14.845Z"
+    },
+    {
+      "id": "0a1a3cb2-1c75-4d7a-b90c-446a1dfb53a3",
+      "number": "JRN-000321",
+      "sourceType": "OTHER",
+      "sourceId": "10b41280-8a42-4cac-8b72-88300b41fd4a",
+      "description": "Ouverture client Madame Claire Dubois",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:14.860Z"
+    },
+    {
+      "id": "d0cfcf75-19d5-4769-9a40-e7949b59b567",
+      "number": "JRN-000322",
+      "sourceType": "OTHER",
+      "sourceId": "2ef82eb9-f51c-406c-8733-4576d825ff52",
+      "description": "Ouverture fournisseur SAS Fournitures Bureau",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:29.974Z"
+    },
+    {
+      "id": "6a8d0ef1-f52f-455a-ba53-8d295f331438",
+      "number": "JRN-000323",
+      "sourceType": "OTHER",
+      "sourceId": "a797060a-bf81-4418-9f37-287af7a4505d",
+      "description": "Ouverture fournisseur M. Pierre Leroy Matériaux",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:29.993Z"
+    },
+    {
+      "id": "7a129e6f-8e86-4dde-931f-97d96c768de7",
+      "number": "JRN-000324",
+      "sourceType": "OTHER",
+      "sourceId": "ed0d7181-24d2-4167-8576-dbf7df7c27d2",
+      "description": "Ouverture fournisseur SARL Informatique Plus",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:30.008Z"
+    },
+    {
+      "id": "b442706d-8c8f-49d0-ba8e-0f97f48404f5",
+      "number": "JRN-000325",
+      "sourceType": "OTHER",
+      "sourceId": "2c484cf8-d5db-4b56-b20d-3ec2f51d927e",
+      "description": "Ouverture fournisseur Madame Sophie Bernard Services",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:27:30.021Z"
+    },
+    {
+      "id": "8da8eb39-5edc-4d3a-8cc6-71932cf13647",
+      "number": "JRN-000330",
+      "sourceType": "OTHER",
+      "sourceId": null,
+      "description": "Ouverture 2026-01-01",
+      "date": "2026-01-01T00:00:00.000Z",
+      "createdAt": "2026-04-12T14:31:33.460Z"
+    }
+  ]
+}

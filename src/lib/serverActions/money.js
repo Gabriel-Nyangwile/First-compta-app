@@ -224,8 +224,8 @@ export async function ensureLedgerAccountForMoneyAccount(
   const account = await prisma.account.create({
     data: { number, label, companyId: companyId || null },
   });
-  await prisma.moneyAccount.update({
-    where: { id: moneyAccount.id },
+  await prisma.moneyAccount.updateMany({
+    where: { id: moneyAccount.id, ...(moneyAccount.companyId ? { companyId: moneyAccount.companyId } : {}) },
     data: { ledgerAccountId: account.id },
   });
   return { account };
@@ -569,7 +569,7 @@ export async function updateInvoiceSettlementStatus(
   else if (paid.gt(0)) newStatus = "PARTIAL";
   else newStatus = "PENDING";
   await tx.invoice.update({
-    where: { id: invoiceId },
+    where: { id: invoiceId, ...(companyId ? { companyId } : {}) },
     data: {
       status: newStatus,
       paidAmount: paid,
@@ -602,7 +602,7 @@ export async function updateIncomingInvoiceSettlementStatus(
   else if (paid.gt(0)) newStatus = "PARTIAL";
   else newStatus = "PENDING";
   await tx.incomingInvoice.update({
-    where: { id: incomingInvoiceId },
+    where: { id: incomingInvoiceId, ...(companyId ? { companyId } : {}) },
     data: {
       status: newStatus,
       paidAmount: paid,
@@ -637,7 +637,9 @@ async function ensureClass4Account(
   context,
   companyId = null
 ) {
-  const acc = await tx.account.findUnique({ where: { id: accountId } });
+  const acc = await tx.account.findFirst({
+    where: { id: accountId, ...(companyId ? { companyId } : {}) },
+  });
   if (!acc) throw new Error("Compte contrepartie introuvable");
   if (companyId && acc.companyId !== companyId) {
     throw new Error("Compte contrepartie hors société");
@@ -904,12 +906,12 @@ export async function createTransfer({
   // Comme voucherRef est UNIQUE, on génère un baseRef puis deux refs dérivées (baseRef-1 / baseRef-2)
   // baseRef sert de groupement logique (groupRef)
   return await prisma.$transaction(async (tx) => {
-    const from = await tx.moneyAccount.findUnique({
-      where: { id: fromMoneyAccountId },
+    const from = await tx.moneyAccount.findFirst({
+      where: { id: fromMoneyAccountId, companyId },
       include: { ledgerAccount: true },
     });
-    const to = await tx.moneyAccount.findUnique({
-      where: { id: toMoneyAccountId },
+    const to = await tx.moneyAccount.findFirst({
+      where: { id: toMoneyAccountId, companyId },
       include: { ledgerAccount: true },
     });
     if (!from || !to)
@@ -1115,8 +1117,8 @@ export async function getSupplierTreasuryDetail({
 } = {}) {
   if (!supplierId) throw new Error("supplierId requis");
   if (!companyId) throw new Error("companyId requis");
-  const supplier = await prisma.supplier.findUnique({
-    where: { id: supplierId },
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: supplierId, companyId },
     include: {
       account: { select: { number: true, label: true } },
     },

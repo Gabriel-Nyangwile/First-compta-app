@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { postDepreciationBatch } from '@/lib/assets';
-import { checkPerm, getUserRole } from '@/lib/authz';
+import { checkPerm } from '@/lib/authz';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
-  const role = await getUserRole(req);
+  const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
   if (!checkPerm('postDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
-    const companyId = requireCompanyId(req);
     const body = await req.json();
     const year = Number(body.year);
     const month = Number(body.month);

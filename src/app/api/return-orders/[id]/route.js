@@ -18,7 +18,7 @@ export async function GET(request, context) {
   try {
     const companyId = requireCompanyId(request);
     const { id } = await resolveParams(context);
-    const order = await prisma.returnOrder.findUnique({
+    const order = await prisma.returnOrder.findFirst({
       where: { id, companyId },
       include: {
         supplier: { select: { id: true, name: true } },
@@ -119,7 +119,7 @@ export async function PATCH(request, context) {
       );
     }
 
-    const order = await prisma.returnOrder.findUnique({
+    const order = await prisma.returnOrder.findFirst({
       where: { id, companyId },
       select: { id: true },
     });
@@ -129,7 +129,7 @@ export async function PATCH(request, context) {
         { status: 404 }
       );
 
-    const updated = await prisma.returnOrder.update({
+    const updateResult = await prisma.returnOrder.updateMany({
       where: { id, companyId },
       data: {
         status,
@@ -145,6 +145,14 @@ export async function PATCH(request, context) {
           : null,
         notes: notes != null ? String(notes).trim() : undefined,
       },
+    });
+    if (!updateResult.count)
+      return NextResponse.json(
+        { error: "Retour fournisseur introuvable" },
+        { status: 404 }
+      );
+    const updated = await prisma.returnOrder.findFirst({
+      where: { id, companyId },
       include: {
         supplier: { select: { id: true, name: true } },
         purchaseOrder: { select: { id: true, number: true } },

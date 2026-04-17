@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSystemAccounts } from '@/lib/systemAccounts';
 import { requireCompanyId } from '@/lib/tenant';
+import { finalizeBatchToJournal } from '@/lib/journal';
+import { deleteUnreferencedEmptyJournalsForSource } from '@/lib/journalCleanup';
 
 // GET /api/invoices/:id
 // Await context.params to satisfy Next.js dynamic route requirements
@@ -91,6 +93,11 @@ export async function PATCH(request, context) {
       // Delete old lines & transactions
       await tx.transaction.deleteMany({ where: { invoiceId: id } });
       await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
+      await deleteUnreferencedEmptyJournalsForSource(tx, {
+        companyId,
+        sourceType: 'INVOICE',
+        sourceId: id,
+      });
 
       // Update invoice scalar fields
       const inv = await tx.invoice.update({
@@ -107,11 +114,12 @@ export async function PATCH(request, context) {
       });
 
       // Recréer lignes et transactions SALE directement liées sans heuristique
+      const createdTxs = [];
       for (const l of normLines) {
         const lineRec = await tx.invoiceLine.create({
           data: { ...l, invoiceId: id, companyId },
         });
-        await tx.transaction.create({
+        const created = await tx.transaction.create({
           data: {
             companyId,
             nature: 'receipt',
@@ -125,10 +133,11 @@ export async function PATCH(request, context) {
             invoiceLineId: lineRec.id
           }
         });
+        createdTxs.push(created);
       }
       // Créance client
       if (clientAccountId) {
-        await tx.transaction.create({
+        const created = await tx.transaction.create({
           data: {
             companyId,
             nature: 'receipt',
@@ -141,10 +150,11 @@ export async function PATCH(request, context) {
             invoiceId: id
           }
         });
+        createdTxs.push(created);
       }
       // TVA collectée
       if (vatAmount > 0 && vatAccount) {
-        await tx.transaction.create({
+        const created = await tx.transaction.create({
           data: {
             companyId,
             nature: 'receipt',
@@ -157,7 +167,15 @@ export async function PATCH(request, context) {
             invoiceId: id
           }
         });
+        createdTxs.push(created);
       }
+      await finalizeBatchToJournal(tx, {
+        sourceType: 'INVOICE',
+        sourceId: id,
+        date: inv.issueDate || new Date(),
+        description: `Facture ${inv.invoiceNumber}`,
+        transactions: createdTxs,
+      });
       return inv;
     });
     const full = await prisma.invoice.findFirst({

@@ -31,7 +31,7 @@ async function fetchPayrollAccounts(db, companyId = null) {
 }
 
 export async function auditPayrollPeriod(periodId, db = prisma, companyId = null) {
-  const period = await db.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) }, include: { payslips: { include: { lines: true } } } });
+  const period = await db.payrollPeriod.findFirst({ where: { id: periodId, ...(companyId ? { companyId } : {}) }, include: { payslips: { include: { lines: true } } } });
   if (!period) throw new Error('Period not found');
   const scopedCompanyId = period?.companyId || companyId || null;
   const journals = await db.journalEntry.findMany({

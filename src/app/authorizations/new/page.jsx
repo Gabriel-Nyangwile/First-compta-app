@@ -2,6 +2,8 @@ import { createAuthorization } from '@/lib/serverActions/authorization';
 import { redirect } from 'next/navigation';
 import React from 'react';
 import InvoiceLinker from '@/components/authorizations/InvoiceLinker';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 // Note: la logique dynamique facture est gérée côté client dans InvoiceLinker (composant séparé)
 
@@ -15,7 +17,8 @@ async function create(formData) {
   const purpose = formData.get('purpose') || null;
   const invoiceId = formData.get('invoiceId') || null;
   const incomingInvoiceId = formData.get('incomingInvoiceId') || null;
-  await createAuthorization({ docType, flow, scope, amount, currency, purpose, invoiceId, incomingInvoiceId });
+  const companyId = getCompanyIdFromCookies(await cookies());
+  await createAuthorization({ companyId, docType, flow, scope, amount, currency, purpose, invoiceId, incomingInvoiceId });
   redirect('/authorizations');
 }
 

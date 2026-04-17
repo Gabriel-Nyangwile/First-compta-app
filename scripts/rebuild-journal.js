@@ -3,47 +3,184 @@ import { PrismaClient } from '@prisma/client';
 import { nextSequence } from '../src/lib/sequence.js';
 
 const prisma = new PrismaClient();
+const EPSILON = 0.000001;
 
-async function main() {
-  console.log('Rebuilding Journal...');
-  await prisma.$executeRawUnsafe('UPDATE "Transaction" SET "journalEntryId" = NULL WHERE "journalEntryId" IS NOT NULL');
-  await prisma.journalEntry.deleteMany();
-  console.log('Cleared existing journal entries.');
-  const txs = await prisma.transaction.findMany({ orderBy: { date: 'asc' } });
-  console.log(`Loaded ${txs.length} transactions`);
-  const groups = new Map();
-  for (const t of txs) {
-    const key = t.invoiceId || t.incomingInvoiceId || t.moneyMovementId || `MISC:${t.date.toISOString().slice(0,10)}:${t.nature}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(t);
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const getValue = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx >= 0 ? args[idx + 1] : undefined;
+  };
+  const companyId = getValue('--companyId') || null;
+  const all = args.includes('--all');
+  const apply = args.includes('--apply');
+  const dryRun = args.includes('--dry-run') || !apply;
+  if (!companyId && !all) {
+    throw new Error('Usage: node scripts/rebuild-journal.js --companyId <id> [--apply|--dry-run] ou --all [--apply|--dry-run]');
   }
-  console.log(`Group count: ${groups.size}`);
-  let created = 0; let skipped = 0;
-  for (const [key, list] of groups.entries()) {
-    let debit = 0; let credit = 0;
-    for (const l of list) {
-      const amt = Number(l.amount);
-      if (l.direction === 'DEBIT') debit += amt; else if (l.direction === 'CREDIT') credit += amt;
-    }
-    if (debit !== credit) {
-      console.log(`SKIP unbalanced group ${key} debit=${debit} credit=${credit}`);
-      skipped++;
-      continue;
-    }
-    await prisma.$transaction(async(tx) => {
-      let sourceType = 'OTHER'; let sourceId = null;
-      const sample = list[0];
-      if (sample.invoiceId) { sourceType = 'INVOICE'; sourceId = sample.invoiceId; }
-      else if (sample.incomingInvoiceId) { sourceType = 'INCOMING_INVOICE'; sourceId = sample.incomingInvoiceId; }
-      else if (sample.moneyMovementId) { sourceType = 'MONEY_MOVEMENT'; sourceId = sample.moneyMovementId; }
-      const number = await nextSequence(tx, 'JRN', 'JRN-');
-      const je = await tx.journalEntry.create({ data: { number, date: sample.date, sourceType, sourceId, status: 'POSTED' } });
-      await tx.transaction.updateMany({ where: { id: { in: list.map(l => l.id) } }, data: { journalEntryId: je.id } });
-      created++;
-    });
-  }
-  console.log(`Rebuild complete. Created ${created} JournalEntry. Skipped (unbalanced) ${skipped}.`);
-  process.exit(0);
+  return { companyId, all, apply, dryRun };
 }
 
-main().catch(e => { console.error(e); process.exit(1); }).finally(()=>prisma.$disconnect());
+function groupKeyForTransaction(t) {
+  return [
+    t.companyId || 'NO_COMPANY',
+    t.invoiceId || '',
+    t.incomingInvoiceId || '',
+    t.moneyMovementId || '',
+    t.date.toISOString().slice(0, 10),
+    t.nature || '',
+  ].join('|');
+}
+
+function deriveSource(sample) {
+  if (sample.invoiceId) return { sourceType: 'INVOICE', sourceId: sample.invoiceId };
+  if (sample.incomingInvoiceId) return { sourceType: 'INCOMING_INVOICE', sourceId: sample.incomingInvoiceId };
+  if (sample.moneyMovementId) return { sourceType: 'MONEY_MOVEMENT', sourceId: sample.moneyMovementId };
+  return { sourceType: 'OTHER', sourceId: null };
+}
+
+function summarizeGroups(txs) {
+  const groups = new Map();
+  for (const tx of txs) {
+    const key = groupKeyForTransaction(tx);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(tx);
+  }
+
+  const summaries = [];
+  for (const [key, list] of groups.entries()) {
+    let debit = 0;
+    let credit = 0;
+    for (const row of list) {
+      const amount = Number(row.amount);
+      if (row.direction === 'DEBIT') debit += amount;
+      else if (row.direction === 'CREDIT') credit += amount;
+    }
+    const sample = list[0];
+    summaries.push({
+      key,
+      companyId: sample.companyId || null,
+      transactionIds: list.map((item) => item.id),
+      count: list.length,
+      date: sample.date,
+      debit,
+      credit,
+      balanced: Math.abs(debit - credit) <= EPSILON,
+      ...deriveSource(sample),
+    });
+  }
+  return summaries.sort((a, b) => a.date - b.date || a.key.localeCompare(b.key));
+}
+
+async function resolveCompanies({ companyId, all }) {
+  if (companyId) {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, name: true } });
+    if (!company) throw new Error(`companyId introuvable: ${companyId}`);
+    return [company];
+  }
+  const companies = await prisma.company.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  if (!all || !companies.length) return companies;
+  return companies;
+}
+
+async function processCompany(company, dryRun) {
+  const txs = await prisma.transaction.findMany({
+    where: { companyId: company.id },
+    orderBy: { date: 'asc' },
+    select: {
+      id: true,
+      companyId: true,
+      date: true,
+      nature: true,
+      amount: true,
+      direction: true,
+      invoiceId: true,
+      incomingInvoiceId: true,
+      moneyMovementId: true,
+    },
+  });
+
+  const summaries = summarizeGroups(txs);
+  const unbalanced = summaries.filter((item) => !item.balanced);
+  const balanced = summaries.filter((item) => item.balanced);
+
+  const report = {
+    companyId: company.id,
+    companyName: company.name,
+    transactions: txs.length,
+    groups: summaries.length,
+    balancedGroups: balanced.length,
+    unbalancedGroups: unbalanced.length,
+    skippedExamples: unbalanced.slice(0, 10).map((item) => ({
+      key: item.key,
+      debit: item.debit.toFixed(2),
+      credit: item.credit.toFixed(2),
+      count: item.count,
+      sourceType: item.sourceType,
+      sourceId: item.sourceId,
+    })),
+  };
+
+  if (dryRun) return report;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.transaction.updateMany({
+      where: { companyId: company.id, journalEntryId: { not: null } },
+      data: { journalEntryId: null },
+    });
+    await tx.journalEntry.deleteMany({ where: { companyId: company.id } });
+
+    for (const group of balanced) {
+      const number = await nextSequence(tx, 'JRN', 'JRN-', company.id);
+      const je = await tx.journalEntry.create({
+        data: {
+          companyId: company.id,
+          number,
+          date: group.date,
+          sourceType: group.sourceType,
+          sourceId: group.sourceId,
+          status: 'POSTED',
+        },
+      });
+      await tx.transaction.updateMany({
+        where: { id: { in: group.transactionIds }, companyId: company.id },
+        data: { journalEntryId: je.id },
+      });
+    }
+  });
+
+  return report;
+}
+
+async function main() {
+  const { companyId, all, dryRun } = parseArgs(process.argv);
+  const companies = await resolveCompanies({ companyId, all });
+
+  console.log(`Rebuilding journal (${dryRun ? 'dry-run' : 'apply'})...`);
+  const reports = [];
+  for (const company of companies) {
+    const report = await processCompany(company, dryRun);
+    reports.push(report);
+    console.log(
+      `- ${report.companyName} (${report.companyId}) | tx=${report.transactions} groups=${report.groups} balanced=${report.balancedGroups} unbalanced=${report.unbalancedGroups}`
+    );
+    for (const example of report.skippedExamples) {
+      console.log(
+        `  SKIP ${example.key} debit=${example.debit} credit=${example.credit} count=${example.count} source=${example.sourceType}:${example.sourceId || ''}`
+      );
+    }
+  }
+
+  if (dryRun) {
+    console.log('Dry-run complete. Re-run with --apply to modify data.');
+  } else {
+    console.log('Rebuild complete.');
+  }
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

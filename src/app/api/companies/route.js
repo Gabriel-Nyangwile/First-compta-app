@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { checkPerm, getUserRole } from "@/lib/authz";
+import { checkPerm } from "@/lib/authz";
+import { getRequestActor, getRequestRole } from "@/lib/requestAuth";
 
 // GET /api/companies
 export async function GET(req) {
-  const role = await getUserRole(req);
-  if (!checkPerm("manageUsers", role)) {
+  const actor = await getRequestActor(req);
+  const role = await getRequestRole(req);
+  const canSelfCreate = !!actor?.user?.canCreateCompany;
+  if (!checkPerm("createCompany", role) && !canSelfCreate) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (canSelfCreate && !checkPerm("createCompany", role)) {
+    return NextResponse.json({ companies: [], selfServiceCreate: true });
   }
   const companies = await prisma.company.findMany({
     orderBy: { createdAt: "desc" },
@@ -31,8 +37,10 @@ export async function GET(req) {
 
 // POST /api/companies
 export async function POST(req) {
-  const role = await getUserRole(req);
-  if (!checkPerm("manageUsers", role)) {
+  const actor = await getRequestActor(req);
+  const role = await getRequestRole(req);
+  const canSelfCreate = !!actor?.user?.canCreateCompany;
+  if (!checkPerm("createCompany", role) && !canSelfCreate) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await req.json().catch(() => ({}));
@@ -94,5 +102,33 @@ export async function POST(req) {
       createdAt: true,
     },
   });
+  if (actor?.userId) {
+    await prisma.companyMembership.upsert({
+      where: {
+        companyId_userId: {
+          companyId: company.id,
+          userId: actor.userId,
+        },
+      },
+      update: {
+        role: canSelfCreate ? "SUPERADMIN" : role,
+        isActive: true,
+      },
+      create: {
+        companyId: company.id,
+        userId: actor.userId,
+        role: canSelfCreate ? "SUPERADMIN" : role,
+        isActive: true,
+        isDefault: true,
+      },
+    });
+    await prisma.user.update({
+      where: { id: actor.userId },
+      data: {
+        companyId: actor.user?.companyId || company.id,
+        canCreateCompany: false,
+      },
+    });
+  }
   return NextResponse.json({ company }, { status: 201 });
 }

@@ -7,9 +7,9 @@ import { formatAmount, buildInvoiceLink, buildIncomingInvoiceLink } from '@/lib/
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 
-async function doApprove(formData) { 'use server'; const id = formData.get('id'); await authorizeAuthorization(id); redirect(`/authorizations/${id}`); }
-async function doCancel(formData) { 'use server'; const id = formData.get('id'); await cancelAuthorization(id); redirect(`/authorizations/${id}`); }
-async function doExecute(formData) { 'use server'; const id = formData.get('id'); const moneyAccountId = formData.get('moneyAccountId'); await executeAuthorizationViaMovement({ authorizationId: id, moneyAccountId }); redirect(`/authorizations/${id}`); }
+async function doApprove(formData) { 'use server'; const id = formData.get('id'); const companyId = getCompanyIdFromCookies(await cookies()); await authorizeAuthorization(id, companyId); redirect(`/authorizations/${id}`); }
+async function doCancel(formData) { 'use server'; const id = formData.get('id'); const companyId = getCompanyIdFromCookies(await cookies()); await cancelAuthorization(id, companyId); redirect(`/authorizations/${id}`); }
+async function doExecute(formData) { 'use server'; const id = formData.get('id'); const moneyAccountId = formData.get('moneyAccountId'); const companyId = getCompanyIdFromCookies(await cookies()); await executeAuthorizationViaMovement({ authorizationId: id, moneyAccountId, companyId }); redirect(`/authorizations/${id}`); }
 
 export default async function AuthorizationDetailPage({ params }) {
   const { id } = await params;

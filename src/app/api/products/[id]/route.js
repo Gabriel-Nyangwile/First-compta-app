@@ -29,7 +29,7 @@ export async function GET(_req, { params }) {
   }
 
   try {
-    const product = await prisma.product.findUnique({
+    const product = await prisma.product.findFirst({
       where: { id, companyId },
       include: {
         inventoryAccount: { select: { id: true, number: true, label: true } },
@@ -157,7 +157,7 @@ export async function PATCH(_req, { params }) {
 
     let productForValidation = null;
     if (touchesLedgerConfig) {
-      productForValidation = await prisma.product.findUnique({
+      productForValidation = await prisma.product.findFirst({
         where: { id, companyId },
         select: {
           stockNature: true,
@@ -189,9 +189,15 @@ export async function PATCH(_req, { params }) {
       }
     }
 
-    const updated = await prisma.product.update({
+    const result = await prisma.product.updateMany({
       where: { id, companyId },
       data,
+    });
+    if (!result.count) {
+      return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+    }
+    const updated = await prisma.product.findFirst({
+      where: { id, companyId },
       include: {
         inventoryAccount: { select: { id: true, number: true, label: true } },
         stockVariationAccount: {
@@ -218,7 +224,10 @@ export async function DELETE(_req, { params }) {
   const { id } = p;
   try {
     // Attempt delete; will throw if FK constraints
-    await prisma.product.delete({ where: { id, companyId } });
+    const deleted = await prisma.product.deleteMany({ where: { id, companyId } });
+    if (!deleted.count) {
+      return NextResponse.json({ error: "Produit introuvable." }, { status: 404 });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === "P2003" || e.code === "P2014") {

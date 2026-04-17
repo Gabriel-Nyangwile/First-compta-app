@@ -27,7 +27,7 @@ export async function POST(request, rawContext) {
     const acceptHeader = request.headers.get("accept") || "";
     const expectsHtml = acceptHeader.includes("text/html");
 
-    const po = await prisma.purchaseOrder.findUnique({
+    const po = await prisma.purchaseOrder.findFirst({
       where: { id, companyId },
       include: { lines: true },
     });
@@ -60,10 +60,13 @@ export async function POST(request, rawContext) {
       return NextResponse.json({ message: "Déjà fermé." });
     }
     const updated = await prisma.$transaction(async (tx) => {
-      const up = await tx.purchaseOrder.update({
+      const upResult = await tx.purchaseOrder.updateMany({
         where: { id, companyId },
         data: { status: "CLOSED" },
       });
+      if (!upResult.count) {
+        throw new Error("Bon de commande introuvable.");
+      }
       await tx.purchaseOrderStatusLog.create({
         data: {
           companyId,
@@ -79,7 +82,7 @@ export async function POST(request, rawContext) {
         action: "CLOSE",
         data: { from: po.status, to: "CLOSED" },
       });
-      return up;
+      return tx.purchaseOrder.findFirst({ where: { id, companyId } });
     });
     if (expectsHtml) {
       const redirectUrl = new URL(

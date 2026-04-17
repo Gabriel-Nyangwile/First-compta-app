@@ -1,4 +1,5 @@
 import prisma from "../src/lib/prisma.js";
+import { deleteUnreferencedEmptyJournalsByIds } from "../src/lib/journalCleanup.js";
 
 const TX_KINDS = [
   "CAPITAL_SUBSCRIPTION",
@@ -17,42 +18,51 @@ const TX_KINDS = [
  *   node --env-file=.env.local scripts/purge-capital.js --force
  */
 async function main() {
-  if (!process.argv.includes("--force")) {
-    console.error("Sécurité : ajoute --force pour exécuter la purge.");
+  const companyIdArgIndex = process.argv.indexOf("--companyId");
+  const companyId = companyIdArgIndex >= 0 ? process.argv[companyIdArgIndex + 1] : (process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || null);
+  const dryRun = !process.argv.includes("--apply");
+  if (!companyId) {
+    console.error("companyId requis (--companyId ou DEFAULT_COMPANY_ID).");
+    process.exit(1);
+  }
+  if (!dryRun && !process.argv.includes("--force")) {
+    console.error("Sécurité : ajoute --apply --force pour exécuter la purge.");
     process.exit(1);
   }
 
-  console.log("Purge capital : démarrage...");
+  console.log(`Purge capital : démarrage... dryRun=${dryRun} companyId=${companyId}`);
 
   // 1) Transactions CAPITAL_*
   const txns = await prisma.transaction.findMany({
-    where: { kind: { in: TX_KINDS } },
+    where: { kind: { in: TX_KINDS }, companyId },
     select: { id: true, journalEntryId: true },
   });
   const txnIds = txns.map((t) => t.id);
   const jeIds = [...new Set(txns.map((t) => t.journalEntryId).filter(Boolean))];
-  if (txnIds.length) {
+  if (dryRun) {
+    console.log(`Would delete transactions=${txnIds.length}, journals=${jeIds.length}`);
+  } else if (txnIds.length) {
     await prisma.transaction.deleteMany({ where: { id: { in: txnIds } } });
-  }
-  if (jeIds.length) {
-    await prisma.journalEntry.deleteMany({ where: { id: { in: jeIds } } });
+    if (jeIds.length) {
+      await deleteUnreferencedEmptyJournalsByIds(prisma, jeIds, companyId);
+    }
   }
   console.log(`Transactions supprimées : ${txnIds.length}, Journaux supprimés : ${jeIds.length}`);
 
   // 2) Paiements d'appels
-  const payments = await prisma.capitalPayment.deleteMany({});
+  const payments = dryRun ? { count: await prisma.capitalPayment.count({ where: { companyId } }) } : await prisma.capitalPayment.deleteMany({ where: { companyId } });
   console.log(`Paiements supprimés : ${payments.count}`);
 
   // 3) Appels de fonds
-  const calls = await prisma.capitalCall.deleteMany({});
+  const calls = dryRun ? { count: await prisma.capitalCall.count({ where: { companyId } }) } : await prisma.capitalCall.deleteMany({ where: { companyId } });
   console.log(`Appels supprimés : ${calls.count}`);
 
   // 4) Souscriptions
-  const subs = await prisma.capitalSubscription.deleteMany({});
+  const subs = dryRun ? { count: await prisma.capitalSubscription.count({ where: { companyId } }) } : await prisma.capitalSubscription.deleteMany({ where: { companyId } });
   console.log(`Souscriptions supprimées : ${subs.count}`);
 
   // 5) Opérations de capital
-  const ops = await prisma.capitalOperation.deleteMany({});
+  const ops = dryRun ? { count: await prisma.capitalOperation.count({ where: { companyId } }) } : await prisma.capitalOperation.deleteMany({ where: { companyId } });
   console.log(`Opérations supprimées : ${ops.count}`);
 
   console.log("Purge capital terminée.");

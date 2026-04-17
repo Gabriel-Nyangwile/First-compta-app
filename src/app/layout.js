@@ -61,6 +61,7 @@ export default function RootLayout({ children }) {
       "/auth/signin",
       "/auth/signup",
       "/admin/companies",
+      "/company-request",
     ];
     const isAllowed = allowIfNoCompany.some((p) => pathname === p || pathname.startsWith(p + "?"));
     const isNewFlow = companyId === "NEW" || pendingCompanyId === "NEW";

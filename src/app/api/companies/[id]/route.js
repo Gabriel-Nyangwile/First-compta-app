@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { checkPerm, getUserRole } from "@/lib/authz";
+import { checkPerm } from "@/lib/authz";
+import { getRequestRole } from "@/lib/requestAuth";
 
 export async function PATCH(req, { params }) {
-  const role = await getUserRole(req);
-  if (!checkPerm("manageUsers", role)) {
+  const role = await getRequestRole(req);
+  if (!checkPerm("createCompany", role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = params;

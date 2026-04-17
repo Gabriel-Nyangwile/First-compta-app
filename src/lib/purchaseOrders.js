@@ -17,7 +17,7 @@ export async function approvePurchaseOrder(id, companyId) {
     throw new PurchaseOrderApprovalError("companyId manquant.", 400);
   }
 
-  const po = await prisma.purchaseOrder.findUnique({
+  const po = await prisma.purchaseOrder.findFirst({
     where: { id, companyId },
     select: { id: true, status: true }
   });
@@ -31,10 +31,13 @@ export async function approvePurchaseOrder(id, companyId) {
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const next = await tx.purchaseOrder.update({
+    const nextResult = await tx.purchaseOrder.updateMany({
       where: { id, companyId },
       data: { status: 'APPROVED' }
     });
+    if (!nextResult.count) {
+      throw new PurchaseOrderApprovalError('Bon de commande introuvable.', 404);
+    }
 
     await tx.purchaseOrderStatusLog.create({
       data: {
@@ -47,13 +50,14 @@ export async function approvePurchaseOrder(id, companyId) {
     });
 
     await audit(tx, {
+      companyId,
       entityType: 'PurchaseOrder',
       entityId: id,
       action: 'APPROVE',
       data: { from: po.status, to: 'APPROVED' }
     });
 
-    return next;
+    return tx.purchaseOrder.findFirst({ where: { id, companyId } });
   });
 
   return updated;

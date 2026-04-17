@@ -77,9 +77,20 @@ export async function PUT(req, { params }) {
 export async function DELETE(_req, { params }) {
   const companyId = requireCompanyId(_req);
   const { id } = params;
-  // Vérifier factures reçues ou transactions liées avant suppression (simplifié: si incomingInvoices existent, blocage)
-  const used = await prisma.incomingInvoice.findFirst({ where: { supplierId: id, companyId }, select: { id: true } });
-  if (used) return NextResponse.json({ error: 'Fournisseur lié à des factures reçues' }, { status: 400 });
+  const [incomingInvoiceUse, transactionUse, moneyMovementUse, goodsReceiptUse, purchaseOrderUse, returnOrderUse] = await Promise.all([
+    prisma.incomingInvoice.findFirst({ where: { supplierId: id, companyId }, select: { id: true } }),
+    prisma.transaction.findFirst({ where: { supplierId: id, companyId }, select: { id: true } }),
+    prisma.moneyMovement.findFirst({ where: { supplierId: id, companyId }, select: { id: true } }),
+    prisma.goodsReceipt.findFirst({ where: { supplierId: id, companyId }, select: { id: true } }),
+    prisma.purchaseOrder.findFirst({ where: { supplierId: id, companyId }, select: { id: true } }),
+    prisma.returnOrder.findFirst({ where: { supplierId: id, companyId }, select: { id: true } }),
+  ]);
+  if (incomingInvoiceUse || transactionUse || moneyMovementUse || goodsReceiptUse || purchaseOrderUse || returnOrderUse) {
+    return NextResponse.json(
+      { error: 'Suppression interdite: fournisseur déjà utilisé dans des pièces ou écritures.' },
+      { status: 409 }
+    );
+  }
   await prisma.supplier.delete({ where: { id, companyId } });
   return NextResponse.json({ ok: true });
 }

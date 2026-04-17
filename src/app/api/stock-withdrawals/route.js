@@ -181,8 +181,8 @@ export async function POST(request) {
 
     const created = await prisma.$transaction(async (tx) => {
       if (requestedById) {
-        const requester = await tx.user.findUnique({
-          where: { id: requestedById },
+        const requester = await tx.user.findFirst({
+          where: { id: requestedById, companyId },
           select: { id: true },
         });
         if (!requester) {

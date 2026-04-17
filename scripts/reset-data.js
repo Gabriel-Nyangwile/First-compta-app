@@ -17,6 +17,7 @@
  *   RESET_CONFIRM=YES node scripts/reset-data.js --full
  */
 import prisma from '../src/lib/prisma.js';
+import { deleteUnreferencedEmptyJournals } from '../src/lib/journalCleanup.js';
 
 const args = process.argv.slice(2);
 const isFull = args.includes('--full');
@@ -46,6 +47,7 @@ async function main() {
   const steps = [];
   // Core accounting & treasury first
   steps.push(await timed('transaction.deleteMany', () => prisma.transaction.deleteMany()));
+  steps.push(await timed('journalEntry.deleteMany(unreferenced-empty)', () => deleteUnreferencedEmptyJournals(prisma)));
   steps.push(await timed('paymentInvoiceLink.deleteMany', () => prisma.paymentInvoiceLink.deleteMany()));
   steps.push(await timed('payment.deleteMany', () => prisma.payment.deleteMany()));
   // Stock & purchasing dependent movements (remove before lines referencing them)

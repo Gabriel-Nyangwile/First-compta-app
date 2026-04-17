@@ -5,6 +5,8 @@ import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getPaymentDays } from '@/lib/validation/client';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 
 // getPaymentDays maintenant centralisé dans lib/validation/client.js
@@ -18,6 +20,7 @@ import { getPaymentDays } from '@/lib/validation/client';
 
 // Méthode pour créer une facture
 export async function createInvoice(formData) {
+  const companyId = getCompanyIdFromCookies(await cookies());
   const invoiceNumber = formData.get('invoiceNumber');
   const totalAmount = parseFloat(formData.get('totalAmount'));
   const clientId = formData.get('clientId');
@@ -30,8 +33,8 @@ export async function createInvoice(formData) {
   }
 
   // --- NOUVEAU : Récupérer le client pour sa catégorie ---
-  const client = await prisma.client.findUnique({
-    where: { id: clientId },
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, ...(companyId ? { companyId } : {}) },
     select: { category: true }, // Ne récupérer que la catégorie
   });
 
@@ -53,6 +56,7 @@ export async function createInvoice(formData) {
     await prisma.invoice.create({
       data: {
         invoiceNumber,
+        companyId,
         totalAmount,
         clientId,
         //issueDate est commenté car défaut @default(now())
@@ -74,6 +78,7 @@ export async function createInvoice(formData) {
 
 // Méthode pour récupérer les clients et les factures
 export async function fetchClientsAndInvoices(filters = {}) {
+  const companyId = filters.companyId || getCompanyIdFromCookies(await cookies());
 
   const {
     query,
@@ -86,6 +91,7 @@ export async function fetchClientsAndInvoices(filters = {}) {
 
   // Construction dynamique des conditions where
   const whereClause = {
+    ...(companyId ? { companyId } : {}),
     //Filtrage par statut
     ...(status && status !== 'ALL' && {status: status === 'OVERDUE' ? 'PENDING' : status}),
     //Filtrage par client
@@ -185,6 +191,7 @@ export async function fetchClientsAndInvoices(filters = {}) {
 
   // On récupère les clients séparément (sans filtres sur les factures)
   const clientsList = await prisma.client.findMany({
+    where: { ...(companyId ? { companyId } : {}) },
     orderBy: {
       name: 'asc',
     },
@@ -198,6 +205,7 @@ export async function fetchClientsAndInvoices(filters = {}) {
 
 // Nouvelle méthode pour mettre à jour le statut d'une facture
 export async function updateInvoiceStatus(formData) {
+  const companyId = getCompanyIdFromCookies(await cookies());
   const invoiceId = formData.get('invoiceId');
   const newStatus = formData.get('newStatus');//'PAID', 'PENDING', 'PARTIAL' (OVERDUE is derived only)
 
@@ -214,6 +222,7 @@ export async function updateInvoiceStatus(formData) {
     await prisma.invoice.update({
       where: {
         id: invoiceId,
+        ...(companyId ? { companyId } : {}),
       },
       data: {
         status: newStatus, // Met à jour le statut avec la nouvelle valeur

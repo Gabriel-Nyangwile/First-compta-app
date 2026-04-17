@@ -1,59 +1,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const roles = [
-  { value: "VIEWER", label: "Viewer (lecture seule)" },
-  { value: "ACCOUNTANT", label: "Comptable" },
-  { value: "FINANCE_MANAGER", label: "Responsable finance" },
-  { value: "PROCUREMENT", label: "Achats" },
-  { value: "SALES", label: "Ventes" },
-  { value: "HR_MANAGER", label: "RH / Manager" },
-  { value: "PAYROLL_CLERK", label: "Paie" },
-  { value: "TREASURY", label: "Trésorerie" },
-  { value: "SUPERADMIN", label: "Super admin" },
-];
-
 export default function SignupForm() {
-  const [form, setForm] = useState({ username: "", email: "", password: "", role: "VIEWER" });
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [companies, setCompanies] = useState([]);
-  const [pendingCompanyId, setPendingCompanyId] = useState("");
   const router = useRouter();
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadCompanies() {
-      try {
-        const res = await fetch("/api/companies/public", { cache: "no-store" });
-        const data = await res.json();
-        if (!cancelled) setCompanies(data.companies || []);
-      } catch {
-        if (!cancelled) setCompanies([]);
-      }
-    }
-    const saved = localStorage.getItem("pendingCompanyId") || "";
-    setPendingCompanyId(saved);
-    loadCompanies();
-    return () => { cancelled = true; };
-  }, []);
-
-  function setPending(id) {
-    setPendingCompanyId(id);
-    try {
-      localStorage.setItem("pendingCompanyId", id);
-    } catch {}
-    document.cookie = `pending-company-id=${encodeURIComponent(id)}; path=/`;
-  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setSuccess("");
-    if (!pendingCompanyId) {
-      setError("Sélectionnez la société (existante ou nouvelle) avant de vous inscrire.");
-      return;
-    }
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,18 +18,12 @@ export default function SignupForm() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error || "Erreur inconnue (vérifiez le jeton d'admin)");
+      setError(data.error || "Erreur inconnue");
     } else {
-      setSuccess("Inscription réussie !");
-      setForm({ username: "", email: "", password: "", role: "VIEWER" });
+      setSuccess(data.message || "Demande d'inscription envoyée.");
+      setForm({ username: "", email: "", password: "" });
       setTimeout(() => {
-        if (pendingCompanyId === "NEW") {
-          document.cookie = "company-id=NEW; path=/";
-          router.push("/admin/companies?create=1");
-        } else {
-          document.cookie = `company-id=${encodeURIComponent(pendingCompanyId)}; path=/`;
-          router.push('/auth/signin');
-        }
+        router.push('/auth/signin');
       }, 1500);
     }
   }
@@ -90,22 +41,9 @@ export default function SignupForm() {
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto p-6 bg-white">
       <h2 className="text-xl text-center font-bold mb-10">Inscription</h2>
-      <label htmlFor="companyPick" className="f-label">Société</label>
-      <select
-        id="companyPick"
-        className="f-auth-input"
-        value={pendingCompanyId}
-        onChange={(e) => setPending(e.target.value)}
-        required
-      >
-        <option value="">-- Choisir --</option>
-        {companies.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name} {c.legalForm ? `(${c.legalForm})` : ""}
-          </option>
-        ))}
-        <option value="NEW">Nouvelle société</option>
-      </select>
+      <p className="text-sm text-gray-600 mb-6">
+        L'inscription crée une demande d'accès. Un PLATFORM_ADMIN doit approuver votre compte avant votre première connexion.
+      </p>
       <label 
             htmlFor="userName"
             className='f-label'>Nom ou pseudo</label>
@@ -145,18 +83,6 @@ export default function SignupForm() {
         className="f-auth-input"
         required
       />
-      <label htmlFor="role" className="f-label">Rôle</label>
-      <select
-        id="role"
-        name="role"
-        className="f-auth-input"
-        value={form.role}
-        onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-      >
-        {roles.map(r => (
-          <option key={r.value} value={r.value}>{r.label}</option>
-        ))}
-      </select>
       <button 
         type="submit" className="w-full bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 my-10 rounded font-semibold">S'inscrire</button>
       <a 

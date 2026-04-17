@@ -173,7 +173,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
   const { accountNumber, dryRun, employeeId, companyId, liabilityCode = 'NET_PAY' } = opts;
   const config = getPayrollSettlementConfig(liabilityCode);
   const scopedCompanyId = companyId || null;
-  const period = await prisma.payrollPeriod.findUnique({
+  const period = await prisma.payrollPeriod.findFirst({
     where: { id: periodId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
     include: { payslips: { include: { lines: true } } },
   });

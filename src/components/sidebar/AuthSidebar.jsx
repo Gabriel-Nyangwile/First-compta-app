@@ -438,7 +438,7 @@ export default function AuthSidebar() {
       ]
     : GROUPS;
   const normalizedRole = (role || "").toString().toUpperCase();
-  const isSuperAdmin = normalizedRole === "SUPERADMIN";
+  const isSuperAdmin = normalizedRole === "SUPERADMIN" || normalizedRole === "PLATFORM_ADMIN";
   const visibleGroups = allGroups
     .filter((g) => (g.key === "admin" ? isSuperAdmin : true))
     .map((g) => ({

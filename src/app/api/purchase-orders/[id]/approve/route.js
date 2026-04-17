@@ -25,7 +25,7 @@ export async function POST(request, rawContext) {
       );
     }
     // Inline approval to avoid any module resolution issues
-    const po = await prisma.purchaseOrder.findUnique({
+    const po = await prisma.purchaseOrder.findFirst({
       where: { id, companyId },
       select: { id: true, status: true },
     });
@@ -42,10 +42,13 @@ export async function POST(request, rawContext) {
       );
     }
     const updated = await prisma.$transaction(async (tx) => {
-      const next = await tx.purchaseOrder.update({
+      const nextResult = await tx.purchaseOrder.updateMany({
         where: { id, companyId },
         data: { status: "APPROVED" },
       });
+      if (!nextResult.count) {
+        throw new Error("Bon de commande introuvable.");
+      }
       await tx.purchaseOrderStatusLog.create({
         data: {
           companyId,
@@ -66,7 +69,7 @@ export async function POST(request, rawContext) {
       } catch (_) {
         // ignore audit failures in API path
       }
-      return next;
+      return tx.purchaseOrder.findFirst({ where: { id, companyId } });
     });
 
     const acceptHeader = request.headers.get("accept") || "";

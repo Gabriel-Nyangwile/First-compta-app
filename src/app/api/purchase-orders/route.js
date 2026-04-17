@@ -113,8 +113,8 @@ export async function POST(request) {
       });
       return po.id;
     });
-    const full = await prisma.purchaseOrder.findUnique({
-      where: { id: poId },
+    const full = await prisma.purchaseOrder.findFirst({
+      where: { id: poId, companyId },
       include: { supplier: true, lines: { include: { product: true } } },
     });
     return NextResponse.json(full, { status: 201 });

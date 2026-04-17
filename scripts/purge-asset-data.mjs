@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import prisma from '../src/lib/prisma.js';
+import { deleteUnreferencedEmptyJournalsByIds } from '../src/lib/journalCleanup.js';
 
 function safeStringify(obj){
   return JSON.stringify(obj, (k,v)=>{
@@ -12,10 +13,14 @@ function safeStringify(obj){
 }
 
 function argFlag(name){ return process.argv.includes(name); }
+function argValue(name){
+  const idx = process.argv.indexOf(name);
+  return idx >= 0 ? process.argv[idx + 1] : undefined;
+}
 
 async function main(){
-  const dryRun = argFlag('--dry-run') || true; // default to dry-run
-  const companyId = process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || null;
+  const dryRun = !argFlag('--apply');
+  const companyId = argValue('--companyId') || process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || null;
   if(!companyId){ console.error('DEFAULT_COMPANY_ID requis'); process.exit(1); }
 
   const outDir = path.resolve('backups', `purge-asset-dryrun-${Date.now()}`);
@@ -77,7 +82,7 @@ async function main(){
       if(transactionIds.length) await tx.transaction.deleteMany({ where: { id: { in: transactionIds } } });
       if(depreciationLineIds.length) await tx.depreciationLine.deleteMany({ where: { id: { in: depreciationLineIds } } });
       if(disposalIds.length) await tx.assetDisposal.deleteMany({ where: { id: { in: disposalIds } } });
-      if(assetJournalIds.length) await tx.journalEntry.deleteMany({ where: { id: { in: assetJournalIds } } });
+      if(assetJournalIds.length) await deleteUnreferencedEmptyJournalsByIds(tx, assetJournalIds, companyId);
       if(assetIds.length) await tx.asset.deleteMany({ where: { id: { in: assetIds } } });
       if(categoryIds.length) await tx.assetCategory.deleteMany({ where: { id: { in: categoryIds } } });
     });

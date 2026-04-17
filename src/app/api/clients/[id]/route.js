@@ -36,14 +36,28 @@ export async function DELETE(req, { params }) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
   try {
-    // Récupérer le client et son compte
+    // Récupérer le client et vérifier s'il existe
     const client = await prisma.client.findUnique({
       where: { id, companyId },
-      select: { accountId: true },
+      select: { id: true, accountId: true },
     });
     if (!client) {
       return NextResponse.json({ error: 'Client introuvable' }, { status: 404 });
     }
+
+    const [invoiceUse, transactionUse, moneyMovementUse, salesOrderUse] = await Promise.all([
+      prisma.invoice.findFirst({ where: { clientId: id, companyId }, select: { id: true } }),
+      prisma.transaction.findFirst({ where: { clientId: id, companyId }, select: { id: true } }),
+      prisma.moneyMovement.findFirst({ where: { invoice: { clientId: id, companyId }, companyId }, select: { id: true } }),
+      prisma.salesOrder.findFirst({ where: { clientId: id, companyId }, select: { id: true } }),
+    ]);
+    if (invoiceUse || transactionUse || moneyMovementUse || salesOrderUse) {
+      return NextResponse.json(
+        { error: 'Suppression interdite: client déjà utilisé dans des pièces ou écritures.' },
+        { status: 409 }
+      );
+    }
+
     const accountId = client.accountId;
     // Supprimer le client
     await prisma.client.delete({ where: { id, companyId } });

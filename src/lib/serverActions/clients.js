@@ -6,8 +6,8 @@ import { matchClientPayment } from "@/lib/lettering/matchClientPayment";
 export async function matchClientPaymentAction({ movementId, companyId }) {
   if (!movementId) throw new Error("movementId requis");
 
-  const movement = await prisma.moneyMovement.findUnique({
-    where: companyId ? { id: movementId, companyId } : { id: movementId },
+  const movement = await prisma.moneyMovement.findFirst({
+    where: { id: movementId, ...(companyId ? { companyId } : {}) },
     select: {
       id: true,
       kind: true,
@@ -19,6 +19,6 @@ export async function matchClientPaymentAction({ movementId, companyId }) {
     throw new Error("Lettrage client seulement disponible sur les encaissements clients");
   }
 
-  const result = await matchClientPayment({ movementId });
+  const result = await matchClientPayment({ movementId, companyId });
   return result;
 }

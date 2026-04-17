@@ -1,5 +1,6 @@
 import prisma from "../src/lib/prisma.js";
 import { createJournalEntry } from "../src/lib/journal.js";
+import { deleteUnreferencedEmptyJournalsByIds } from "../src/lib/journalCleanup.js";
 
 const ACC_109 = "109000";
 const ACC_1011 = "101100";
@@ -18,27 +19,33 @@ async function resolveAccountId(tx, number) {
  * Usage : node --env-file=.env.local scripts/repost-capital-subscriptions.js
  */
 async function main() {
-  const subs = await prisma.capitalSubscription.findMany();
-  console.log(`Repost de ${subs.length} souscriptions...`);
+  const companyIdArgIndex = process.argv.indexOf("--companyId");
+  const companyId = companyIdArgIndex >= 0 ? process.argv[companyIdArgIndex + 1] : (process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || null);
+  const dryRun = !process.argv.includes("--apply");
+  if (!companyId) throw new Error('companyId requis (--companyId ou DEFAULT_COMPANY_ID)');
+  const subs = await prisma.capitalSubscription.findMany({ where: { companyId } });
+  console.log(`Repost de ${subs.length} souscriptions... dryRun=${dryRun} companyId=${companyId}`);
 
   for (const sub of subs) {
     await prisma.$transaction(async (tx) => {
       // Purge transactions/JE existants
       const txns = await tx.transaction.findMany({
-        where: { kind: "CAPITAL_SUBSCRIPTION", description: { contains: sub.id } },
+        where: { kind: "CAPITAL_SUBSCRIPTION", description: { contains: sub.id }, companyId },
       });
       const txnIds = txns.map((t) => t.id);
       const jeIds = [...new Set(txns.map((t) => t.journalEntryId).filter(Boolean))];
-      if (txnIds.length) await tx.transaction.deleteMany({ where: { id: { in: txnIds } } });
-      if (jeIds.length) await tx.journalEntry.deleteMany({ where: { id: { in: jeIds } } });
+      if (!dryRun && txnIds.length) await tx.transaction.deleteMany({ where: { id: { in: txnIds } } });
+      if (!dryRun && jeIds.length) await deleteUnreferencedEmptyJournalsByIds(tx, jeIds, companyId);
 
       const amt = Number(sub.nominalAmount || 0);
       if (!(amt > 0)) return;
       const acc109 = await resolveAccountId(tx, ACC_109);
       const acc1011 = await resolveAccountId(tx, ACC_1011);
+      if (dryRun) return;
       const date = new Date();
       const debit = await tx.transaction.create({
         data: {
+          companyId,
           date,
           description: `Capital souscrit non appelé ${sub.id}`,
           amount: amt,
@@ -49,6 +56,7 @@ async function main() {
       });
       const credit = await tx.transaction.create({
         data: {
+          companyId,
           date,
           description: `Capital souscrit non appelé ${sub.id}`,
           amount: amt,

@@ -17,10 +17,10 @@ const toDecimal = (value) => {
 
 const approxEqual = (a, b) => a.minus(b).abs().lte(TOLERANCE);
 
-const collectGroupTransactions = async (letterRef) => {
+const collectGroupTransactions = async (letterRef, companyId = null) => {
   if (!letterRef) return [];
   return prisma.transaction.findMany({
-    where: { letterRef },
+    where: { letterRef, ...(companyId ? { companyId } : {}) },
     select: {
       id: true,
       amount: true,
@@ -32,12 +32,12 @@ const collectGroupTransactions = async (letterRef) => {
   });
 };
 
-export async function matchClientPayment({ movementId }) {
+export async function matchClientPayment({ movementId, companyId = null }) {
   if (!movementId) throw new Error("movementId requis");
 
   // Only consider 411xxx and 52x/53x/57x accounts
-  const movement = await prisma.moneyMovement.findUnique({
-    where: { id: movementId },
+  const movement = await prisma.moneyMovement.findFirst({
+    where: { id: movementId, ...(companyId ? { companyId } : {}) },
     include: {
       transactions: {
         where: {
@@ -84,7 +84,7 @@ export async function matchClientPayment({ movementId }) {
 
   const existingRef = transactions[0].letterRef;
   if (existingRef) {
-    const related = await collectGroupTransactions(existingRef);
+    const related = await collectGroupTransactions(existingRef, companyId);
     const mismatched = related.find(
       (tx) => !approxEqual(toDecimal(tx.amount), toDecimal(tx.letteredAmount))
     );
@@ -112,7 +112,7 @@ export async function matchClientPayment({ movementId }) {
   await prisma.$transaction(async (client) => {
     for (const update of updates) {
       await client.transaction.update({
-        where: { id: update.id },
+        where: { id: update.id, ...(companyId ? { companyId } : {}) },
         data: update.data,
       });
     }

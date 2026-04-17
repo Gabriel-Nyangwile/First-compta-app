@@ -36,6 +36,7 @@
  *   STOCK_PURGE_CONFIRM=YES node scripts/purge-stock-domain.js --basic
  */
 import prisma from '../src/lib/prisma.js';
+import { deleteUnreferencedEmptyJournals } from '../src/lib/journalCleanup.js';
 
 const args = process.argv.slice(2);
 const isFull = args.includes('--full');
@@ -76,6 +77,7 @@ async function basicPhase() {
         })
     )
   );
+  steps.push(await opt('journalEntry.deleteMany(unreferenced-empty)', () => deleteUnreferencedEmptyJournals(prisma)));
   // Remise à zéro ProductInventory
   const invReset = await prisma.productInventory.updateMany({ data:{ qtyOnHand: '0', qtyStaged: '0', avgCost: null } });
   steps.push({ label:'productInventory.updateMany(reset)', ms:0, res:invReset });
@@ -90,6 +92,7 @@ async function fullPhase() {
   // Lignes & documents réception
   steps.push(await opt('goodsReceiptLine.deleteMany', () => prisma.goodsReceiptLine.deleteMany()));
   steps.push(await opt('goodsReceipt.deleteMany', () => prisma.goodsReceipt.deleteMany()));
+  steps.push(await opt('journalEntry.deleteMany(unreferenced-empty)', () => deleteUnreferencedEmptyJournals(prisma)));
   // Lignes & documents retour
   steps.push(await opt('returnOrderLine.deleteMany', () => prisma.returnOrderLine.deleteMany()));
   steps.push(await opt('returnOrder.deleteMany', () => prisma.returnOrder.deleteMany()));

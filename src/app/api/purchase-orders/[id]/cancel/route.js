@@ -34,7 +34,7 @@ export async function POST(_request, rawContext) {
     const updated = await prisma.$transaction(async (tx) => {
       const up = await tx.purchaseOrder.update({ where: { id, companyId }, data: { status: 'CANCELLED' } });
       await tx.purchaseOrderStatusLog.create({ data: { companyId, purchaseOrderId: id, oldStatus: po.status, newStatus: 'CANCELLED', note: 'Annulation manuelle' } });
-      await audit(tx, { entityType: 'PurchaseOrder', entityId: id, action: 'CANCEL', data: { from: po.status, to: 'CANCELLED' } });
+      await audit(tx, { companyId, entityType: 'PurchaseOrder', entityId: id, action: 'CANCEL', data: { from: po.status, to: 'CANCELLED' } });
       return up;
     });
     return NextResponse.json(updated, { status: 200 });

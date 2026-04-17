@@ -31,7 +31,7 @@ export async function GET(_request, context) {
         { status: 400 }
       );
     }
-    const po = await prisma.purchaseOrder.findUnique({
+    const po = await prisma.purchaseOrder.findFirst({
       where: { id, companyId },
       include: {
         supplier: true,

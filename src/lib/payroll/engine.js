@@ -199,22 +199,23 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
 }
 
 export async function recalculatePayslip(payslipId, companyId = null) {
-  const p = await prisma.payslip.findUnique({
+  const p = await prisma.payslip.findFirst({
     where: { id: payslipId, ...(companyId ? { companyId } : {}) },
     include: { employee: { include: { position: { include: { bareme: true } } }, costAllocations: true } },
   });
   if (!p) throw new Error('Payslip not found');
   // Load period for FX context
-  const period = await prisma.payrollPeriod.findUnique({ where: { id: p.periodId, ...(companyId ? { companyId } : {}) } });
+  const scopedCompanyId = companyId || p.companyId || null;
+  const period = await prisma.payrollPeriod.findFirst({ where: { id: p.periodId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
   const res = await calculatePayslipForEmployee(p.employee, period);
   // Replace non-manual lines (in v1: replace all)
   await prisma.$transaction(async (tx) => {
-    await tx.payslipLine.deleteMany({ where: { payslipId } });
-    await tx.payslip.update({ where: { id: payslipId }, data: { grossAmount: res.grossAmount, netAmount: res.netAmount } });
+    await tx.payslipLine.deleteMany({ where: { payslipId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
+    await tx.payslip.update({ where: { id: payslipId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, data: { grossAmount: res.grossAmount, netAmount: res.netAmount } });
     for (const [i, l] of res.lines.entries()) {
       await tx.payslipLine.create({ data: { payslipId, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
     }
-    await tx.payslipCostAllocation.deleteMany({ where: { payslipId } });
+    await tx.payslipCostAllocation.deleteMany({ where: { payslipId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
     const allocs = p.employee?.costAllocations?.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) })) || [];
     const direct = res.variableAllocations?.map(v => ({ costCenterId: v.costCenterId, amount: v.amount })) || [];
     if (allocs.length || direct.length) {
@@ -228,8 +229,9 @@ export async function recalculatePayslip(payslipId, companyId = null) {
 }
 
 export async function generatePayslipsForPeriod(periodId, companyId = null) {
-  const period = await prisma.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
+  const period = await prisma.payrollPeriod.findFirst({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
   if (!period) throw new Error('Period not found');
+  const scopedCompanyId = companyId || period.companyId || null;
   const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE', ...(companyId ? { companyId } : {}) }, include: { position: { include: { bareme: true } }, costAllocations: true } });
   const results = [];
   await prisma.$transaction(async (tx) => {
@@ -237,23 +239,23 @@ export async function generatePayslipsForPeriod(periodId, companyId = null) {
       // Upsert payslip
       const existing = await tx.payslip.findFirst({ where: { employeeId: e.id, periodId } });
       const ps = existing || await (async () => {
-        const ref = await nextSequence(tx, 'PAYSLIP', 'PSL-', companyId);
-        return tx.payslip.create({ data: { companyId: companyId || null, employeeId: e.id, periodId, ref, grossAmount: 0, netAmount: 0 } });
+        const ref = await nextSequence(tx, 'PAYSLIP', 'PSL-', scopedCompanyId);
+        return tx.payslip.create({ data: { companyId: scopedCompanyId, employeeId: e.id, periodId, ref, grossAmount: 0, netAmount: 0 } });
       })();
       const calc = await calculatePayslipForEmployee(e, period);
       // Reset lines
       await tx.payslipLine.deleteMany({ where: { payslipId: ps.id } });
-      await tx.payslip.update({ where: { id: ps.id }, data: { grossAmount: calc.grossAmount, netAmount: calc.netAmount } });
+      await tx.payslip.update({ where: { id: ps.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, data: { grossAmount: calc.grossAmount, netAmount: calc.netAmount } });
       for (const [i, l] of calc.lines.entries()) {
         await tx.payslipLine.create({ data: { companyId: companyId || null, payslipId: ps.id, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
       }
-      await tx.payslipCostAllocation.deleteMany({ where: { payslipId: ps.id } });
+      await tx.payslipCostAllocation.deleteMany({ where: { payslipId: ps.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
       const allocs = e.costAllocations?.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) })) || [];
       const direct = calc.variableAllocations?.map(v => ({ costCenterId: v.costCenterId, amount: v.amount })) || [];
       if (allocs.length || direct.length) {
         const rounded = distributeAllocations(calc.grossAmount, allocs, direct);
         for (const a of rounded) {
-          await tx.payslipCostAllocation.create({ data: { companyId: companyId || null, payslipId: ps.id, costCenterId: a.costCenterId, percent: a.percent, amount: a.amount } });
+          await tx.payslipCostAllocation.create({ data: { companyId: scopedCompanyId, payslipId: ps.id, costCenterId: a.costCenterId, percent: a.percent, amount: a.amount } });
         }
       }
       results.push({ employeeId: e.id, payslipId: ps.id, ...calc });

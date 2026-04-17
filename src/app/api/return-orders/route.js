@@ -125,7 +125,7 @@ export async function POST(request) {
         { status: 400 }
       );
 
-    const supplier = await prisma.supplier.findUnique({
+    const supplier = await prisma.supplier.findFirst({
       where: { id: supplierId, companyId },
       select: { id: true, accountId: true, name: true },
     });
@@ -284,14 +284,9 @@ export async function POST(request) {
           companyId,
           number,
           status: "DRAFT",
-          supplier: { connect: { id: supplierId } },
-          purchaseOrder: inferredPurchaseOrderId
-            ? { connect: { id: inferredPurchaseOrderId } }
-            : undefined,
-          goodsReceipt:
-            receiptIds.size === 1
-              ? { connect: { id: [...receiptIds][0] } }
-              : undefined,
+          supplierId,
+          purchaseOrderId: inferredPurchaseOrderId || null,
+          goodsReceiptId: receiptIds.size === 1 ? [...receiptIds][0] : null,
           reason: reason ? String(reason).trim() : null,
           notes: notes ? String(notes).trim() : null,
         },
@@ -436,7 +431,7 @@ export async function POST(request) {
       return order.id;
     });
 
-    const full = await prisma.returnOrder.findUnique({
+    const full = await prisma.returnOrder.findFirst({
       where: { id: createdId, companyId },
       include: {
         supplier: { select: { id: true, name: true } },

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const roles = [
+  { value: "PLATFORM_ADMIN", label: "Platform admin" },
   { value: "VIEWER", label: "Viewer (lecture seule)" },
   { value: "ACCOUNTANT", label: "Comptable" },
   { value: "FINANCE_MANAGER", label: "Responsable finance" },
@@ -17,7 +18,7 @@ const roles = [
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ username: "", email: "", password: "", role: "VIEWER" });
+  const [form, setForm] = useState({ username: "", email: "", password: "", role: "VIEWER", canCreateCompany: false });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [savingUserId, setSavingUserId] = useState(null);
@@ -78,7 +79,7 @@ export default function AdminUsersPage() {
           "Content-Type": "application/json",
           "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN",
         },
-        body: JSON.stringify({ role: u.role, isActive: u.isActive }),
+        body: JSON.stringify({ role: u.role, isActive: u.isActive, canCreateCompany: u.canCreateCompany, password: u.password || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Maj utilisateur échouée");
@@ -107,7 +108,7 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Création échouée");
       setSuccess("Utilisateur créé");
-      setForm({ username: "", email: "", password: "", role: "VIEWER" });
+      setForm({ username: "", email: "", password: "", role: "VIEWER", canCreateCompany: false });
       await loadUsers();
     } catch (e) {
       setError(e.message);
@@ -165,6 +166,14 @@ export default function AdminUsersPage() {
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </select>
+          <label className="flex items-center gap-2 mt-3 text-sm">
+            <input
+              type="checkbox"
+              checked={form.canCreateCompany}
+              onChange={(e) => setForm((f) => ({ ...f, canCreateCompany: e.target.checked }))}
+            />
+            Autoriser la création d'une société
+          </label>
           <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 mt-4 rounded">
             Créer
           </button>
@@ -188,7 +197,7 @@ export default function AdminUsersPage() {
               <li key={u.id} className="py-2">
                 <div className="font-medium">{u.username || u.email}</div>
                 <div className="text-sm text-gray-600">{u.email}</div>
-                <div className="text-xs text-gray-500">Créé le {new Date(u.createdAt).toLocaleDateString()}</div>
+                <div className="text-xs text-gray-500">Créé le {new Date(u.createdAt).toLocaleDateString()} • Société: {u.companyId || "Aucune"}</div>
                 <div className="flex items-center gap-2 mt-2">
                   <select
                     className="border rounded px-2 py-1 text-xs"
@@ -206,6 +215,14 @@ export default function AdminUsersPage() {
                       onChange={(e) => setUsers((list) => list.map((x) => x.id === u.id ? { ...x, isActive: e.target.checked } : x))}
                     />
                     Actif
+                  </label>
+                  <label className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={!!u.canCreateCompany}
+                      onChange={(e) => setUsers((list) => list.map((x) => x.id === u.id ? { ...x, canCreateCompany: e.target.checked } : x))}
+                    />
+                    Peut créer une société
                   </label>
                   <button
                     type="button"

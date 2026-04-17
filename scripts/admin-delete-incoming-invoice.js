@@ -10,6 +10,7 @@
  * Efface dans l'ordre: transactions, lines, liaisons treasury, facture.
  */
 import prisma from '../src/lib/prisma.js';
+import { deleteUnreferencedEmptyJournalsForSource } from '../src/lib/journalCleanup.js';
 
 async function main(){
   const id = process.argv[2];
@@ -49,6 +50,11 @@ async function main(){
   await prisma.$transaction(async(tx)=>{
     await tx.transaction.deleteMany({ where: { incomingInvoiceId: id } });
     await tx.incomingInvoiceLine.deleteMany({ where: { incomingInvoiceId: id } });
+    await deleteUnreferencedEmptyJournalsForSource(tx, {
+      companyId: inv.companyId || null,
+      sourceType: 'INCOMING_INVOICE',
+      sourceId: id,
+    });
     await tx.incomingInvoice.delete({ where: { id } });
   });
   console.log('OK supprimée.');

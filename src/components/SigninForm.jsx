@@ -42,7 +42,7 @@ export default function SigninForm() {
       setError("Sélectionnez la société (existante ou nouvelle) avant de vous connecter.");
       return;
     }
-    const params = new URLSearchParams(form).toString();
+    const params = new URLSearchParams({ ...form, companyId: pendingCompanyId }).toString();
     const res = await fetch(`/api/auth?${params}`);
     const data = await res.json();
     if (!res.ok) {
@@ -53,15 +53,19 @@ export default function SigninForm() {
       setUser(data.user);
       // Enregistre l'utilisateur dans le localStorage pour le layout global
       localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("userId", data.user.id);
       // Cookie simple pour le middleware RBAC (dev only)
       if (data.user?.role) {
         document.cookie = `user-role=${encodeURIComponent(data.user.role)}; path=/`;
+      }
+      if (data.user?.id) {
+        document.cookie = `user-id=${encodeURIComponent(data.user.id)}; path=/`;
       }
       if (pendingCompanyId === "NEW") {
         document.cookie = "company-id=NEW; path=/";
         window.dispatchEvent(new Event('user:login'));
         setTimeout(() => {
-          router.push('/admin/companies?create=1');
+          router.push(data.user?.canCreateCompany ? '/admin/companies?create=1' : '/company-request');
         }, 1000);
         return;
       }
@@ -133,8 +137,10 @@ export default function SigninForm() {
             className="ml-4 text-blue-600 underline"
             onClick={() => {
               localStorage.removeItem("user");
+              localStorage.removeItem("userId");
               setUser(null);
               document.cookie = "user-role=; path=/; Max-Age=0";
+              document.cookie = "user-id=; path=/; Max-Age=0";
               window.location.reload();
             }}
           >

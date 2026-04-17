@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSystemAccounts } from '@/lib/systemAccounts';
 import { requireCompanyId } from '@/lib/tenant';
+import { finalizeBatchToJournal } from '@/lib/journal';
+import { deleteUnreferencedEmptyJournalsForSource } from '@/lib/journalCleanup';
 
 // GET /api/incoming-invoices/:id
 // Note: In newer Next.js versions, params may be async – await context.params
@@ -77,6 +79,11 @@ export async function PATCH(request, context) {
     const updated = await prisma.$transaction(async (tx) => {
       await tx.transaction.deleteMany({ where: { incomingInvoiceId: id } });
       await tx.incomingInvoiceLine.deleteMany({ where: { incomingInvoiceId: id } });
+      await deleteUnreferencedEmptyJournalsForSource(tx, {
+        companyId,
+        sourceType: 'INCOMING_INVOICE',
+        sourceId: id,
+      });
 
       const inv = await tx.incomingInvoice.update({
         where: { id },
@@ -93,11 +100,12 @@ export async function PATCH(request, context) {
       });
 
       // Recréer lignes + transactions PURCHASE liées immédiatement
+      const createdTxs = [];
       for (const l of normLines) {
         const lineRec = await tx.incomingInvoiceLine.create({
           data: { ...l, incomingInvoiceId: id, companyId },
         });
-        await tx.transaction.create({
+        const created = await tx.transaction.create({
           data: {
             companyId,
             date: new Date(),
@@ -112,9 +120,10 @@ export async function PATCH(request, context) {
             supplierId: supplier.id
           }
         });
+        createdTxs.push(created);
       }
       if (vatAmount > 0 && vatDeductibleAccount) {
-        await tx.transaction.create({
+        const created = await tx.transaction.create({
           data: {
             companyId,
             date: new Date(),
@@ -128,8 +137,9 @@ export async function PATCH(request, context) {
             supplierId: supplier.id
           }
         });
+        createdTxs.push(created);
       }
-      await tx.transaction.create({
+      const payableTx = await tx.transaction.create({
         data: {
           companyId,
           date: new Date(),
@@ -142,6 +152,14 @@ export async function PATCH(request, context) {
           incomingInvoiceId: id,
           supplierId: supplier.id
         }
+      });
+      createdTxs.push(payableTx);
+      await finalizeBatchToJournal(tx, {
+        sourceType: 'INCOMING_INVOICE',
+        sourceId: id,
+        date: inv.receiptDate || new Date(),
+        description: `Facture fournisseur ${inv.entryNumber}`,
+        transactions: createdTxs,
       });
       return inv;
     });
@@ -186,6 +204,11 @@ export async function DELETE(request, context) {
     await prisma.$transaction(async (tx) => {
       await tx.transaction.deleteMany({ where: { incomingInvoiceId: id } });
       await tx.incomingInvoiceLine.deleteMany({ where: { incomingInvoiceId: id } });
+      await deleteUnreferencedEmptyJournalsForSource(tx, {
+        companyId,
+        sourceType: 'INCOMING_INVOICE',
+        sourceId: id,
+      });
       await tx.incomingInvoice.delete({ where: { id } });
     });
     return NextResponse.json({ ok: true });

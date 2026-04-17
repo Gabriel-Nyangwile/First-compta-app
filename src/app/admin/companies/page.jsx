@@ -7,7 +7,9 @@ const legalForms = ["SARL", "SA", "SAS", "SNC", "EURL", "AUTRE"];
 
 export default function AdminCompaniesPage() {
   const [companies, setCompanies] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -49,8 +51,23 @@ export default function AdminCompaniesPage() {
     }
   }
 
+  async function loadRequests() {
+    setRequestsLoading(true);
+    try {
+      const res = await fetch("/api/company-creation-requests", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur chargement demandes");
+      setRequests(data.requests || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadCompanies();
+    loadRequests();
   }, []);
 
   function updateLocal(id, patch) {
@@ -143,8 +160,31 @@ export default function AdminCompaniesPage() {
         return;
       }
       await loadCompanies();
+      await loadRequests();
     } catch (e2) {
       setError(e2.message);
+    }
+  }
+
+  async function reviewRequest(id, action) {
+    setSavingId(id);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/company-creation-requests/${id}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewNote: action === "approve" ? "Approved from admin UI" : "Rejected from admin UI" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Traitement échoué");
+      setSuccess(action === "approve" ? "Demande approuvée" : "Demande rejetée");
+      await loadCompanies();
+      await loadRequests();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -164,8 +204,43 @@ export default function AdminCompaniesPage() {
         (forme juridique, devise, TVA, etc.).
       </p>
       {loading ? <p>Chargement…</p> : null}
+      {requestsLoading ? <p>Chargement des demandes…</p> : null}
       {error && <p className="text-red-600">{error}</p>}
       {success && <p className="text-green-600">{success}</p>}
+      <section className="border rounded bg-white p-4 space-y-3">
+        <h2 className="text-sm font-semibold">Demandes de création</h2>
+        {requests.length === 0 ? <p className="text-sm text-gray-500">Aucune demande en attente.</p> : null}
+        {requests.map((request) => (
+          <div key={request.id} className="border rounded p-3 text-sm space-y-2">
+            <div className="font-medium">{request.requestedName}</div>
+            <div className="text-gray-600">
+              Statut: {request.status}
+              {request.requesterUser ? ` • Demandeur: ${request.requesterUser.username || request.requesterUser.email}` : ""}
+            </div>
+            <div className="text-gray-500">
+              RCCM: {request.rccmNumber || "-"} • IdNat: {request.idNatNumber || "-"} • Impôt: {request.taxNumber || "-"}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="px-3 py-1 bg-emerald-600 text-white text-xs rounded disabled:opacity-50"
+                disabled={savingId === request.id || request.status !== "PENDING"}
+                onClick={() => reviewRequest(request.id, "approve")}
+              >
+                Approuver
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1 bg-red-600 text-white text-xs rounded disabled:opacity-50"
+                disabled={savingId === request.id || request.status !== "PENDING"}
+                onClick={() => reviewRequest(request.id, "reject")}
+              >
+                Rejeter
+              </button>
+            </div>
+          </div>
+        ))}
+      </section>
       <form onSubmit={createCompany} className="border rounded bg-white p-4 space-y-3">
         <h2 className="text-sm font-semibold">Créer une société</h2>
         <div className="grid md:grid-cols-3 gap-3 text-sm">

@@ -2,23 +2,30 @@ import { listAuthorizations, authorizeAuthorization } from '@/lib/serverActions/
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { formatAmount } from '@/lib/utils';
+import { cookies } from 'next/headers';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
 async function approveAuthorizationFromList(formData) { 'use server';
   const id = formData.get('id');
   if (!id) return;
-  await authorizeAuthorization(id);
+  const companyId = getCompanyIdFromCookies(await cookies());
+  await authorizeAuthorization(id, companyId);
   revalidatePath('/authorizations');
 }
 
 export default async function AuthorizationsPage({ searchParams }) {
+  const companyId = getCompanyIdFromCookies(await cookies());
+  if (!companyId) {
+    return <main className="u-main-container u-padding-content-container">companyId requis.</main>;
+  }
   const sp = await searchParams;
   const status = sp?.status || '';
   const party = sp?.party || '';
   const partialOnly = sp?.partial === '1';
   const exceededOnly = sp?.exceeded === '1';
-  let rows = await listAuthorizations({ status: status || undefined, party: party || undefined, limit: 200 });
+  let rows = await listAuthorizations({ companyId, status: status || undefined, party: party || undefined, limit: 200 });
   if (partialOnly) rows = rows.filter(r => r.partial);
   if (exceededOnly) rows = rows.filter(r => r.exceededRemaining);
 

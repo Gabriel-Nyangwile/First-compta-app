@@ -86,7 +86,7 @@ async function fetchPayrollAccounts(tx, companyId = null) {
 
 // Internal posting logic executed within an existing prisma.$transaction block.
 export async function postPayrollPeriodTx(tx, periodId, companyId = null) {
-  const period = await tx.payrollPeriod.findUnique({
+  const period = await tx.payrollPeriod.findFirst({
     where: { id: periodId, ...(companyId ? { companyId } : {}) },
     include: {
       payslips: {
@@ -289,7 +289,10 @@ export async function postPayrollPeriodTx(tx, periodId, companyId = null) {
     });
 
     // Mark period posted
-    await tx.payrollPeriod.update({ where: { id: period.id }, data: { status: 'POSTED', postedAt: new Date() } });
+    await tx.payrollPeriod.update({
+      where: { id: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
+      data: { status: 'POSTED', postedAt: new Date() }
+    });
 
   const { debit, credit } = computeDebitCredit(createdTxns);
   return { journal, transactions: createdTxns, debit, credit };
@@ -302,7 +305,7 @@ export async function postPayrollPeriod(periodId, companyId = null) {
 
 // Reverse a posted payroll journal and set period back to LOCKED
 export async function reversePayrollPeriodTx(tx, periodId, actor = null, companyId = null) {
-  const period = await tx.payrollPeriod.findUnique({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
+  const period = await tx.payrollPeriod.findFirst({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
   if (!period) throw new Error('Payroll period not found');
   if (period.status !== 'POSTED') throw new Error('Period must be POSTED to reverse');
   const scopedCompanyId = period?.companyId || companyId || null;

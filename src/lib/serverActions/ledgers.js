@@ -833,8 +833,8 @@ export async function getThirdPartyLedger({
   let partyAccountLabel = null;
   let partyMeta = {};
   if (party === "client") {
-    const c = await prisma.client.findUnique({
-      where: companyId ? { id, companyId } : { id },
+    const c = await prisma.client.findFirst({
+      where: { id, ...(companyId ? { companyId } : {}) },
       select: {
         name: true,
         email: true,
@@ -850,8 +850,8 @@ export async function getThirdPartyLedger({
       partyMeta = { email: c.email, address: c.address, category: c.category };
     }
   } else {
-    const s = await prisma.supplier.findUnique({
-      where: companyId ? { id, companyId } : { id },
+    const s = await prisma.supplier.findFirst({
+      where: { id, ...(companyId ? { companyId } : {}) },
       select: {
         name: true,
         email: true,

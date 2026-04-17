@@ -123,7 +123,7 @@ function summarizeTransactions(liabilityCode, transactions) {
 export async function matchPayrollLiabilityTransactions({ periodId, liabilityCode = 'NET_PAY', companyId = null, db = prisma } = {}) {
   if (!periodId) throw new Error('periodId requis');
   const config = getPayrollSettlementConfig(liabilityCode);
-  const period = await db.payrollPeriod.findUnique({
+  const period = await db.payrollPeriod.findFirst({
     where: { id: periodId, ...(companyId ? { companyId } : {}) },
     select: { id: true, ref: true, companyId: true },
   });
@@ -206,7 +206,10 @@ export async function matchPayrollLiabilityTransactions({ periodId, liabilityCod
   }
 
   for (const update of updates) {
-    await db.transaction.update({ where: { id: update.id }, data: update.data });
+    await db.transaction.update({
+      where: { id: update.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
+      data: update.data
+    });
   }
 
   const refreshed = await listPayrollLiabilityTransactions(db, period.id, liabilityCode, scopedCompanyId);
@@ -223,7 +226,7 @@ export async function matchPayrollLiabilityTransactions({ periodId, liabilityCod
 
 export async function getPayrollLetteringSummary({ periodId, companyId = null, db = prisma } = {}) {
   if (!periodId) throw new Error('periodId requis');
-  const period = await db.payrollPeriod.findUnique({
+  const period = await db.payrollPeriod.findFirst({
     where: { id: periodId, ...(companyId ? { companyId } : {}) },
     select: { id: true, ref: true, companyId: true },
   });

@@ -9,16 +9,27 @@ export default function Navbar() {
   const [loadingUser, setLoadingUser] = useState(true);
   const [companies, setCompanies] = useState([]);
   const [pendingCompanyId, setPendingCompanyId] = useState("");
+  const [activeCompanyId, setActiveCompanyId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+    const readCookie = (name) => {
+      try {
+        const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
+        return match ? decodeURIComponent(match[1]) : "";
+      } catch {
+        return "";
+      }
+    };
     const finish = () => { if (!cancelled) setLoadingUser(false); };
     const readUser = () => {
       try {
         const raw = localStorage.getItem('user');
         if (!cancelled) setUser(raw ? JSON.parse(raw) : null);
+        if (!cancelled) setActiveCompanyId(readCookie("company-id"));
       } catch {
         if (!cancelled) setUser(null);
+        if (!cancelled) setActiveCompanyId("");
       } finally { finish(); }
     };
     readUser();
@@ -67,6 +78,16 @@ export default function Navbar() {
     document.cookie = `pending-company-id=${encodeURIComponent(id)}; path=/`;
   }
 
+  const activeCompanyName = (() => {
+    if (!activeCompanyId) return "";
+    if (activeCompanyId === "NEW") return "Nouvelle société";
+    const membershipMatch = user?.memberships?.find?.((item) => item.companyId === activeCompanyId);
+    if (membershipMatch?.companyName) return membershipMatch.companyName;
+    const publicMatch = companies.find((item) => item.id === activeCompanyId);
+    if (publicMatch?.name) return publicMatch.name;
+    return "Société active";
+  })();
+
   const UserSlot = () => {
     if (loadingUser) {
       return (
@@ -103,10 +124,22 @@ export default function Navbar() {
       );
     }
     return (
-      <span
-        className="text-xs sm:text-sm opacity-80 truncate max-w-[140px]"
-        title={user.username}
-      >{user.username}</span>
+      <div className="flex items-center gap-3">
+        {activeCompanyName ? (
+          <span
+            className="hidden sm:inline-flex items-center rounded-full bg-blue-950/50 border border-blue-700/60 px-3 py-1 text-xs text-blue-100 max-w-[260px] truncate"
+            title={activeCompanyName}
+          >
+            Société: {activeCompanyName}
+          </span>
+        ) : null}
+        <span
+          className="text-xs sm:text-sm opacity-80 truncate max-w-[140px]"
+          title={user.username}
+        >
+          {user.username}
+        </span>
+      </div>
     );
   };
 

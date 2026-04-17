@@ -16,7 +16,7 @@ function deriveSettlementStatus(total, settled) {
 }
 
 export async function aggregatePeriodSummary(periodId, companyId = null) {
-  const period = await prisma.payrollPeriod.findUnique({
+  const period = await prisma.payrollPeriod.findFirst({
     where: { id: periodId, ...(companyId ? { companyId } : {}) },
     include: { payslips: { include: { employee: { select: { firstName:true, lastName:true, employeeNumber:true } }, lines: { select: { code:true, amount:true, meta:true } } } } }
   });

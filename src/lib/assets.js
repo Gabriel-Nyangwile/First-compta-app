@@ -103,9 +103,9 @@ export async function createAsset(data) {
   return asset;
 }
 
-export async function generateDepreciationLine(assetId, year, month, client = prisma) {
-  const asset = await client.asset.findUnique({
-    where: { id: assetId },
+export async function generateDepreciationLine(assetId, year, month, client = prisma, companyId = null) {
+  const asset = await client.asset.findFirst({
+    where: { id: assetId, ...(companyId ? { companyId } : {}) },
     include: { category: true },
   });
   if (!asset) throw new Error('Asset not found');
@@ -127,16 +127,16 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
   });
 }
 
-export async function postDepreciation(assetId, year, month) {
+export async function postDepreciation(assetId, year, month, companyId = null) {
   return prisma.$transaction(async (tx) => {
-    const asset = await tx.asset.findUnique({
-      where: { id: assetId },
+    const asset = await tx.asset.findFirst({
+      where: { id: assetId, ...(companyId ? { companyId } : {}) },
       include: { category: true },
     });
     if (!asset) throw new Error('Asset not found');
     if (await isPeriodLocked(tx, year, month, asset.companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
     if (asset.status === 'DISPOSED') throw new Error('Asset disposed');
-    const line = await generateDepreciationLine(assetId, year, month, tx);
+    const line = await generateDepreciationLine(assetId, year, month, tx, companyId);
     if (line.status === 'POSTED') return { alreadyPosted: true, line };
     const accounts = await resolveCategoryAccounts(asset.category, tx);
     const desc = `Dotation amortissement ${asset.ref} ${month}/${year}`;
@@ -171,17 +171,17 @@ export async function postDepreciation(assetId, year, month) {
       transactions: [debit, credit],
     });
     const posted = await tx.depreciationLine.update({
-      where: { id: line.id },
+      where: { id: line.id, ...(asset.companyId ? { companyId: asset.companyId } : {}) },
       data: { status: 'POSTED', journalEntryId: journal.id, postedAt: today },
     });
     return { journal, line: posted };
   });
 }
 
-export async function disposeAsset(assetId, { date, proceed, proceedAccountNumber }) {
+export async function disposeAsset(assetId, { date, proceed, proceedAccountNumber, companyId = null }) {
   return prisma.$transaction(async (tx) => {
-    const asset = await tx.asset.findUnique({
-      where: { id: assetId },
+    const asset = await tx.asset.findFirst({
+      where: { id: assetId, ...(companyId ? { companyId } : {}) },
       include: { category: true, depreciationLines: { where: { status: 'POSTED' } } },
     });
     if (!asset) throw new Error('Asset not found');
@@ -281,7 +281,7 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
         journalEntryId: journal.id,
       },
     });
-    await tx.asset.update({ where: { id: asset.id }, data: { status: 'DISPOSED' } });
+    await tx.asset.update({ where: { id: asset.id, ...(asset.companyId ? { companyId: asset.companyId } : {}) }, data: { status: 'DISPOSED' } });
     return { journal, disposal, netBook, gainLoss: delta };
   });
 }

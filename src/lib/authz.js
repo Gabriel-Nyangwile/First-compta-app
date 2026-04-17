@@ -2,6 +2,8 @@
 // Branchez ici votre session NextAuth/JWT si disponible.
 
 const roleAliases = {
+  PLATFORMADMIN: 'PLATFORM_ADMIN',
+  PLATFORM_ADMIN: 'PLATFORM_ADMIN',
   ADMIN: 'SUPERADMIN',
   SUPERADMIN: 'SUPERADMIN',
   FINANCE: 'FINANCE_MANAGER',
@@ -69,8 +71,9 @@ export const permMap = {
   exportAccounting: ['SUPERADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT'],
 
   // Admin
-  manageUsers: ['SUPERADMIN'],
-  manageRoles: ['SUPERADMIN'],
+  manageUsers: ['PLATFORM_ADMIN', 'SUPERADMIN'],
+  manageRoles: ['PLATFORM_ADMIN', 'SUPERADMIN'],
+  createCompany: ['PLATFORM_ADMIN'],
 };
 
 export function normalizeRole(role) {

@@ -176,8 +176,8 @@ export async function PUT(request, context) {
           : withdrawal.requestedById ?? null;
 
         if (requestedById) {
-          const exists = await tx.user.findUnique({
-            where: { id: requestedById },
+          const exists = await tx.user.findFirst({
+            where: { id: requestedById, companyId },
             select: { id: true },
           });
           if (!exists) {

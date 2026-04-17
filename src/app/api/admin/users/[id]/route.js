@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { checkPerm, getUserRole } from "@/lib/authz";
+import { checkPerm } from "@/lib/authz";
 import bcrypt from "bcryptjs";
 import { requireCompanyId } from "@/lib/tenant";
+import { getRequestActor, getRequestRole } from "@/lib/requestAuth";
 
 const allowedRoles = [
   "SUPERADMIN",
@@ -23,11 +24,13 @@ function normalizeRole(role) {
 }
 
 export async function PATCH(req, { params }) {
-  const callerRole = await getUserRole(req);
+  const actor = await getRequestActor(req);
+  const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
+  const companyId = isPlatformAdmin ? null : requireCompanyId(req);
+  const callerRole = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   const body = await req.json().catch(() => ({}));
@@ -40,6 +43,17 @@ export async function PATCH(req, { params }) {
   if (typeof body.isActive === "boolean") {
     updates.isActive = body.isActive;
   }
+  if (isPlatformAdmin && typeof body.canCreateCompany === "boolean") {
+    updates.canCreateCompany = body.canCreateCompany;
+  } else if (isPlatformAdmin && body.isActive === true) {
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { companyId: true, canCreateCompany: true },
+    });
+    if (target && !target.companyId && !target.canCreateCompany) {
+      updates.canCreateCompany = true;
+    }
+  }
   if (body.password) {
     updates.password = await bcrypt.hash(body.password, 10);
   }
@@ -47,27 +61,29 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Aucune donnee a mettre a jour" }, { status: 400 });
   }
   try {
-    const user = await prisma.user.update({
-      where: { id, companyId },
+    const user = await prisma.user.updateManyAndReturn({
+      where: { id, ...(companyId ? { companyId } : {}) },
       data: updates,
-      select: { id: true, email: true, username: true, role: true, isActive: true, createdAt: true },
+      select: { id: true, email: true, username: true, role: true, isActive: true, canCreateCompany: true, createdAt: true, companyId: true },
     });
-    return NextResponse.json({ ok: true, user });
+    return NextResponse.json({ ok: true, user: user[0] || null });
   } catch (e) {
     return NextResponse.json({ error: e.message || "Update failed" }, { status: 500 });
   }
 }
 
 export async function DELETE(req, { params }) {
-  const callerRole = await getUserRole(req);
+  const actor = await getRequestActor(req);
+  const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
+  const companyId = isPlatformAdmin ? null : requireCompanyId(req);
+  const callerRole = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const companyId = requireCompanyId(req);
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
   try {
-    await prisma.user.delete({ where: { id, companyId } });
+    await prisma.user.deleteMany({ where: { id, ...(companyId ? { companyId } : {}) } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e.message || "Delete failed" }, { status: 500 });

@@ -6,8 +6,8 @@ import { matchSupplierPayment } from "@/lib/lettering/matchSupplierPayment";
 export async function matchSupplierPaymentAction({ movementId, companyId }) {
   if (!movementId) throw new Error("movementId requis");
 
-  const movement = await prisma.moneyMovement.findUnique({
-    where: companyId ? { id: movementId, companyId } : { id: movementId },
+  const movement = await prisma.moneyMovement.findFirst({
+    where: { id: movementId, ...(companyId ? { companyId } : {}) },
     select: {
       id: true,
       kind: true,
@@ -20,6 +20,6 @@ export async function matchSupplierPaymentAction({ movementId, companyId }) {
     throw new Error("Lettrage supplier seulement disponible sur les paiements fournisseurs");
   }
 
-  const result = await matchSupplierPayment({ movementId });
+  const result = await matchSupplierPayment({ movementId, companyId });
   return result;
 }

@@ -60,6 +60,7 @@ const routePerms = [
 
   // Admin users
   { pattern: /^\/api\/admin\/users/, action: 'manageUsers' },
+  { pattern: /^\/api\/company-creation-requests\/[^/]+\/(approve|reject)/, action: 'createCompany' },
 ];
 
 function isMethodGuarded(method) {

@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { checkPerm, getUserRole } from '@/lib/authz';
+import { checkPerm } from '@/lib/authz';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
-  const role = await getUserRole(req);
+  const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
   if (!checkPerm('lockDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
-    const companyId = requireCompanyId(req);
     const locks = await prisma.depreciationPeriodLock.findMany({
       where: { companyId },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -21,10 +22,10 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const role = await getUserRole(req);
+  const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
   if (!checkPerm('lockDepreciation', role)) return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   try {
-    const companyId = requireCompanyId(req);
     const body = await req.json();
     const year = Number(body.year);
     const month = Number(body.month);

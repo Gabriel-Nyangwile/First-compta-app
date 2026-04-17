@@ -10,7 +10,13 @@ function generateDocNumber(docType) {
   return `${docType}-${y}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${ts.getTime().toString().slice(-5)}`;
 }
 
-export async function createAuthorization({ docType, scope, flow, amount, currency='EUR', beneficiaryType, beneficiaryAccountId, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
+function requireCompanyId(companyId) {
+  if (!companyId) throw new Error('companyId requis');
+  return companyId;
+}
+
+export async function createAuthorization({ companyId, docType, scope, flow, amount, currency='EUR', beneficiaryType, beneficiaryAccountId, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
+  const scopedCompanyId = requireCompanyId(companyId);
   if (!docType) throw new Error('docType requis');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
 
@@ -46,8 +52,17 @@ export async function createAuthorization({ docType, scope, flow, amount, curren
   }
 
   const docNumber = generateDocNumber(normalizedDocType);
+  if (invoiceId) {
+    const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, companyId: scopedCompanyId }, select: { id: true } });
+    if (!invoice) throw new Error('Facture client introuvable dans la société active');
+  }
+  if (incomingInvoiceId) {
+    const invoice = await prisma.incomingInvoice.findFirst({ where: { id: incomingInvoiceId, companyId: scopedCompanyId }, select: { id: true } });
+    if (!invoice) throw new Error('Facture fournisseur introuvable dans la société active');
+  }
   return prisma.treasuryAuthorization.create({
     data: {
+      companyId: scopedCompanyId,
       docType: normalizedDocType,
       scope: resolvedScope,
       flow: resolvedFlow,
@@ -66,42 +81,46 @@ export async function createAuthorization({ docType, scope, flow, amount, curren
   });
 }
 
-export async function authorizeAuthorization(id) {
+export async function authorizeAuthorization(id, companyId) {
+  const scopedCompanyId = requireCompanyId(companyId);
   return prisma.$transaction(async (tx) => {
-    const auth = await tx.treasuryAuthorization.findUnique({ where: { id } });
+    const auth = await tx.treasuryAuthorization.findFirst({ where: { id, companyId: scopedCompanyId } });
     if (!auth) throw new Error('Authorization introuvable');
     if (auth.status !== 'DRAFT') throw new Error('Seulement DRAFT -> APPROVED');
-    return tx.treasuryAuthorization.update({ where: { id }, data: { status: 'APPROVED' } });
+    return tx.treasuryAuthorization.update({ where: { id: auth.id }, data: { status: 'APPROVED' } });
   });
 }
 
-export async function cancelAuthorization(id) {
+export async function cancelAuthorization(id, companyId) {
+  const scopedCompanyId = requireCompanyId(companyId);
   return prisma.$transaction(async (tx) => {
-    const auth = await tx.treasuryAuthorization.findUnique({ where: { id } });
+    const auth = await tx.treasuryAuthorization.findFirst({ where: { id, companyId: scopedCompanyId } });
     if (!auth) throw new Error('Authorization introuvable');
     if (auth.status === 'EXECUTED') throw new Error('Impossible d\'annuler EXECUTED');
     if (auth.status === 'CANCELLED') return auth; // idempotent
-    return tx.treasuryAuthorization.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
+    return tx.treasuryAuthorization.update({ where: { id: auth.id }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
   });
 }
 
 /** Create a movement executing an APPROVED authorization. */
-export async function executeAuthorizationViaMovement({ authorizationId, moneyAccountId, description }) {
+export async function executeAuthorizationViaMovement({ authorizationId, moneyAccountId, description, companyId }) {
+  const scopedCompanyId = requireCompanyId(companyId);
   return prisma.$transaction(async (tx) => {
-    const auth = await tx.treasuryAuthorization.findUnique({ where: { id: authorizationId } });
+    const auth = await tx.treasuryAuthorization.findFirst({ where: { id: authorizationId, companyId: scopedCompanyId } });
     if (!auth) throw new Error('Authorization introuvable');
     if (auth.status !== 'APPROVED') throw new Error('Authorization non APPROVED');
     // Create movement
     const voucherRef = `AUT-${auth.docNumber}`;
-    const moneyAccount = await tx.moneyAccount.findUnique({ where: { id: moneyAccountId }, include: { ledgerAccount: true } });
+    const moneyAccount = await tx.moneyAccount.findFirst({ where: { id: moneyAccountId, companyId: scopedCompanyId }, include: { ledgerAccount: true } });
     if (!moneyAccount) throw new Error('Compte trésorerie introuvable');
     if (!moneyAccount.ledgerAccountId) {
-      const { account: createdLedger } = await ensureLedgerAccountForMoneyAccount(moneyAccount);
+      const { account: createdLedger } = await ensureLedgerAccountForMoneyAccount(moneyAccount, scopedCompanyId);
       moneyAccount.ledgerAccountId = createdLedger.id;
       moneyAccount.ledgerAccount = createdLedger;
     }
     const movement = await tx.moneyMovement.create({
       data: {
+        companyId: scopedCompanyId,
         moneyAccountId,
         amount: auth.amount,
         direction: auth.flow === 'IN' ? 'IN' : 'OUT',
@@ -114,9 +133,9 @@ export async function executeAuthorizationViaMovement({ authorizationId, moneyAc
       }
     });
     // Auto-post double entry + maj statut facture / facture fournisseur
-    await autoPostTransactions({ tx, movement, moneyAccount, amount: auth.amount, direction: auth.flow === 'IN' ? 'IN' : 'OUT', kind: deriveKindFromAuthorization(auth), invoiceId: auth.invoiceId, incomingInvoiceId: auth.incomingInvoiceId });
-    if (auth.invoiceId) await updateInvoiceSettlementStatus(tx, auth.invoiceId);
-    if (auth.incomingInvoiceId) await updateIncomingInvoiceSettlementStatus(tx, auth.incomingInvoiceId);
+    await autoPostTransactions({ tx, movement, moneyAccount, amount: auth.amount, direction: auth.flow === 'IN' ? 'IN' : 'OUT', kind: deriveKindFromAuthorization(auth), invoiceId: auth.invoiceId, incomingInvoiceId: auth.incomingInvoiceId, companyId: scopedCompanyId });
+    if (auth.invoiceId) await updateInvoiceSettlementStatus(tx, auth.invoiceId, scopedCompanyId);
+    if (auth.incomingInvoiceId) await updateIncomingInvoiceSettlementStatus(tx, auth.incomingInvoiceId, scopedCompanyId);
     // Mark executed
     await tx.treasuryAuthorization.update({ where: { id: auth.id }, data: { status: 'EXECUTED', executedAt: new Date() } });
     return movement;
@@ -134,9 +153,10 @@ function deriveKindFromAuthorization(auth) {
   }
 }
 
-export async function listAuthorizations({ status, docType, flow, party, limit = 50 }) {
+export async function listAuthorizations({ companyId, status, docType, flow, party, limit = 50 }) {
+  const scopedCompanyId = requireCompanyId(companyId);
   const normalizedStatus = status === 'AUTHORIZED' ? 'APPROVED' : status;
-  const where = {};
+  const where = { companyId: scopedCompanyId };
   if (normalizedStatus) where.status = normalizedStatus;
   if (docType) where.docType = docType;
   if (flow) where.flow = flow;
@@ -202,11 +222,25 @@ export async function listAuthorizations({ status, docType, flow, party, limit =
   });
 }
 
-export async function createBankAdvice({ adviceType, amount, authorizationId, invoiceId, incomingInvoiceId, adviceDate, currency='EUR', refNumber, purpose }) {
+export async function createBankAdvice({ companyId, adviceType, amount, authorizationId, invoiceId, incomingInvoiceId, adviceDate, currency='EUR', refNumber, purpose }) {
+  const scopedCompanyId = requireCompanyId(companyId);
   if (!adviceType) throw new Error('adviceType requis');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
+  if (authorizationId) {
+    const auth = await prisma.treasuryAuthorization.findFirst({ where: { id: authorizationId, companyId: scopedCompanyId }, select: { id: true } });
+    if (!auth) throw new Error('Autorisation introuvable dans la société active');
+  }
+  if (invoiceId) {
+    const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, companyId: scopedCompanyId }, select: { id: true } });
+    if (!invoice) throw new Error('Facture client introuvable dans la société active');
+  }
+  if (incomingInvoiceId) {
+    const invoice = await prisma.incomingInvoice.findFirst({ where: { id: incomingInvoiceId, companyId: scopedCompanyId }, select: { id: true } });
+    if (!invoice) throw new Error('Facture fournisseur introuvable dans la société active');
+  }
   return prisma.bankAdvice.create({
     data: {
+      companyId: scopedCompanyId,
       adviceType, amount: new Prisma.Decimal(amount), authorizationId: authorizationId || null,
       invoiceId: invoiceId || null, incomingInvoiceId: incomingInvoiceId || null,
       adviceDate: adviceDate ? new Date(adviceDate) : new Date(), currency, refNumber: refNumber || null, purpose: purpose || null
@@ -214,15 +248,17 @@ export async function createBankAdvice({ adviceType, amount, authorizationId, in
   });
 }
 
-export async function linkBankAdviceToMovement({ bankAdviceId, moneyAccountId, description }) {
+export async function linkBankAdviceToMovement({ bankAdviceId, moneyAccountId, description, companyId }) {
+  const scopedCompanyId = requireCompanyId(companyId);
   return prisma.$transaction(async (tx) => {
-    const advice = await tx.bankAdvice.findUnique({ where: { id: bankAdviceId } });
+    const advice = await tx.bankAdvice.findFirst({ where: { id: bankAdviceId, companyId: scopedCompanyId } });
     if (!advice) throw new Error('Advice introuvable');
     // Determine direction
     const direction = advice.adviceType === 'CREDIT' ? 'IN' : 'OUT';
     const voucherRef = `ADV-${advice.id.slice(0,8)}`;
     const movement = await tx.moneyMovement.create({
       data: {
+        companyId: scopedCompanyId,
         moneyAccountId,
         amount: advice.amount,
         direction,
@@ -237,7 +273,7 @@ export async function linkBankAdviceToMovement({ bankAdviceId, moneyAccountId, d
     });
     // If advice links an authorization still APPROVED and matching flow, mark executed
     if (advice.authorizationId) {
-      const auth = await tx.treasuryAuthorization.findUnique({ where: { id: advice.authorizationId } });
+      const auth = await tx.treasuryAuthorization.findFirst({ where: { id: advice.authorizationId, companyId: scopedCompanyId } });
       if (auth && auth.status === 'APPROVED') {
         await tx.treasuryAuthorization.update({ where: { id: auth.id }, data: { status: 'EXECUTED', executedAt: new Date() } });
       }
@@ -256,8 +292,9 @@ function deriveKindFromAdvice(advice) {
   }
 }
 
-export async function listBankAdvices({ adviceType, authorizationId, limit = 50 }) {
-  const where = {};
+export async function listBankAdvices({ companyId, adviceType, authorizationId, limit = 50 }) {
+  const scopedCompanyId = requireCompanyId(companyId);
+  const where = { companyId: scopedCompanyId };
   if (adviceType) where.adviceType = adviceType;
   if (authorizationId) where.authorizationId = authorizationId;
   return prisma.bankAdvice.findMany({ where, orderBy: { adviceDate: 'desc' }, take: limit });

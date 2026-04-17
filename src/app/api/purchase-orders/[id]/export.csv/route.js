@@ -25,7 +25,7 @@ export async function GET(_req, rawContext) {
         { error: "Paramètre id manquant." },
         { status: 400 }
       );
-    const po = await prisma.purchaseOrder.findUnique({
+    const po = await prisma.purchaseOrder.findFirst({
       where: { id, companyId },
       include: { supplier: true, lines: { include: { product: true } } },
     });
