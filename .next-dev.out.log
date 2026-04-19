@@ -1,0 +1,159 @@
+
+> first-compta@0.1.0 dev
+> cross-env CHOKIDAR_USEPOLLING=1 WATCHPACK_POLLING=true WATCHPACK_POLL_INTERVAL=1500 NEXT_DISABLE_FILE_WATCHING=false next dev
+
+   ▲ Next.js 15.5.3
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.150:3000
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+ ○ Compiling / ...
+ ✓ Compiled /middleware in 7.4s (818 modules)
+ GET / 200 in 8422ms
+ ○ Compiling /api/shareholders ...
+ ✓ Compiled /api/shareholders in 1089ms (726 modules)
+ POST /api/shareholders 201 in 2357ms
+ ✓ Compiled /api/capital-operations in 279ms (715 modules)
+ POST /api/capital-operations 201 in 442ms
+ ✓ Compiled /api/capital-operations/[id]/subscriptions in 254ms (719 modules)
+ POST /api/capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2/subscriptions 201 in 1398ms
+ ✓ Compiled /api/capital-subscriptions/[id] in 310ms (721 modules)
+ PATCH /api/capital-subscriptions/13c7d505-b107-44e3-8d9b-40d063f3ea91 200 in 1400ms
+ ✓ Compiled /api/transactions in 253ms (723 modules)
+ GET /api/transactions?kind=CAPITAL_SUBSCRIPTION&dateStart=2026-04-18&dateEnd=2026-04-18&pageSize=200 200 in 495ms
+ ✓ Compiled /api/capital-calls in 293ms (725 modules)
+ POST /api/capital-calls 201 in 455ms
+ ✓ Compiled /api/accounts in 262ms (727 modules)
+ GET /api/accounts?prefix=52 200 in 371ms
+ ✓ Compiled /api/capital-calls/[id]/payments in 276ms (729 modules)
+ POST /api/capital-calls/a99e6af5-e7d3-48b0-99de-240ae0784ff1/payments 201 in 1314ms
+ ✓ Compiled /api/capital-operations/[id] in 276ms (731 modules)
+ PUT /api/capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2 200 in 1297ms
+ GET /api/capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2 200 in 90ms
+ GET /api/transactions?kind=CAPITAL_SUBSCRIPTION&dateStart=2026-04-18&dateEnd=2026-04-18&pageSize=200 200 in 127ms
+ GET /api/transactions?kind=CAPITAL_CALL&dateStart=2026-04-18&dateEnd=2026-04-18&pageSize=200 200 in 82ms
+ GET /api/transactions?kind=CAPITAL_PAYMENT&dateStart=2026-04-18&dateEnd=2026-04-18&pageSize=200 200 in 86ms
+ GET /api/transactions?kind=CAPITAL_REGULARIZATION&dateStart=2026-04-18&dateEnd=2026-04-18&pageSize=200 200 in 87ms
+ ○ Compiling /transactions ...
+ ✓ Compiled /transactions in 649ms (659 modules)
+ GET /transactions 200 in 1464ms
+ ○ Compiling /api/transactions ...
+ ✓ Compiled /api/transactions in 513ms (415 modules)
+ ✓ Compiled in 403ms (261 modules)
+ GET /favicon.ico 200 in 1657ms
+ GET /api/clients 200 in 1489ms
+ GET /api/companies/public 200 in 1494ms
+ GET /api/transactions?page=1&pageSize=50 200 in 1506ms
+ GET /api/suppliers 200 in 1516ms
+ GET /api/invoices 200 in 1527ms
+ ○ Compiling /api/incoming-invoices/unpaid-count ...
+ ✓ Compiled /api/incoming-invoices/unpaid-count in 852ms (701 modules)
+ GET /api/incoming-invoices/unpaid-count 200 in 1099ms
+ GET /api/invoices/unpaid-count 200 in 1103ms
+ ○ Compiling /ledger ...
+ ✓ Compiled /ledger in 1604ms (797 modules)
+ GET /ledger 200 in 2218ms
+ GET /transactions 200 in 171ms
+ GET /api/clients 200 in 453ms
+ GET /api/suppliers 200 in 473ms
+ GET /api/invoices 200 in 488ms
+ GET /api/transactions?page=1&pageSize=50 200 in 550ms
+ GET /api/clients 200 in 366ms
+ GET /api/suppliers 200 in 440ms
+ GET /api/invoices 200 in 451ms
+ GET /api/transactions?page=1&pageSize=50 200 in 144ms
+ GET /ledger 200 in 268ms
+ ○ Compiling /ledger/[accountId] ...
+ ✓ Compiled /ledger/[accountId] in 782ms (794 modules)
+ GET /ledger/099750cc-0a70-4083-88a3-9839825be6ce 200 in 2462ms
+ ○ Compiling /journal/[id] ...
+ ✓ Compiled /journal/[id] in 701ms (765 modules)
+ GET /journal/c5619c71-c4e4-4078-969c-48d90c36fa70 200 in 2148ms
+ GET /ledger/a0867005-e9ec-4420-9194-c02b45411429 200 in 259ms
+ GET /journal/401bf117-8dab-4a8d-a993-e58a2317a770 200 in 302ms
+ ○ Compiling /journal ...
+ ✓ Compiled /journal in 800ms (776 modules)
+ GET /journal 200 in 1249ms
+ GET /journal/66fcd098-6be2-4426-8c1f-2d20783043fc 200 in 227ms
+ ✓ Compiled /api/journal-entries/[id] in 462ms (795 modules)
+ GET /api/journal-entries/66fcd098-6be2-4426-8c1f-2d20783043fc?format=csv 200 in 1971ms
+ GET /journal 200 in 433ms
+ GET /journal/0aa7977a-aea6-4a52-bdfb-a4275bae2108 200 in 215ms
+ GET /api/journal-entries/0aa7977a-aea6-4a52-bdfb-a4275bae2108?format=csv 200 in 238ms
+ GET /journal 200 in 343ms
+ GET /journal/794d33f8-d4c0-43eb-994c-6dffa88f5f03 200 in 245ms
+ GET /api/journal-entries/794d33f8-d4c0-43eb-994c-6dffa88f5f03?format=csv 200 in 232ms
+ GET /journal 200 in 376ms
+ GET /journal/c5619c71-c4e4-4078-969c-48d90c36fa70 200 in 210ms
+ GET /api/journal-entries/c5619c71-c4e4-4078-969c-48d90c36fa70?format=csv 200 in 249ms
+ GET /journal 200 in 259ms
+ GET /journal/8a51ad63-c452-40de-a866-b60804762466 200 in 204ms
+ GET /api/journal-entries/8a51ad63-c452-40de-a866-b60804762466?format=csv 200 in 264ms
+ GET /journal 200 in 183ms
+ GET /journal/fe9eb70b-6c4e-4ee4-b91f-0d16e41248e1 200 in 202ms
+ GET /api/journal-entries/fe9eb70b-6c4e-4ee4-b91f-0d16e41248e1?format=csv 200 in 210ms
+ GET /journal 200 in 302ms
+ GET /journal/401bf117-8dab-4a8d-a993-e58a2317a770 200 in 232ms
+ GET /api/journal-entries/401bf117-8dab-4a8d-a993-e58a2317a770?format=csv 200 in 264ms
+ GET /journal 200 in 198ms
+ GET /journal/db2765dd-2284-42f7-9272-661de9782b6e 200 in 221ms
+ GET /ledger/af4183d0-3b69-41f4-95bf-718cd60e1e55 200 in 384ms
+ GET /ledger 200 in 297ms
+ GET /ledger 200 in 228ms
+ GET /journal 200 in 180ms
+ GET /journal/db2765dd-2284-42f7-9272-661de9782b6e 200 in 217ms
+ GET /api/journal-entries/db2765dd-2284-42f7-9272-661de9782b6e?format=csv 200 in 250ms
+ GET /journal 200 in 583ms
+ ○ Compiling /capital-operations ...
+ ✓ Compiled /capital-operations in 1544ms (783 modules)
+ GET /capital-operations 200 in 2199ms
+ ✓ Compiled /api/capital-operations in 404ms (534 modules)
+ GET /api/capital-operations 200 in 928ms
+ GET /api/capital-operations 200 in 1079ms
+ ○ Compiling /capital-operations/[id] ...
+ ✓ Compiled /capital-operations/[id] in 966ms (803 modules)
+ GET /capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2 200 in 2564ms
+ ✓ Compiled /api/capital-operations/[id] in 420ms (534 modules)
+ ✓ Compiled (540 modules)
+ GET /api/accounts 200 in 1079ms
+ GET /api/shareholders 200 in 1083ms
+ GET /api/capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2 200 in 1040ms
+ GET /capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2 200 in 3183ms
+ ○ Compiling /api/shareholders ...
+ ✓ Compiled /api/shareholders in 642ms (520 modules)
+ ✓ Compiled (535 modules)
+ GET /favicon.ico 200 in 1717ms
+ GET /api/companies/public 200 in 1541ms
+ GET /api/invoices/unpaid-count 200 in 1548ms
+ GET /api/incoming-invoices/unpaid-count 200 in 1553ms
+ GET /api/shareholders 200 in 1474ms
+ GET /api/capital-operations/23db6ce3-a582-4453-8ff8-ab9099ee9fe2 404 in 1655ms
+ ○ Compiling /api/accounts ...
+ ✓ Compiled /api/accounts in 534ms (537 modules)
+ GET /api/accounts 200 in 763ms
+ ○ Compiling /transactions ...
+ ✓ Compiled /transactions in 621ms (544 modules)
+ GET /transactions 200 in 899ms
+ ✓ Compiled /api/transactions in 382ms (547 modules)
+ ✓ Compiled (556 modules)
+ GET /api/clients 200 in 1177ms
+ GET /api/transactions?page=1&pageSize=50 200 in 1181ms
+ GET /api/suppliers 200 in 1185ms
+ GET /api/invoices 200 in 1201ms
+ GET /api/clients 200 in 391ms
+ GET /api/transactions?page=1&pageSize=50 200 in 432ms
+ GET /api/suppliers 200 in 439ms
+ GET /api/invoices 200 in 369ms
+ ○ Compiling /ledger ...
+ ✓ Compiled /ledger in 582ms (563 modules)
+ GET /ledger 200 in 1120ms
+ GET /capital-operations 200 in 180ms
+ ✓ Compiled /api/capital-operations in 392ms (561 modules)
+ GET /api/capital-operations 200 in 671ms
+ GET /api/capital-operations 200 in 676ms
+ GET /capital-operations/df3bdd0d-8767-40ef-b49c-95d0267b6a1d 200 in 197ms
+ GET /api/shareholders 200 in 328ms
+ GET /api/capital-operations/df3bdd0d-8767-40ef-b49c-95d0267b6a1d 200 in 332ms
+ GET /api/accounts 200 in 396ms

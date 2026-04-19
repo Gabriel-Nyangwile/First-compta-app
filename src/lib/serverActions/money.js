@@ -35,6 +35,10 @@ export async function createMoneyMovement({
   invoiceId,
   incomingInvoiceId,
   supplierId,
+  employeeId,
+  relatedAdvanceMovementId,
+  beneficiaryLabel,
+  supportRef,
   // transferGroupId supprimé du schéma : regroupez via voucherRef si besoin
   voucherRef, // facultatif maintenant: généré si absent
   counterpartAccountId, // compte comptable contrepartie explicite si nécessaire
@@ -49,6 +53,10 @@ export async function createMoneyMovement({
     CLIENT_RECEIPT: "IN",
     SUPPLIER_PAYMENT: "OUT",
     CASH_PURCHASE: "OUT",
+    EMPLOYEE_EXPENSE: "OUT",
+    MISSION_ADVANCE: "OUT",
+    MISSION_ADVANCE_REFUND: "IN",
+    PETTY_CASH_OUT: "OUT",
     ASSOCIATE_CONTRIBUTION: "IN",
     ASSOCIATE_WITHDRAWAL: "OUT",
     SALARY_PAYMENT: "OUT",
@@ -61,6 +69,26 @@ export async function createMoneyMovement({
   }
   if (autoPost && kind === "OTHER" && !counterpartAccountId) {
     throw new Error("counterpartAccountId requis pour OTHER quand autoPost=true");
+  }
+  if (
+    ["EMPLOYEE_EXPENSE", "MISSION_ADVANCE", "PETTY_CASH_OUT"].includes(kind) &&
+    autoPost &&
+    !counterpartAccountId
+  ) {
+    throw new Error(`counterpartAccountId requis pour ${kind}`);
+  }
+  if (kind === "MISSION_ADVANCE" && !employeeId) {
+    throw new Error("employeeId requis pour MISSION_ADVANCE");
+  }
+  if (kind === "MISSION_ADVANCE_REFUND" && !relatedAdvanceMovementId) {
+    throw new Error("relatedAdvanceMovementId requis pour MISSION_ADVANCE_REFUND");
+  }
+  if (
+    ["EMPLOYEE_EXPENSE", "PETTY_CASH_OUT"].includes(kind) &&
+    !employeeId &&
+    !String(beneficiaryLabel || "").trim()
+  ) {
+    throw new Error("employeeId ou beneficiaryLabel requis");
   }
 
   let moneyAccount = await prisma.moneyAccount.findFirst({
@@ -105,6 +133,8 @@ export async function createMoneyMovement({
   return await prisma.$transaction(async (tx) => {
     let resolvedSupplierId = supplierId || null;
     let resolvedIncomingInvoice = null;
+    let resolvedEmployee = null;
+    let resolvedRelatedAdvance = null;
     if (kind === "SUPPLIER_PAYMENT") {
       if (!incomingInvoiceId)
         throw new Error("incomingInvoiceId requis pour SUPPLIER_PAYMENT");
@@ -118,6 +148,80 @@ export async function createMoneyMovement({
         throw new Error("Compte fournisseur manquant (supplierId)");
       resolvedSupplierId = resolvedIncomingInvoice.supplierId;
     }
+    if (employeeId) {
+      resolvedEmployee = await tx.employee.findFirst({
+        where: { id: employeeId, ...(companyId ? { companyId } : {}) },
+        select: {
+          id: true,
+          companyId: true,
+          firstName: true,
+          lastName: true,
+          employeeNumber: true,
+        },
+      });
+      if (!resolvedEmployee) throw new Error("Employé introuvable");
+      if (companyId && resolvedEmployee.companyId !== companyId) {
+        throw new Error("Employé hors société");
+      }
+    }
+    if (kind === "MISSION_ADVANCE_REFUND") {
+      resolvedRelatedAdvance = await tx.moneyMovement.findFirst({
+        where: {
+          id: relatedAdvanceMovementId,
+          kind: "MISSION_ADVANCE",
+          ...(companyId ? { companyId } : {}),
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              companyId: true,
+              employeeNumber: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          regularizations: { select: { amount: true } },
+          relatedRefundMovements: {
+            where: { kind: "MISSION_ADVANCE_REFUND" },
+            select: { amount: true },
+          },
+        },
+      });
+      if (!resolvedRelatedAdvance) {
+        throw new Error("Avance de mission liée introuvable");
+      }
+      if (!resolvedRelatedAdvance.employeeId || !resolvedRelatedAdvance.employee) {
+        throw new Error("Employé manquant sur l'avance liée");
+      }
+      if (!resolvedEmployee) {
+        resolvedEmployee = resolvedRelatedAdvance.employee;
+      }
+      if (resolvedEmployee.id !== resolvedRelatedAdvance.employeeId) {
+        throw new Error("Employé incohérent avec l'avance liée");
+      }
+      const regularized = resolvedRelatedAdvance.regularizations.reduce(
+        (sum, row) => sum.plus(row.amount),
+        new Prisma.Decimal(0)
+      );
+      const refunded = resolvedRelatedAdvance.relatedRefundMovements.reduce(
+        (sum, row) => sum.plus(row.amount),
+        new Prisma.Decimal(0)
+      );
+      const remaining = resolvedRelatedAdvance.amount.minus(regularized).minus(refunded);
+      if (new Prisma.Decimal(amount).gt(remaining)) {
+        throw new Error(
+          `Montant supérieur au reliquat remboursable (${remaining.toString()})`
+        );
+      }
+      counterpartAccountId = (
+        await getMissionAdvanceCounterpartAccount(
+          tx,
+          resolvedRelatedAdvance.id,
+          companyId
+        )
+      ).id;
+    }
 
     const movement = await tx.moneyMovement.create({
       data: {
@@ -130,6 +234,10 @@ export async function createMoneyMovement({
         invoiceId,
         incomingInvoiceId,
         supplierId: resolvedSupplierId,
+        employeeId: resolvedEmployee?.id || null,
+        relatedAdvanceMovementId: resolvedRelatedAdvance?.id || null,
+        beneficiaryLabel: beneficiaryLabel?.trim?.() || null,
+        supportRef: supportRef?.trim?.() || null,
         voucherRef: finalVoucherRef,
       },
     });
@@ -147,6 +255,8 @@ export async function createMoneyMovement({
         counterpartAccountId,
         vatBreakdown,
         incomingInvoice: resolvedIncomingInvoice,
+        employee: resolvedEmployee,
+        relatedAdvance: resolvedRelatedAdvance,
         companyId,
       });
       if (postedTransactions.length) {
@@ -270,6 +380,8 @@ export async function autoPostTransactions({
   counterpartAccountId,
   vatBreakdown,
   incomingInvoice,
+  employee,
+  relatedAdvance,
   companyId = null,
 }) {
   const entries = [];
@@ -279,6 +391,10 @@ export async function autoPostTransactions({
     ASSOCIATE_WITHDRAWAL: "Remboursement associé",
     SALARY_PAYMENT: "Paiement salaires",
     SALARY_ADVANCE: "Avance sur salaire",
+    EMPLOYEE_EXPENSE: "Frais remboursés",
+    MISSION_ADVANCE: "Avance de mission",
+    MISSION_ADVANCE_REFUND: "Remboursement avance mission",
+    PETTY_CASH_OUT: "Sortie de caisse",
   };
   // Ligne côté trésorerie (toujours)
   const moneyLine = {
@@ -513,6 +629,90 @@ export async function autoPostTransactions({
       });
       break;
     }
+    case "EMPLOYEE_EXPENSE": {
+      if (!counterpartAccountId) {
+        throw new Error("counterpartAccountId requis (compte de charge)");
+      }
+      entries.push({
+        date: movement.date,
+        amount: amt,
+        direction: "DEBIT",
+        kind: "PAYMENT",
+        accountId: counterpartAccountId,
+        moneyMovementId: movement.id,
+        description:
+          movement.description ||
+          labelForEmployeeMovement(defaultLabels[kind], employee, movement),
+      });
+      break;
+    }
+    case "MISSION_ADVANCE": {
+      if (!counterpartAccountId) {
+        throw new Error("counterpartAccountId requis (compte 425 / 467)");
+      }
+      await ensureClass4Account(
+        tx,
+        counterpartAccountId,
+        "MISSION_ADVANCE",
+        companyId
+      );
+      entries.push({
+        date: movement.date,
+        amount: amt,
+        direction: "DEBIT",
+        kind: "PAYMENT",
+        accountId: counterpartAccountId,
+        moneyMovementId: movement.id,
+        description:
+          movement.description ||
+          labelForEmployeeMovement(defaultLabels[kind], employee, movement),
+      });
+      break;
+    }
+    case "MISSION_ADVANCE_REFUND": {
+      if (!counterpartAccountId) {
+        throw new Error("Compte d'avance requis pour MISSION_ADVANCE_REFUND");
+      }
+      await ensureClass4Account(
+        tx,
+        counterpartAccountId,
+        "MISSION_ADVANCE_REFUND",
+        companyId
+      );
+      entries.push({
+        date: movement.date,
+        amount: amt,
+        direction: "CREDIT",
+        kind: "PAYMENT",
+        accountId: counterpartAccountId,
+        moneyMovementId: movement.id,
+        description:
+          movement.description ||
+          labelForEmployeeMovement(defaultLabels[kind], employee, {
+            ...movement,
+            beneficiaryLabel:
+              relatedAdvance?.voucherRef || movement.beneficiaryLabel || "",
+          }),
+      });
+      break;
+    }
+    case "PETTY_CASH_OUT": {
+      if (!counterpartAccountId) {
+        throw new Error("counterpartAccountId requis pour PETTY_CASH_OUT");
+      }
+      entries.push({
+        date: movement.date,
+        amount: amt,
+        direction: "DEBIT",
+        kind: "PAYMENT",
+        accountId: counterpartAccountId,
+        moneyMovementId: movement.id,
+        description:
+          movement.description ||
+          labelForEmployeeMovement(defaultLabels[kind], employee, movement),
+      });
+      break;
+    }
     default: {
       if (counterpartAccountId) {
         // Générique : sens opposé
@@ -631,6 +831,36 @@ async function ensureVatDeductibleAccount(tx, companyId = null) {
   return acc;
 }
 
+function labelForEmployeeMovement(baseLabel, employee, movement) {
+  const employeeLabel = employee
+    ? [employee.employeeNumber, employee.firstName, employee.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim()
+    : movement.beneficiaryLabel?.trim?.() || "";
+  return employeeLabel ? `${baseLabel} - ${employeeLabel}` : baseLabel;
+}
+
+function summarizeTransactionLettering(transactions = []) {
+  const rows = Array.isArray(transactions) ? transactions : [];
+  const statusCounts = rows.reduce((acc, tx) => {
+    const status = tx.letterStatus || "UNMATCHED";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  const statuses = Object.keys(statusCounts);
+  let overallStatus = "UNMATCHED";
+  if (statuses.length && statuses.every((status) => status === "MATCHED")) {
+    overallStatus = "MATCHED";
+  } else if (statuses.some((status) => status === "MATCHED" || status === "PARTIAL")) {
+    overallStatus = "PARTIAL";
+  }
+  return {
+    overallStatus,
+    statusCounts,
+  };
+}
+
 async function ensureClass4Account(
   tx,
   accountId,
@@ -735,6 +965,14 @@ export async function listMoneyMovements({
         },
       },
       supplier: { select: { id: true, name: true } },
+      employee: {
+        select: {
+          id: true,
+          employeeNumber: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
       transactions: { include: { account: true } },
     },
   };
@@ -828,6 +1066,14 @@ export async function getMoneyAccountLedger({
       invoice: { select: { id: true, invoiceNumber: true } },
       incomingInvoice: { select: { id: true, entryNumber: true } },
       supplier: { select: { id: true, name: true } },
+      employee: {
+        select: {
+          id: true,
+          employeeNumber: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
       transactions: { include: { account: true } },
     },
   });
@@ -853,6 +1099,18 @@ export async function getMoneyAccountLedger({
       supplier: m.supplier
         ? { id: m.supplier.id, name: m.supplier.name }
         : null,
+      employee: m.employee
+        ? {
+            id: m.employee.id,
+            employeeNumber: m.employee.employeeNumber,
+            name: [m.employee.firstName, m.employee.lastName]
+              .filter(Boolean)
+              .join(" ")
+              .trim(),
+          }
+        : null,
+      beneficiaryLabel: m.beneficiaryLabel || null,
+      supportRef: m.supportRef || null,
       transactions: (m.transactions || []).map((t) => ({
         id: t.id,
         accountId: t.accountId,
@@ -1000,6 +1258,328 @@ export async function createTransfer({
   });
 }
 
+function decimalToNumber(value) {
+  return value?.toNumber?.() ?? Number(value ?? 0);
+}
+
+function normalizeDateInput(value) {
+  if (!value) return new Date();
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Date invalide");
+  }
+  return parsed;
+}
+
+function formatEmployeeLabel(employee) {
+  if (!employee) return "";
+  return [employee.employeeNumber, employee.firstName, employee.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+async function getMissionAdvanceCounterpartAccount(tx, movementId, companyId) {
+  const counterpartTx = await tx.transaction.findFirst({
+    where: {
+      moneyMovementId: movementId,
+      direction: "DEBIT",
+      ...(companyId ? { companyId } : {}),
+    },
+    include: { account: true },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+  });
+  if (!counterpartTx?.account) {
+    throw new Error("Compte d'avance introuvable sur le mouvement");
+  }
+  if (!counterpartTx.account.number?.startsWith("4")) {
+    throw new Error("Le compte d'avance doit appartenir à la classe 4");
+  }
+  return counterpartTx.account;
+}
+
+export async function listOpenMissionAdvances({
+  companyId = null,
+  employeeId = null,
+} = {}) {
+  if (!companyId) throw new Error("companyId requis");
+
+  const advances = await prisma.moneyMovement.findMany({
+    where: {
+      companyId,
+      kind: "MISSION_ADVANCE",
+      ...(employeeId ? { employeeId } : {}),
+    },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    include: {
+      employee: {
+        select: {
+          id: true,
+          employeeNumber: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      regularizations: {
+        select: {
+          id: true,
+          amount: true,
+          date: true,
+          supportRef: true,
+        },
+      },
+      relatedRefundMovements: {
+        where: { kind: "MISSION_ADVANCE_REFUND" },
+        select: {
+          id: true,
+          amount: true,
+          date: true,
+          supportRef: true,
+          voucherRef: true,
+        },
+      },
+      transactions: {
+        where: { direction: "DEBIT" },
+        include: { account: true },
+        take: 1,
+      },
+    },
+  });
+
+  return advances
+    .map((advance) => {
+      const settledAmount = advance.regularizations.reduce(
+        (sum, regularization) => sum + decimalToNumber(regularization.amount),
+        0
+      );
+      const refundedAmount = advance.relatedRefundMovements.reduce(
+        (sum, movement) => sum + decimalToNumber(movement.amount),
+        0
+      );
+      const amount = decimalToNumber(advance.amount);
+      const clearedAmount = settledAmount + refundedAmount;
+      const remainingAmount = amount - clearedAmount;
+      return {
+        id: advance.id,
+        date: advance.date?.toISOString?.() || null,
+        voucherRef: advance.voucherRef,
+        description: advance.description || "",
+        supportRef: advance.supportRef || null,
+        employee: advance.employee
+          ? {
+              id: advance.employee.id,
+              employeeNumber: advance.employee.employeeNumber || null,
+              name: formatEmployeeLabel(advance.employee),
+            }
+          : null,
+        advanceAccount: advance.transactions[0]?.account
+          ? {
+              id: advance.transactions[0].account.id,
+              number: advance.transactions[0].account.number,
+              label: advance.transactions[0].account.label,
+            }
+          : null,
+        amount,
+        regularizedAmount: settledAmount,
+        refundedAmount,
+        settledAmount: clearedAmount,
+        remainingAmount,
+        regularizationCount: advance.regularizations.length,
+        refundCount: advance.relatedRefundMovements.length,
+      };
+    })
+    .filter((advance) => advance.remainingAmount > 0.009);
+}
+
+export async function getMissionAdvanceOverview({ companyId = null } = {}) {
+  if (!companyId) throw new Error("companyId requis");
+  const advances = await listOpenMissionAdvances({ companyId });
+  const now = new Date();
+  const rows = advances
+    .map((advance) => {
+      const advanceDate = advance.date ? new Date(advance.date) : null;
+      const ageDays = advanceDate
+        ? Math.max(0, Math.floor((now.getTime() - advanceDate.getTime()) / (24 * 60 * 60 * 1000)))
+        : 0;
+      let ageBucket = "0-30j";
+      if (ageDays > 90) ageBucket = ">90j";
+      else if (ageDays > 60) ageBucket = "61-90j";
+      else if (ageDays > 30) ageBucket = "31-60j";
+      return {
+        ...advance,
+        ageDays,
+        ageBucket,
+      };
+    })
+    .sort((a, b) => {
+      if (b.ageDays !== a.ageDays) return b.ageDays - a.ageDays;
+      return (b.remainingAmount || 0) - (a.remainingAmount || 0);
+    });
+
+  const summary = rows.reduce(
+    (acc, row) => {
+      acc.totalOpenAmount += row.remainingAmount || 0;
+      acc.totalOpenCount += 1;
+      if (row.ageDays > acc.maxAgeDays) acc.maxAgeDays = row.ageDays;
+      acc.byBucket[row.ageBucket] = (acc.byBucket[row.ageBucket] || 0) + 1;
+      return acc;
+    },
+    {
+      totalOpenAmount: 0,
+      totalOpenCount: 0,
+      maxAgeDays: 0,
+      byBucket: {
+        "0-30j": 0,
+        "31-60j": 0,
+        "61-90j": 0,
+        ">90j": 0,
+      },
+    }
+  );
+
+  return { summary, rows };
+}
+
+export async function createMissionAdvanceRegularization({
+  companyId = null,
+  advanceMovementId,
+  expenseAccountId,
+  amount,
+  date,
+  supportRef,
+  description,
+}) {
+  if (!companyId) throw new Error("companyId requis");
+  if (!advanceMovementId) throw new Error("advanceMovementId requis");
+  if (!expenseAccountId) throw new Error("expenseAccountId requis");
+  if (!amount || Number(amount) <= 0) throw new Error("Montant doit être > 0");
+
+  return prisma.$transaction(async (tx) => {
+    const advance = await tx.moneyMovement.findFirst({
+      where: { id: advanceMovementId, companyId, kind: "MISSION_ADVANCE" },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            companyId: true,
+            employeeNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        regularizations: {
+          select: { amount: true },
+        },
+      },
+    });
+    if (!advance) throw new Error("Avance de mission introuvable");
+    if (!advance.employeeId || !advance.employee) {
+      throw new Error("Employé manquant sur l'avance de mission");
+    }
+    const expenseAccount = await tx.account.findFirst({
+      where: { id: expenseAccountId, companyId },
+    });
+    if (!expenseAccount) throw new Error("Compte de charge introuvable");
+    const advanceAccount = await getMissionAdvanceCounterpartAccount(
+      tx,
+      advance.id,
+      companyId
+    );
+    const settledAmount = advance.regularizations.reduce(
+      (sum, row) => sum.plus(row.amount),
+      new Prisma.Decimal(0)
+    );
+    const remainingAmount = advance.amount.minus(settledAmount);
+    const regularizationAmount = new Prisma.Decimal(amount);
+    if (regularizationAmount.gt(remainingAmount)) {
+      throw new Error(
+        `Montant supérieur au reliquat de l'avance (${remainingAmount.toString()})`
+      );
+    }
+    const effectiveDate = normalizeDateInput(date);
+    const regularization = await tx.missionAdvanceRegularization.create({
+      data: {
+        companyId,
+        advanceMovementId: advance.id,
+        employeeId: advance.employeeId,
+        expenseAccountId,
+        amount: regularizationAmount,
+        date: effectiveDate,
+        supportRef: supportRef?.trim?.() || null,
+        description: description?.trim?.() || null,
+      },
+    });
+
+    const baseLabel = description?.trim?.() || "Régularisation avance de mission";
+    const employeeLabel = formatEmployeeLabel(advance.employee);
+    const finalDescription = employeeLabel
+      ? `${baseLabel} - ${employeeLabel}`
+      : baseLabel;
+    const transactions = [];
+    transactions.push(
+      await tx.transaction.create({
+        data: {
+          companyId,
+          date: effectiveDate,
+          amount: regularizationAmount,
+          direction: "DEBIT",
+          kind: "PAYMENT",
+          accountId: expenseAccount.id,
+          description: finalDescription,
+        },
+      })
+    );
+    transactions.push(
+      await tx.transaction.create({
+        data: {
+          companyId,
+          date: effectiveDate,
+          amount: regularizationAmount,
+          direction: "CREDIT",
+          kind: "PAYMENT",
+          accountId: advanceAccount.id,
+          description: finalDescription,
+        },
+      })
+    );
+    const journal = await finalizeBatchToJournal(tx, {
+      sourceType: "MISSION_ADVANCE_REGULARIZATION",
+      sourceId: regularization.id,
+      date: effectiveDate,
+      description: finalDescription,
+      transactions,
+    });
+    const updated = await tx.missionAdvanceRegularization.update({
+      where: { id: regularization.id },
+      data: { journalEntryId: journal.id },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            employeeNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        expenseAccount: { select: { id: true, number: true, label: true } },
+        advanceMovement: {
+          select: {
+            id: true,
+            voucherRef: true,
+            amount: true,
+            supportRef: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      remainingAmount: remainingAmount.minus(regularizationAmount),
+    };
+  });
+}
+
 export async function getSupplierTreasuryOverview({
   companyId = null,
   search,
@@ -1045,6 +1625,13 @@ export async function getSupplierTreasuryOverview({
           date: true,
           amount: true,
           voucherRef: true,
+          incomingInvoiceId: true,
+          transactions: {
+            select: {
+              id: true,
+              letterStatus: true,
+            },
+          },
           moneyAccount: { select: { label: true } },
         },
       },
@@ -1087,13 +1674,26 @@ export async function getSupplierTreasuryOverview({
       ? mappedInvoices.slice(0, 5)
       : mappedInvoices;
 
-    const payments = supplier.moneyMovements.map((movement) => ({
-      id: movement.id,
-      date: movement.date ? movement.date.toISOString() : null,
-      amount: movement.amount?.toNumber?.() ?? Number(movement.amount ?? 0),
-      voucherRef: movement.voucherRef,
-      moneyAccountLabel: movement.moneyAccount?.label || null,
-    }));
+    let unmatchedPaymentsCount = 0;
+    let unmatchedPaymentsAmount = 0;
+    const payments = supplier.moneyMovements.map((movement) => {
+      const lettering = summarizeTransactionLettering(movement.transactions);
+      const amount =
+        movement.amount?.toNumber?.() ?? Number(movement.amount ?? 0);
+      if (lettering.overallStatus !== "MATCHED") {
+        unmatchedPaymentsCount += 1;
+        unmatchedPaymentsAmount += amount;
+      }
+      return {
+        id: movement.id,
+        date: movement.date ? movement.date.toISOString() : null,
+        amount,
+        voucherRef: movement.voucherRef,
+        moneyAccountLabel: movement.moneyAccount?.label || null,
+        incomingInvoiceId: movement.incomingInvoiceId || null,
+        letterStatus: lettering.overallStatus,
+      };
+    });
 
     return {
       id: supplier.id,
@@ -1102,6 +1702,8 @@ export async function getSupplierTreasuryOverview({
       paymentDelay: supplier.paymentDelay ?? null,
       outstandingTotal,
       overdueCount,
+      unmatchedPaymentsCount,
+      unmatchedPaymentsAmount,
       nextDueDate: nextDueDate ? nextDueDate.toISOString() : null,
       invoices,
       payments,
@@ -1198,37 +1800,44 @@ export async function getSupplierTreasuryDetail({
     };
   });
 
-  const paymentRows = payments.map((movement) => ({
-    id: movement.id,
-    date: movement.date ? movement.date.toISOString() : null,
-    amount: decimalToNumber(movement.amount),
-    description: movement.description || "",
-    voucherRef: movement.voucherRef,
-    moneyAccount: movement.moneyAccount
-      ? {
-          id: movement.moneyAccount.id,
-          label: movement.moneyAccount.label,
-          code: movement.moneyAccount.code,
-        }
-      : null,
-    incomingInvoice: movement.incomingInvoice
-      ? {
-          id: movement.incomingInvoice.id,
-          number:
-            movement.incomingInvoice.entryNumber ||
-            movement.incomingInvoice.supplierInvoiceNumber ||
-            movement.incomingInvoice.id,
-        }
-      : null,
-    transactions: (movement.transactions || []).map((t) => ({
+  const paymentRows = payments.map((movement) => {
+    const transactions = (movement.transactions || []).map((t) => ({
       id: t.id,
       direction: t.direction,
       accountId: t.accountId,
       accountNumber: t.account?.number,
       accountLabel: t.account?.label,
       amount: decimalToNumber(t.amount),
-    })),
-  }));
+      letterStatus: t.letterStatus,
+      letterRef: t.letterRef,
+    }));
+    const lettering = summarizeTransactionLettering(movement.transactions);
+    return {
+      id: movement.id,
+      date: movement.date ? movement.date.toISOString() : null,
+      amount: decimalToNumber(movement.amount),
+      description: movement.description || "",
+      voucherRef: movement.voucherRef,
+      moneyAccount: movement.moneyAccount
+        ? {
+            id: movement.moneyAccount.id,
+            label: movement.moneyAccount.label,
+            code: movement.moneyAccount.code,
+          }
+        : null,
+      incomingInvoice: movement.incomingInvoice
+        ? {
+            id: movement.incomingInvoice.id,
+            number:
+              movement.incomingInvoice.entryNumber ||
+              movement.incomingInvoice.supplierInvoiceNumber ||
+              movement.incomingInvoice.id,
+          }
+        : null,
+      letterStatus: lettering.overallStatus,
+      transactions,
+    };
+  });
 
   const timelineEvents = [];
   for (const invoice of invoiceRows) {
@@ -1287,6 +1896,9 @@ export async function getSupplierTreasuryDetail({
   });
 
   const lastPaymentDate = paymentRows[0]?.date || null;
+  const unmatchedPayments = paymentRows.filter(
+    (payment) => payment.letterStatus !== "MATCHED"
+  );
 
   return {
     supplier: {
@@ -1304,6 +1916,11 @@ export async function getSupplierTreasuryDetail({
       totalPaid,
       totalOutstanding,
       overdueCount,
+      unmatchedPaymentsCount: unmatchedPayments.length,
+      unmatchedPaymentsAmount: unmatchedPayments.reduce(
+        (sum, payment) => sum + payment.amount,
+        0
+      ),
       nextDueDate: nextDueDate ? nextDueDate.toISOString() : null,
       lastPaymentDate,
     },

@@ -236,6 +236,23 @@ export default function DashboardPage() {
               <div className="text-sm text-purple-600">Solde max: <span className="font-bold">{stats.treasury?.max?.toLocaleString() ?? '-'}</span> €</div>
               <div className="text-sm text-purple-600">Solde min: <span className="font-bold">{stats.treasury?.min?.toLocaleString() ?? '-'}</span> €</div>
               <div className="text-sm text-purple-600">Mouvements récents: {stats.treasury?.recentCount ?? 0}</div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(stats.treasury?.negativeCashAccountsCount ?? 0) > 0 && (
+                  <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">
+                    {stats.treasury?.negativeCashAccountsCount} caisse(s) négative(s)
+                  </span>
+                )}
+                {(stats.treasury?.unmatchedSupplierPaymentsCount ?? 0) > 0 && (
+                  <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-semibold">
+                    {stats.treasury?.unmatchedSupplierPaymentsCount} paiement(s) fournisseur à rapprocher
+                  </span>
+                )}
+                {(stats.treasury?.openMissionAdvancesCount ?? 0) > 0 && (
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-semibold">
+                    {stats.treasury?.openMissionAdvancesCount} avance(s) mission ouverte(s)
+                  </span>
+                )}
+              </div>
               <Link href="/treasury" className="text-purple-700 underline text-xs mt-2">Voir détail</Link>
             </>}
           </div>

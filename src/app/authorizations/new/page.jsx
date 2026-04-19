@@ -65,7 +65,7 @@ export default function NewAuthorizationPage() {
           <p className="text-[11px] text-slate-500 leading-snug">Ce champ décrit la finalité : ex: "Paiement facture fournisseur", "Frais déplacement". Le système propose des modèles fréquents; ajustez si besoin.</p>
         </div>
         <InvoiceLinker />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded">Créer</button>
+        <button className="bg-blue-600 text-white px-4 py-2 rounded">Enregistrer l'autorisation</button>
       </form>
     </main>
   );

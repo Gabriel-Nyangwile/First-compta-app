@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { postCapitalCall } from "@/lib/capitalPosting";
+import { buildCapitalSourcePrefix, postCapitalCall } from "@/lib/capitalPosting";
 import { requireCompanyId } from "@/lib/tenant";
 
 // Mise à jour d'un appel de fonds (montant, échéance, libellé, souscription cible)
@@ -70,6 +70,7 @@ export async function DELETE(req, { params }) {
           kind: "CAPITAL_CALL",
           companyId,
           OR: [
+            { journalEntry: { sourceId: { startsWith: buildCapitalSourcePrefix("call", call.id) } } },
             { description: { contains: call.id } },
             { description: { contains: String(call.callNumber ?? "") } },
           ],

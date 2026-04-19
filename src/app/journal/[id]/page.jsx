@@ -40,6 +40,8 @@ export default async function JournalEntryDetail({ params }) {
   const entry = await prisma.journalEntry.findFirst({
     where: { id: params.id, companyId },
     include: {
+      preparedByUser: { select: { id: true, username: true, email: true } },
+      validatedByUser: { select: { id: true, username: true, email: true } },
       lines: {
         orderBy: [{ date: "asc" }, { id: "asc" }],
         include: {
@@ -68,12 +70,44 @@ export default async function JournalEntryDetail({ params }) {
     );
   }
 
+  let effectiveLines = entry.lines;
+  if (entry.status === "DRAFT" && (!entry.lines || entry.lines.length === 0)) {
+    const draftLines = Array.isArray(entry.draftPayload?.lines)
+      ? entry.draftPayload.lines
+      : [];
+    const accountIds = [...new Set(draftLines.map((line) => line.accountId).filter(Boolean))];
+    const accounts = accountIds.length
+      ? await prisma.account.findMany({
+          where: { id: { in: accountIds }, companyId },
+          select: { id: true, number: true, label: true },
+        })
+      : [];
+    const accountsById = new Map(accounts.map((account) => [account.id, account]));
+    effectiveLines = draftLines.map((line, index) => {
+      const debit = Number(line.debit || 0);
+      const credit = Number(line.credit || 0);
+      const amount = debit > 0 ? debit : credit;
+      return {
+        id: `draft-${index}`,
+        amount,
+        direction: debit > 0 ? "DEBIT" : "CREDIT",
+        description: line.description || entry.description || "OD manuelle en brouillon",
+        kind: "ADJUSTMENT",
+        letteredAmount: 0,
+        letterStatus: "UNMATCHED",
+        letterRef: null,
+        letteredAt: null,
+        account: accountsById.get(line.accountId) || null,
+      };
+    });
+  }
+
   let debit = 0;
   let credit = 0;
   let totalLettered = 0;
   let totalOutstanding = 0;
 
-  const lines = entry.lines.map((line, index) => {
+  const lines = effectiveLines.map((line, index) => {
     const amount = toNumber(line.amount);
     const letteredAmount = toNumber(line.letteredAmount);
     const outstanding = Math.max(0, amount - letteredAmount);
@@ -102,9 +136,19 @@ export default async function JournalEntryDetail({ params }) {
           <p className="text-sm text-neutral-500">
             {formatDateTime(entry.date)} • Source {entry.sourceType}
             {entry.sourceId ? ` • Référence ${entry.sourceId}` : ""}
+            {entry.supportRef ? ` • PJ ${entry.supportRef}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm">
+          {entry.sourceType === "MANUAL" &&
+          entry.sourceId?.startsWith("manual-od:") ? (
+            <Link
+              className="text-blue-600 hover:underline"
+              href={`/journal/manual-od/${entry.id}`}
+            >
+              Modifier cette OD
+            </Link>
+          ) : null}
           <Link
             className="text-blue-600 hover:underline"
             href={`/api/journal-entries/${entry.id}?format=csv`}
@@ -159,6 +203,34 @@ export default async function JournalEntryDetail({ params }) {
         </div>
         {entry.description && (
           <p className="text-neutral-700">{entry.description}</p>
+        )}
+        {entry.status === "DRAFT" && (
+          <p className="text-amber-700 text-sm">
+            Brouillon non comptabilisé : les lignes ci-dessous ne sont pas encore publiées dans les soldes.
+          </p>
+        )}
+        {entry.supportRef && (
+          <p className="text-neutral-600 text-sm">
+            Pièce justificative : <span className="font-mono">{entry.supportRef}</span>
+          </p>
+        )}
+        {(entry.preparedByUser || entry.validatedByUser || entry.preparedAt || entry.validatedAt) && (
+          <div className="text-neutral-600 text-sm space-y-1">
+            <p>
+              Préparé par :{" "}
+              <span className="font-medium">
+                {entry.preparedByUser?.username || entry.preparedByUser?.email || "—"}
+              </span>
+              {entry.preparedAt ? ` le ${formatDateTime(entry.preparedAt)}` : ""}
+            </p>
+            <p>
+              Validé par :{" "}
+              <span className="font-medium">
+                {entry.validatedByUser?.username || entry.validatedByUser?.email || "—"}
+              </span>
+              {entry.validatedAt ? ` le ${formatDateTime(entry.validatedAt)}` : ""}
+            </p>
+          </div>
         )}
         {entry.postedAt && (
           <p className="text-neutral-500 text-xs">

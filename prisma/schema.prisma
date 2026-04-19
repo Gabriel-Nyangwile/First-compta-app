@@ -134,72 +134,73 @@ model Company {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  users                   User[]
-  memberships             CompanyMembership[]
-  creationRequests        CompanyCreationRequest[]
-  accounts                Account[]
-  clients                 Client[]
-  suppliers               Supplier[]
-  sequences               Sequence[]
-  payments                Payment[]
-  paymentInvoiceLinks     PaymentInvoiceLink[]
-  letterings              Lettering[]
-  journalEntries          JournalEntry[]
-  invoices                Invoice[]
-  invoiceLines            InvoiceLine[]
-  salesOrders             SalesOrder[]
-  salesOrderLines         SalesOrderLine[]
-  purchaseOrders          PurchaseOrder[]
-  purchaseOrderLines      PurchaseOrderLine[]
-  assetPurchaseOrders     AssetPurchaseOrder[]
-  assetPurchaseOrderLines AssetPurchaseOrderLine[]
-  goodsReceipts           GoodsReceipt[]
-  goodsReceiptLines       GoodsReceiptLine[]
-  storageLocations        StorageLocation[]
-  products                Product[]
-  productInventories      ProductInventory[]
-  stockMovements          StockMovement[]
-  stockWithdrawals        StockWithdrawal[]
-  stockWithdrawalLines    StockWithdrawalLine[]
-  inventoryCounts         InventoryCount[]
-  inventoryCountLines     InventoryCountLine[]
-  transactions            Transaction[]
-  incomingInvoices        IncomingInvoice[]
-  incomingInvoiceLines    IncomingInvoiceLine[]
-  returnOrders            ReturnOrder[]
-  returnOrderLines        ReturnOrderLine[]
-  moneyAccounts           MoneyAccount[]
-  moneyMovements          MoneyMovement[]
-  purchaseOrderStatusLogs PurchaseOrderStatusLog[]
-  auditLogs               AuditLog[]
-  treasuryAuthorizations  TreasuryAuthorization[]
-  bankAdvices             BankAdvice[]
-  employees               Employee[]
-  positions               Position[]
-  employeeHistories       EmployeeHistory[]
-  baremes                 Bareme[]
-  payrollPeriods          PayrollPeriod[]
-  payslips                Payslip[]
-  payslipLines            PayslipLine[]
-  contributionSchemes     ContributionScheme[]
-  taxRules                TaxRule[]
-  costCenters             CostCenter[]
-  employeeCostAllocations EmployeeCostAllocation[]
-  payslipCostAllocations  PayslipCostAllocation[]
-  payrollAccountMappings  PayrollAccountMapping[]
-  fxRates                 FxRate[]
-  assetCategories         AssetCategory[]
-  assets                  Asset[]
-  depreciationLines       DepreciationLine[]
-  depreciationPeriodLocks DepreciationPeriodLock[]
-  assetDisposals          AssetDisposal[]
-  employeeAttendances     EmployeeAttendance[]
-  payrollVariables        PayrollVariable[]
-  shareholders            Shareholder[]
-  capitalOperations       CapitalOperation[]
-  capitalSubscriptions    CapitalSubscription[]
-  capitalCalls            CapitalCall[]
-  capitalPayments         CapitalPayment[]
+  users                         User[]
+  memberships                   CompanyMembership[]
+  creationRequests              CompanyCreationRequest[]
+  accounts                      Account[]
+  clients                       Client[]
+  suppliers                     Supplier[]
+  sequences                     Sequence[]
+  payments                      Payment[]
+  paymentInvoiceLinks           PaymentInvoiceLink[]
+  letterings                    Lettering[]
+  journalEntries                JournalEntry[]
+  invoices                      Invoice[]
+  invoiceLines                  InvoiceLine[]
+  salesOrders                   SalesOrder[]
+  salesOrderLines               SalesOrderLine[]
+  purchaseOrders                PurchaseOrder[]
+  purchaseOrderLines            PurchaseOrderLine[]
+  assetPurchaseOrders           AssetPurchaseOrder[]
+  assetPurchaseOrderLines       AssetPurchaseOrderLine[]
+  goodsReceipts                 GoodsReceipt[]
+  goodsReceiptLines             GoodsReceiptLine[]
+  storageLocations              StorageLocation[]
+  products                      Product[]
+  productInventories            ProductInventory[]
+  stockMovements                StockMovement[]
+  stockWithdrawals              StockWithdrawal[]
+  stockWithdrawalLines          StockWithdrawalLine[]
+  inventoryCounts               InventoryCount[]
+  inventoryCountLines           InventoryCountLine[]
+  transactions                  Transaction[]
+  incomingInvoices              IncomingInvoice[]
+  incomingInvoiceLines          IncomingInvoiceLine[]
+  returnOrders                  ReturnOrder[]
+  returnOrderLines              ReturnOrderLine[]
+  moneyAccounts                 MoneyAccount[]
+  moneyMovements                MoneyMovement[]
+  purchaseOrderStatusLogs       PurchaseOrderStatusLog[]
+  auditLogs                     AuditLog[]
+  treasuryAuthorizations        TreasuryAuthorization[]
+  bankAdvices                   BankAdvice[]
+  employees                     Employee[]
+  positions                     Position[]
+  employeeHistories             EmployeeHistory[]
+  baremes                       Bareme[]
+  payrollPeriods                PayrollPeriod[]
+  payslips                      Payslip[]
+  payslipLines                  PayslipLine[]
+  contributionSchemes           ContributionScheme[]
+  taxRules                      TaxRule[]
+  costCenters                   CostCenter[]
+  employeeCostAllocations       EmployeeCostAllocation[]
+  payslipCostAllocations        PayslipCostAllocation[]
+  payrollAccountMappings        PayrollAccountMapping[]
+  fxRates                       FxRate[]
+  assetCategories               AssetCategory[]
+  assets                        Asset[]
+  depreciationLines             DepreciationLine[]
+  depreciationPeriodLocks       DepreciationPeriodLock[]
+  assetDisposals                AssetDisposal[]
+  employeeAttendances           EmployeeAttendance[]
+  payrollVariables              PayrollVariable[]
+  shareholders                  Shareholder[]
+  capitalOperations             CapitalOperation[]
+  capitalSubscriptions          CapitalSubscription[]
+  capitalCalls                  CapitalCall[]
+  capitalPayments               CapitalPayment[]
+  missionAdvanceRegularizations MissionAdvanceRegularization[]
 }
 
 model User {
@@ -220,6 +221,8 @@ model User {
   memberships               CompanyMembership[]
   requestedCompanies        CompanyCreationRequest[] @relation("CompanyCreationRequester")
   reviewedCompanyRequests   CompanyCreationRequest[] @relation("CompanyCreationReviewer")
+  preparedManualJournalEntries  JournalEntry[]   @relation("ManualJournalPreparedBy")
+  validatedManualJournalEntries JournalEntry[]   @relation("ManualJournalValidatedBy")
   invoices                  Invoice[]
   clients                   Client[]
   GoodsReceipt              GoodsReceipt[]
@@ -279,30 +282,31 @@ model CompanyCreationRequest {
 }
 
 model Account {
-  id                            String                @id @default(uuid())
+  id                            String                         @id @default(uuid())
   companyId                     String
-  company                       Company               @relation(fields: [companyId], references: [id])
+  company                       Company                        @relation(fields: [companyId], references: [id])
   number                        String
   label                         String
   description                   String?
   transactions                  Transaction[]
   // Relation bidirectionnelle
   invoiceLines                  InvoiceLine[]
-  clients                       Client[]              @relation("AccountToClients")
-  suppliers                     Supplier[]            @relation("AccountToSuppliers")
+  clients                       Client[]                       @relation("AccountToClients")
+  suppliers                     Supplier[]                     @relation("AccountToSuppliers")
   // Lignes des factures fournisseurs reçues
   incomingInvoiceLines          IncomingInvoiceLine[]
   moneyAccounts                 MoneyAccount[]
-  inventoryProducts             Product[]             @relation("ProductInventoryAccount")
-  stockVariationProducts        Product[]             @relation("ProductStockVariationAccount")
+  inventoryProducts             Product[]                      @relation("ProductInventoryAccount")
+  stockVariationProducts        Product[]                      @relation("ProductStockVariationAccount")
   salesOrderLines               SalesOrderLine[]
   // Asset mapping back-relations
-  assetCategoriesAssetAccount   AssetCategory[]       @relation("AssetCategoryAssetAccount")
-  assetCategoriesDepAccount     AssetCategory[]       @relation("AssetCategoryDepAccount")
-  assetCategoriesExpenseAccount AssetCategory[]       @relation("AssetCategoryExpenseAccount")
-  assetCategoriesGainAccount    AssetCategory[]       @relation("AssetCategoryGainAccount")
-  assetCategoriesLossAccount    AssetCategory[]       @relation("AssetCategoryLossAccount")
-  capitalPayments               CapitalPayment[]      @relation("CapitalPaymentAccount")
+  assetCategoriesAssetAccount   AssetCategory[]                @relation("AssetCategoryAssetAccount")
+  assetCategoriesDepAccount     AssetCategory[]                @relation("AssetCategoryDepAccount")
+  assetCategoriesExpenseAccount AssetCategory[]                @relation("AssetCategoryExpenseAccount")
+  assetCategoriesGainAccount    AssetCategory[]                @relation("AssetCategoryGainAccount")
+  assetCategoriesLossAccount    AssetCategory[]                @relation("AssetCategoryLossAccount")
+  capitalPayments               CapitalPayment[]               @relation("CapitalPaymentAccount")
+  missionAdvanceRegularizations MissionAdvanceRegularization[]
 
   @@unique([companyId, number])
 }
@@ -428,6 +432,7 @@ enum JournalSourceType {
   INVOICE
   INCOMING_INVOICE
   MONEY_MOVEMENT
+  MISSION_ADVANCE_REGULARIZATION
   AUTHORIZATION
   BANK_ADVICE
   MANUAL
@@ -439,28 +444,39 @@ enum JournalSourceType {
 }
 
 model JournalEntry {
-  id                  String               @id @default(uuid())
-  companyId           String
-  company             Company              @relation(fields: [companyId], references: [id])
-  number              String
-  date                DateTime             @default(now())
-  sourceType          JournalSourceType    @default(OTHER)
-  sourceId            String?
-  description         String?
-  status              JournalStatus        @default(POSTED)
-  postedAt            DateTime? // Peut servir ultérieurement pour verrouillage période
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                            String                         @id @default(uuid())
+  companyId                     String
+  company                       Company                        @relation(fields: [companyId], references: [id])
+  number                        String
+  date                          DateTime                       @default(now())
+  sourceType                    JournalSourceType              @default(OTHER)
+  sourceId                      String?
+  supportRef                    String?
+  draftPayload                  Json?
+  preparedByUserId              String?
+  preparedByUser                User?                          @relation("ManualJournalPreparedBy", fields: [preparedByUserId], references: [id])
+  preparedAt                    DateTime?
+  validatedByUserId             String?
+  validatedByUser               User?                          @relation("ManualJournalValidatedBy", fields: [validatedByUserId], references: [id])
+  validatedAt                   DateTime?
+  description                   String?
+  status                        JournalStatus                  @default(POSTED)
+  postedAt                      DateTime? // Peut servir ultérieurement pour verrouillage période
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
   // Relations
-  lines               Transaction[]
-  inventoryCountLines InventoryCountLine[] @relation("InventoryCountJournal")
-  depreciationLines   DepreciationLine[]
-  assetDisposals      AssetDisposal[]
-  capitalPayments     CapitalPayment[]     @relation("CapitalPaymentJournal")
+  lines                         Transaction[]
+  inventoryCountLines           InventoryCountLine[]           @relation("InventoryCountJournal")
+  depreciationLines             DepreciationLine[]
+  assetDisposals                AssetDisposal[]
+  capitalPayments               CapitalPayment[]               @relation("CapitalPaymentJournal")
+  missionAdvanceRegularizations MissionAdvanceRegularization[]
 
   @@unique([companyId, number])
   @@index([sourceType, sourceId])
   @@index([date])
+  @@index([preparedByUserId])
+  @@index([validatedByUserId])
 }
 
 // =============================
@@ -483,6 +499,10 @@ enum MoneyMovementKind {
   VAT_PAYMENT // Paiement TVA
   TAX_PAYMENT // Paiement impôts/autres
   CASH_PURCHASE // Achat réglé immédiatement
+  EMPLOYEE_EXPENSE // Remboursement/frais payés à un employé
+  MISSION_ADVANCE // Avance de mission / avance à justifier
+  MISSION_ADVANCE_REFUND // Remboursement du reliquat d'avance par l'employé
+  PETTY_CASH_OUT // Sortie de caisse sur pièce ou liste
   TRANSFER // Transfert interne entre comptes
   OTHER
   ASSOCIATE_CONTRIBUTION // Apport associé (crédit 455)
@@ -1324,39 +1344,72 @@ model MoneyAccount {
 }
 
 model MoneyMovement {
-  id                String                 @id @default(uuid())
-  companyId         String
-  company           Company                @relation(fields: [companyId], references: [id])
-  date              DateTime               @default(now())
-  amount            Decimal                @db.Decimal(14, 2)
-  direction         MovementDirection
-  kind              MoneyMovementKind
-  moneyAccountId    String
-  moneyAccount      MoneyAccount           @relation(fields: [moneyAccountId], references: [id])
-  invoiceId         String?
-  invoice           Invoice?               @relation(fields: [invoiceId], references: [id])
-  incomingInvoiceId String?
-  incomingInvoice   IncomingInvoice?       @relation(fields: [incomingInvoiceId], references: [id])
-  supplierId        String?
-  supplier          Supplier?              @relation(fields: [supplierId], references: [id])
-  description       String?
+  id                       String                         @id @default(uuid())
+  companyId                String
+  company                  Company                        @relation(fields: [companyId], references: [id])
+  date                     DateTime                       @default(now())
+  amount                   Decimal                        @db.Decimal(14, 2)
+  direction                MovementDirection
+  kind                     MoneyMovementKind
+  moneyAccountId           String
+  moneyAccount             MoneyAccount                   @relation(fields: [moneyAccountId], references: [id])
+  invoiceId                String?
+  invoice                  Invoice?                       @relation(fields: [invoiceId], references: [id])
+  incomingInvoiceId        String?
+  incomingInvoice          IncomingInvoice?               @relation(fields: [incomingInvoiceId], references: [id])
+  supplierId               String?
+  supplier                 Supplier?                      @relation(fields: [supplierId], references: [id])
+  employeeId               String?
+  employee                 Employee?                      @relation(fields: [employeeId], references: [id])
+  relatedAdvanceMovementId String?
+  relatedAdvanceMovement   MoneyMovement?                 @relation("MissionAdvanceRefundLink", fields: [relatedAdvanceMovementId], references: [id])
+  relatedRefundMovements   MoneyMovement[]                @relation("MissionAdvanceRefundLink")
+  beneficiaryLabel         String?
+  supportRef               String?
+  description              String?
   // Référence justificative unique (générée via Sequence) (désormais obligatoire après backfill)
-  voucherRef        String
+  voucherRef               String
   // Lot1 linking to authorization & bank advice
-  authorizationId   String?
-  authorization     TreasuryAuthorization? @relation(fields: [authorizationId], references: [id])
-  bankAdviceId      String?
-  bankAdvice        BankAdvice?            @relation(fields: [bankAdviceId], references: [id])
-  createdAt         DateTime               @default(now())
-  transactions      Transaction[]
+  authorizationId          String?
+  authorization            TreasuryAuthorization?         @relation(fields: [authorizationId], references: [id])
+  bankAdviceId             String?
+  bankAdvice               BankAdvice?                    @relation(fields: [bankAdviceId], references: [id])
+  createdAt                DateTime                       @default(now())
+  transactions             Transaction[]
+  regularizations          MissionAdvanceRegularization[] @relation("MissionAdvanceRegularizationAdvance")
 
   @@unique([companyId, voucherRef])
   @@index([moneyAccountId, date])
   @@index([invoiceId])
   @@index([incomingInvoiceId])
   @@index([supplierId])
+  @@index([employeeId])
+  @@index([relatedAdvanceMovementId])
   @@index([authorizationId])
   @@index([bankAdviceId])
+}
+
+model MissionAdvanceRegularization {
+  id                String        @id @default(uuid())
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id])
+  date              DateTime      @default(now())
+  advanceMovementId String
+  advanceMovement   MoneyMovement @relation("MissionAdvanceRegularizationAdvance", fields: [advanceMovementId], references: [id])
+  employeeId        String
+  employee          Employee      @relation(fields: [employeeId], references: [id])
+  amount            Decimal       @db.Decimal(14, 2)
+  expenseAccountId  String
+  expenseAccount    Account       @relation(fields: [expenseAccountId], references: [id])
+  supportRef        String?
+  description       String?
+  journalEntryId    String?
+  journalEntry      JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  createdAt         DateTime      @default(now())
+
+  @@index([advanceMovementId])
+  @@index([employeeId])
+  @@index([journalEntryId])
 }
 
 model PurchaseOrderStatusLog {
@@ -1474,37 +1527,39 @@ enum EmployeeStatus {
 }
 
 model Employee {
-  id                   String                   @id @default(uuid())
-  companyId            String
-  company              Company                  @relation(fields: [companyId], references: [id])
-  firstName            String
-  lastName             String
-  email                String?
-  phone                String?
-  address              String?
-  birthDate            DateTime?
-  hireDate             DateTime?
-  endDate              DateTime?
-  employeeNumber       String? // matricule
-  gender               Gender?
-  maritalStatus        MaritalStatus?
-  childrenUnder18      Int?                     @default(0)
-  socialSecurityNumber String?
-  contractType         ContractType?
+  id                            String                         @id @default(uuid())
+  companyId                     String
+  company                       Company                        @relation(fields: [companyId], references: [id])
+  firstName                     String
+  lastName                      String
+  email                         String?
+  phone                         String?
+  address                       String?
+  birthDate                     DateTime?
+  hireDate                      DateTime?
+  endDate                       DateTime?
+  employeeNumber                String? // matricule
+  gender                        Gender?
+  maritalStatus                 MaritalStatus?
+  childrenUnder18               Int?                           @default(0)
+  socialSecurityNumber          String?
+  contractType                  ContractType?
   // Snapshot de la catégorie barémique au moment de l'affectation du poste (A1, A2, ...)
-  category             String?
-  isExpat              Boolean                  @default(false)
-  status               EmployeeStatus           @default(ACTIVE)
-  positionId           String?
-  position             Position?                @relation(fields: [positionId], references: [id])
-  history              EmployeeHistory[]
-  payslips             Payslip[]
-  costAllocations      EmployeeCostAllocation[]
+  category                      String?
+  isExpat                       Boolean                        @default(false)
+  status                        EmployeeStatus                 @default(ACTIVE)
+  positionId                    String?
+  position                      Position?                      @relation(fields: [positionId], references: [id])
+  history                       EmployeeHistory[]
+  payslips                      Payslip[]
+  costAllocations               EmployeeCostAllocation[]
   // Phase A back-relations
-  attendances          EmployeeAttendance[]
-  variables            PayrollVariable[]
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
+  attendances                   EmployeeAttendance[]
+  variables                     PayrollVariable[]
+  moneyMovements                MoneyMovement[]
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  missionAdvanceRegularizations MissionAdvanceRegularization[]
 
   @@unique([companyId, email])
   @@unique([companyId, employeeNumber])

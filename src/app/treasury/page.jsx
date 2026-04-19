@@ -1,23 +1,43 @@
 import React from 'react';
 import Link from 'next/link';
-import { listMoneyAccountsWithBalance, getMoneyAccountLedger } from '@/lib/serverActions/money';
+import { cookies, headers } from 'next/headers';
+import { listMoneyAccountsWithBalance, getMoneyAccountLedger, getMissionAdvanceOverview } from '@/lib/serverActions/money';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
 import Amount from '@/components/Amount.jsx';
+import TreasuryModuleNav from '@/components/treasury/TreasuryModuleNav.jsx';
 import NewMoneyMovementForm from '@/components/treasury/NewMoneyMovementForm.jsx';
 import TransferForm from '@/components/treasury/TransferForm.jsx';
 import NewMoneyAccountForm from '@/components/treasury/NewMoneyAccountForm.jsx';
+import MissionAdvanceRegularizationForm from '@/components/treasury/MissionAdvanceRegularizationForm.jsx';
+import MissionAdvanceOpenPanel from '@/components/treasury/MissionAdvanceOpenPanel.jsx';
+import MissionAdvanceRefundForm from '@/components/treasury/MissionAdvanceRefundForm.jsx';
 
 export default async function TreasuryPage(props) {
   const sp = await props.searchParams;
+  const cookieStore = await cookies();
+  const companyId = getCompanyIdFromCookies(cookieStore);
+  if (!companyId) {
+    return (
+      <main className="u-main-container u-padding-content-container">
+        companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).
+      </main>
+    );
+  }
   const accountId = sp?.account || null;
   const q = (sp?.q || '').toLowerCase();
   const dateFrom = sp?.from || null;
   const dateTo = sp?.to || null;
   const limitParam = parseInt(sp?.limit || '200', 10);
+  const requestHeaders = await headers();
+  const host = requestHeaders.get('host') || 'localhost:3000';
+  const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+  const summaryUrl = `${protocol}://${host}/api/treasury/summary`;
 
   // Récupère les comptes et le résumé trésorerie
-  const [accountsRaw, treasurySummaryRes] = await Promise.all([
-    listMoneyAccountsWithBalance(),
-    fetch("http://localhost:3000/api/treasury/summary", { cache: "no-store" }).then(r => r.ok ? r.json() : {})
+  const [accountsRaw, treasurySummaryRes, missionAdvanceOverview] = await Promise.all([
+    listMoneyAccountsWithBalance(companyId),
+    fetch(summaryUrl, { cache: "no-store", headers: { 'x-company-id': companyId } }).then(r => r.ok ? r.json() : {}),
+    getMissionAdvanceOverview({ companyId }),
   ]);
   const accounts = accountsRaw.map(a => ({
     id: a.id,
@@ -47,13 +67,16 @@ export default async function TreasuryPage(props) {
 
   let ledger = null;
   if (accountId) {
-    ledger = await getMoneyAccountLedger({ moneyAccountId: accountId, limit: limitParam, dateFrom, dateTo });
+    ledger = await getMoneyAccountLedger({ companyId, moneyAccountId: accountId, limit: limitParam, dateFrom, dateTo });
     if (q) {
       ledger.movements = ledger.movements.filter(m =>
         (m.voucherRef && m.voucherRef.toLowerCase().includes(q)) ||
         (m.description && m.description.toLowerCase().includes(q)) ||
         (m.invoice?.number && m.invoice.number.toLowerCase().includes(q)) ||
-        (m.incomingInvoice?.number && m.incomingInvoice.number.toLowerCase().includes(q))
+        (m.incomingInvoice?.number && m.incomingInvoice.number.toLowerCase().includes(q)) ||
+        (m.employee?.name && m.employee.name.toLowerCase().includes(q)) ||
+        (m.beneficiaryLabel && m.beneficiaryLabel.toLowerCase().includes(q)) ||
+        (m.supportRef && m.supportRef.toLowerCase().includes(q))
       );
     }
   }
@@ -72,15 +95,18 @@ export default async function TreasuryPage(props) {
   return (
     <main className="u-main-container u-padding-content-container space-y-8">
       <div>
-        <h1 className="text-2xl font-bold mb-2">Trésorerie</h1>
-        <p className="text-sm text-slate-600">Vue des comptes de trésorerie (caisse / banques) et derniers mouvements.</p>
+        <h1 className="text-2xl font-bold mb-2">Vue générale trésorerie</h1>
+        <p className="text-sm text-slate-600">Soldes, comptes de caisse et de banque, opérations de trésorerie et grand livre.</p>
       </div>
+
+      <TreasuryModuleNav currentHref="/treasury" />
+
       {/* Filtres synthétiques */}
       <form className="flex flex-wrap gap-4 items-end mb-4" method="get">
         <div className="flex flex-col">
           <label className="text-slate-600">Compte</label>
           <select name="account" defaultValue={accountId || ""} className="border px-2 py-1 rounded text-xs">
-            <option value="">Tous</option>
+            <option value="">Tous les comptes</option>
             {accounts.map(a => (
               <option key={a.id} value={a.id}>{a.label}</option>
             ))}
@@ -98,9 +124,9 @@ export default async function TreasuryPage(props) {
           <label className="text-slate-600">Recherche</label>
           <input type="text" name="q" defaultValue={q} placeholder="Réf / desc / facture" className="border px-2 py-1 rounded text-xs" />
         </div>
-        <button className="bg-purple-700 text-white px-3 py-1 rounded text-xs" type="submit">Filtrer</button>
-        <Link href="/api/treasury/ledger/export" className="bg-slate-100 text-purple-700 px-3 py-1 rounded text-xs border ml-2" target="_blank">Export CSV</Link>
-        <Link href="/api/treasury/ledger/pdf" className="bg-slate-100 text-purple-700 px-3 py-1 rounded text-xs border" target="_blank">PDF</Link>
+        <button className="bg-purple-700 text-white px-3 py-1 rounded text-xs" type="submit">Appliquer le filtre</button>
+        <Link href="/api/treasury/ledger/export" className="bg-slate-100 text-purple-700 px-3 py-1 rounded text-xs border ml-2" target="_blank">Exporter le grand livre (CSV)</Link>
+        <Link href="/api/treasury/ledger/pdf" className="bg-slate-100 text-purple-700 px-3 py-1 rounded text-xs border" target="_blank">Exporter le grand livre (PDF)</Link>
       </form>
       {/* Bloc résumé trésorerie */}
       <section className="bg-purple-50 border border-purple-200 rounded p-4 mb-4 flex flex-wrap gap-6 items-center">
@@ -113,7 +139,7 @@ export default async function TreasuryPage(props) {
             <span className="ml-2 bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">Solde négatif</span>
           )}
         </div>
-        <div className="text-sm text-purple-700">Comptes: <span className="font-bold">{treasurySummaryRes.accounts ?? '-'}</span></div>
+        <div className="text-sm text-purple-700">Nombre de comptes: <span className="font-bold">{treasurySummaryRes.accounts ?? '-'}</span></div>
         <div className="text-sm text-purple-700">Solde max: <span className="font-bold">{treasurySummaryRes.max?.toLocaleString() ?? '-'}</span> €</div>
         <div className="text-sm text-purple-700">Solde min: <span className="font-bold">{treasurySummaryRes.min?.toLocaleString() ?? '-'}</span> €</div>
         <div className="text-sm text-purple-700">Mouvements récents: <span className="font-bold">{treasurySummaryRes.recentCount ?? 0}</span></div>
@@ -131,7 +157,7 @@ export default async function TreasuryPage(props) {
         </div>
       </section>
       <section className="bg-white border rounded p-4">
-        <h2 className="font-semibold mb-2">Comptes</h2>
+        <h2 className="font-semibold mb-2">Comptes de trésorerie</h2>
         <table className="w-full text-sm border-separate border-spacing-y-1">
           <thead>
             <tr className="text-left text-slate-600">
@@ -147,21 +173,47 @@ export default async function TreasuryPage(props) {
                 <td className="px-2 py-1 tabular-nums"><Amount value={a.computedBalance} currency={a.currency} /></td>
                 <td className="px-2 py-1">{a.currency}</td>
                 <td className="px-2 py-1">{a.isActive ? 'Actif' : 'Inactif'}</td>
-                <td className="px-2 py-1"><Link className="text-blue-600 underline" href={{ pathname: '/treasury', query: { account: a.id } }} prefetch={false}>Voir</Link></td>
+                <td className="px-2 py-1"><Link className="text-blue-600 underline" href={{ pathname: '/treasury', query: { account: a.id } }} prefetch={false}>Consulter</Link></td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        <NewMoneyMovementForm accounts={accounts} />
-        <TransferForm accounts={accounts} />
-        <NewMoneyAccountForm />
-      </div>
+      <section id="operations" className="space-y-4">
+        <div>
+          <h2 className="font-semibold">Saisie et opérations</h2>
+          <p className="text-xs text-slate-500">
+            Utilisez ces blocs pour enregistrer un mouvement, faire un transfert ou créer un compte.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div id="movements">
+            <NewMoneyMovementForm accounts={accounts} />
+          </div>
+          <div id="transfers">
+            <TransferForm accounts={accounts} />
+          </div>
+          <div id="accounts">
+            <NewMoneyAccountForm />
+          </div>
+        </div>
+      </section>
+
+      <section id="mission-advance-regularization">
+        <MissionAdvanceRegularizationForm />
+      </section>
+
+      <section id="mission-advance-refunds">
+        <MissionAdvanceRefundForm accounts={accounts} />
+      </section>
+
+      <section id="mission-advances-open">
+        <MissionAdvanceOpenPanel overview={missionAdvanceOverview} />
+      </section>
 
       {ledger && (
-        <section className="bg-white border rounded p-4 space-y-4">
+        <section id="ledger" className="bg-white border rounded p-4 space-y-4">
           <h2 className="font-semibold mb-2">Grand livre trésorerie</h2>
           <form className="flex flex-wrap gap-2 items-end text-xs" method="get">
             <input type="hidden" name="account" value={accountId} />
@@ -179,17 +231,17 @@ export default async function TreasuryPage(props) {
               <input type="text" name="q" defaultValue={q} placeholder="Réf / desc / facture" className="border px-2 py-1 rounded text-xs" />
             </div>
             <div className="flex gap-2">
-              <button className="bg-blue-600 text-white px-3 py-1 rounded text-xs" type="submit">Filtrer</button>
+              <button className="bg-blue-600 text-white px-3 py-1 rounded text-xs" type="submit">Appliquer le filtre</button>
               {(dateFrom || dateTo) && (
                 <Link
                   href={{ pathname: '/treasury', query: accountId ? { account: accountId } : {} }}
                   className="px-2 py-1 text-xs text-blue-700 underline"
                   prefetch={false}
-                >Réinitialiser</Link>
+                >Effacer le filtre</Link>
               )}
             </div>
             {ledger.filter && (
-              <div className="text-slate-500 text-xs ml-2">Filtre actif: {ledger.filter.from ? new Date(ledger.filter.from).toLocaleDateString() : 'début'} → {ledger.filter.to ? new Date(ledger.filter.to).toLocaleDateString() : 'fin'}</div>
+              <div className="text-slate-500 text-xs ml-2">Période filtrée: {ledger.filter.from ? new Date(ledger.filter.from).toLocaleDateString() : 'début'} → {ledger.filter.to ? new Date(ledger.filter.to).toLocaleDateString() : 'fin'}</div>
             )}
           </form>
           <div className="flex flex-wrap gap-3 text-xs mt-1">
@@ -198,13 +250,13 @@ export default async function TreasuryPage(props) {
               className="px-2 py-1 border rounded bg-slate-50 hover:bg-slate-100"
               target="_blank"
               prefetch={false}
-            >Export CSV</Link>
+            >Exporter en CSV</Link>
             <Link
               href={{ pathname: '/api/treasury/ledger/pdf', query: { ...(accountId ? { account: accountId } : {}), ...(dateFrom ? { from: dateFrom } : {}), ...(dateTo ? { to: dateTo } : {}) } }}
               className="px-2 py-1 border rounded bg-slate-50 hover:bg-slate-100"
               target="_blank"
               prefetch={false}
-            >PDF</Link>
+            >Exporter en PDF</Link>
           </div>
           <div className="text-xs flex flex-wrap gap-6 text-slate-600">
             <span>Ouverture: <strong><Amount value={ledger.openingBalance} currency={ledger.currency || 'EUR'} /></strong></span>
@@ -221,11 +273,11 @@ export default async function TreasuryPage(props) {
               <tr className="text-left align-bottom">
                 <th className="px-2 py-1">Date</th>
                 <th className="px-2 py-1">Nature</th>
-                <th className="px-2 py-1">Facture</th>
+                <th className="px-2 py-1">Tiers / pièce</th>
                 <th className="px-2 py-1">Description</th>
                 <th className="px-2 py-1">Réf</th>
-                <th className="px-2 py-1">Compte (Débit)</th>
-                <th className="px-2 py-1">Compte (Crédit)</th>
+                <th className="px-2 py-1">Contrepartie au débit</th>
+                <th className="px-2 py-1">Contrepartie au crédit</th>
                 <th className="px-2 py-1 text-right">Solde après</th>
               </tr>
             </thead>
@@ -248,7 +300,16 @@ export default async function TreasuryPage(props) {
                           <>
                             <td rowSpan={maxRows} className="px-2 py-1 font-mono whitespace-nowrap">{new Date(m.date).toLocaleDateString()}</td>
                             <td rowSpan={maxRows} className="px-2 py-1">{m.kind}</td>
-                            <td rowSpan={maxRows} className="px-2 py-1 font-mono">{m.invoice?.number || m.incomingInvoice?.number || ''}</td>
+                            <td rowSpan={maxRows} className="px-2 py-1">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-mono">{m.invoice?.number || m.incomingInvoice?.number || m.supportRef || ''}</span>
+                                {(m.employee?.name || m.beneficiaryLabel || m.supplier?.name) && (
+                                  <span className="text-[11px] text-slate-500">
+                                    {m.employee?.name || m.beneficiaryLabel || m.supplier?.name}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td rowSpan={maxRows} className="px-2 py-1 max-w-[180px] truncate" title={m.description}>{m.description}</td>
                             <td rowSpan={maxRows} className="px-2 py-1 font-mono text-[11px]" title={m.voucherRef}>{m.voucherRef}</td>
                           </>
@@ -256,7 +317,7 @@ export default async function TreasuryPage(props) {
                         <td className="px-2 py-1">
                           {debitLines[idx] ? (
                             <div className="flex justify-between gap-2">
-                              <span className="font-mono truncate max-w-[140px]" title={debitLines[idx].label}>{debitLines[idx].label || 'Compte ?'}</span>
+                              <span className="font-mono truncate max-w-[140px]" title={debitLines[idx].label}>{debitLines[idx].label || 'Compte non précisé'}</span>
                               <span className="tabular-nums text-green-700"><Amount value={debitLines[idx].amount} currency={ledger.currency || 'EUR'} /></span>
                             </div>
                           ) : idx === 0 ? (<span className="text-slate-400 text-[11px]">Aucune contrepartie</span>) : null}
@@ -264,7 +325,7 @@ export default async function TreasuryPage(props) {
                         <td className="px-2 py-1">
                           {creditLines[idx] ? (
                             <div className="flex justify-between gap-2">
-                              <span className="font-mono truncate max-w-[140px]" title={creditLines[idx].label}>{creditLines[idx].label || 'Compte ?'}</span>
+                              <span className="font-mono truncate max-w-[140px]" title={creditLines[idx].label}>{creditLines[idx].label || 'Compte non précisé'}</span>
                               <span className="tabular-nums text-red-700"><Amount value={creditLines[idx].amount} currency={ledger.currency || 'EUR'} /></span>
                             </div>
                           ) : idx === 0 ? (<span className="text-slate-400 text-[11px]">Aucune contrepartie</span>) : null}
@@ -291,7 +352,7 @@ export default async function TreasuryPage(props) {
                 className="inline-block text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
                 href={{ pathname: '/treasury', query: { ...(accountId ? { account: accountId } : {}), ...(dateFrom ? { from: dateFrom } : {}), ...(dateTo ? { to: dateTo } : {}), limit: String(limitParam + 200) } }}
                 prefetch={false}
-              >Charger plus (+200)</Link>
+              >Afficher 200 lignes de plus</Link>
             </div>
           )}
         </section>

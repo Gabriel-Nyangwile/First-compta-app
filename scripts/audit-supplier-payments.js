@@ -23,7 +23,7 @@ const decimalToNumber = (value) => value?.toNumber?.() ?? Number(value ?? 0);
 (async () => {
   const issues = [];
   try {
-    const [suppliers, invoiceAgg, movementAgg, orphanMovements] = await Promise.all([
+    const [suppliers, invoiceAgg, movementAgg, orphanMovements, unmatchedMovements] = await Promise.all([
       prisma.supplier.findMany({ select: { id: true, name: true } }),
       prisma.incomingInvoice.groupBy({
         by: ["supplierId"],
@@ -44,6 +44,18 @@ const decimalToNumber = (value) => value?.toNumber?.() ?? Number(value ?? 0);
         where: { kind: "SUPPLIER_PAYMENT", direction: "OUT", supplierId: null },
         select: { id: true, date: true, amount: true, voucherRef: true, description: true },
         orderBy: { date: "desc" },
+      }),
+      prisma.moneyMovement.findMany({
+        where: { kind: "SUPPLIER_PAYMENT", direction: "OUT" },
+        select: {
+          id: true,
+          supplierId: true,
+          voucherRef: true,
+          amount: true,
+          transactions: {
+            select: { letterStatus: true },
+          },
+        },
       }),
     ]);
 
@@ -125,6 +137,28 @@ const decimalToNumber = (value) => value?.toNumber?.() ?? Number(value ?? 0);
       });
     }
 
+    for (const movement of unmatchedMovements) {
+      const statuses = new Set(
+        (movement.transactions || []).map((tx) => tx.letterStatus || "UNMATCHED")
+      );
+      const fullyMatched = statuses.size > 0 && [...statuses].every((status) => status === "MATCHED");
+      if (fullyMatched) continue;
+      const supplierName = movement.supplierId
+        ? supplierMap.get(movement.supplierId) || "(Fournisseur inconnu)"
+        : "(Aucun)";
+      issues.push({
+        type: "UNMATCHED_PAYMENT",
+        supplierId: movement.supplierId,
+        supplierName,
+        details: {
+          moneyMovementId: movement.id,
+          voucherRef: movement.voucherRef,
+          amount: decimalToNumber(movement.amount),
+          statuses: [...statuses],
+        },
+      });
+    }
+
     if (!issues.length) {
       console.log("Audit OK: cohérence des paiements fournisseurs confirmée.");
       if (verbose) {
@@ -159,6 +193,9 @@ const decimalToNumber = (value) => value?.toNumber?.() ?? Number(value ?? 0);
           break;
         case "ORPHAN_PAYMENT":
           console.log(`- Mouvement ${details.moneyMovementId}: paiement fournisseur sans lien (montant ${euro.format(details.amount)})`);
+          break;
+        case "UNMATCHED_PAYMENT":
+          console.log(`- ${supplierName}: paiement ${details.voucherRef || details.moneyMovementId} non rapproché (${euro.format(details.amount)})`);
           break;
         default:
           console.log(`- ${supplierName}: ${type}`);

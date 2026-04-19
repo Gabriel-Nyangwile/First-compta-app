@@ -1,23 +1,36 @@
 import React from 'react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import Amount from '@/components/Amount.jsx';
 import { getSupplierTreasuryOverview } from '@/lib/serverActions/money';
+import { getCompanyIdFromCookies } from '@/lib/tenant';
+import TreasuryModuleNav from '@/components/treasury/TreasuryModuleNav.jsx';
 
 const dateFormatter = new Intl.DateTimeFormat('fr-FR');
 
 export default async function TreasurySuppliersPage(props) {
   const sp = await props.searchParams;
+  const companyId = getCompanyIdFromCookies(await cookies());
+  if (!companyId) {
+    return (
+      <main className="u-main-container u-padding-content-container">
+        companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).
+      </main>
+    );
+  }
   const search = sp?.q?.trim?.() || '';
-  const suppliers = await getSupplierTreasuryOverview({ search });
+  const suppliers = await getSupplierTreasuryOverview({ search, companyId });
   const outstandingTotal = suppliers.reduce((acc, supplier) => acc + supplier.outstandingTotal, 0);
   const suppliersOverdue = suppliers.filter((supplier) => supplier.overdueCount > 0).length;
 
   return (
     <main className="u-main-container u-padding-content-container space-y-8">
+      <TreasuryModuleNav currentHref="/treasury/suppliers" />
+
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">Paiements fournisseurs</h1>
+        <h1 className="text-2xl font-bold">Règlements fournisseurs</h1>
         <p className="text-sm text-slate-600">
-          Vue d'ensemble des factures fournisseurs en attente de règlement et des derniers paiements saisis.
+          Vue d'ensemble des encours fournisseurs, des échéances de règlement et des paiements enregistrés.
         </p>
         <div className="flex flex-wrap gap-4 text-sm text-slate-700">
           <div>
@@ -28,7 +41,7 @@ export default async function TreasurySuppliersPage(props) {
               Fournisseurs en retard&nbsp;
               <strong className={suppliersOverdue > 0 ? 'text-red-700' : ''}>{suppliersOverdue}</strong>
           </div>
-          <Link className="text-blue-600 underline" href="/treasury" prefetch={false}>Retour trésorerie</Link>
+          <Link className="text-blue-600 underline" href="/treasury" prefetch={false}>Retour à la vue générale</Link>
         </div>
       </div>
 
@@ -45,10 +58,10 @@ export default async function TreasurySuppliersPage(props) {
             />
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm">Filtrer</button>
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm">Appliquer le filtre</button>
             {search && (
               <Link href="/treasury/suppliers" className="text-blue-700 underline text-sm" prefetch={false}>
-                Réinitialiser
+                Effacer le filtre
               </Link>
             )}
           </div>
@@ -83,7 +96,12 @@ export default async function TreasurySuppliersPage(props) {
                   {supplier.overdueCount > 0 ? (
                     <div className="text-sm text-red-600">{supplier.overdueCount} facture(s) en retard</div>
                   ) : (
-                    <div className="text-sm text-slate-500">Aucun retard détecté</div>
+                    <div className="text-sm text-slate-500">Aucune échéance en retard</div>
+                  )}
+                  {supplier.unmatchedPaymentsCount > 0 && (
+                    <div className="text-xs text-amber-700">
+                      {supplier.unmatchedPaymentsCount} paiement(s) non rapproché(s)
+                    </div>
                   )}
                   {supplier.nextDueDate && (
                     <div className="text-xs text-slate-500">Prochaine échéance&nbsp;: {dateFormatter.format(new Date(supplier.nextDueDate))}</div>
@@ -94,7 +112,7 @@ export default async function TreasurySuppliersPage(props) {
                       className="text-xs text-blue-600 underline"
                       prefetch={false}
                     >
-                      Voir détail règlements
+                      Consulter le détail
                     </Link>
                   </div>
                 </div>
@@ -107,7 +125,7 @@ export default async function TreasurySuppliersPage(props) {
                     className="text-xs text-blue-600 underline"
                     href={{ pathname: '/incoming-invoices', query: { supplier: supplier.id } }}
                     prefetch={false}
-                  >Voir toutes les factures</Link>
+                  >Ouvrir les factures</Link>
                 </div>
                 {hasInvoices ? (
                   <table className="w-full text-xs border">
@@ -116,7 +134,7 @@ export default async function TreasurySuppliersPage(props) {
                         <th className="px-2 py-1">Référence</th>
                         <th className="px-2 py-1">Échéance</th>
                         <th className="px-2 py-1 text-right">Total</th>
-                        <th className="px-2 py-1 text-right">Restant</th>
+                        <th className="px-2 py-1 text-right">Solde restant</th>
                         <th className="px-2 py-1">Statut</th>
                         <th className="px-2 py-1"></th>
                       </tr>
@@ -149,14 +167,14 @@ export default async function TreasurySuppliersPage(props) {
               </div>
 
               <div className="space-y-2">
-                <h3 className="font-semibold text-sm">Derniers paiements saisis</h3>
+                <h3 className="font-semibold text-sm">Derniers règlements enregistrés</h3>
                 {supplier.payments.length > 0 ? (
                   <ul className="text-xs space-y-1 text-slate-700">
                     {supplier.payments.map((payment) => (
                       <li key={payment.id} className="flex justify-between items-center border rounded px-3 py-2">
                         <div className="flex flex-col">
-                          <span className="text-[11px] text-slate-500">{payment.date ? dateFormatter.format(new Date(payment.date)) : 'Date ?'}</span>
-                          <span>{payment.moneyAccountLabel || 'Compte trésorerie ?'}</span>
+                          <span className="text-[11px] text-slate-500">{payment.date ? dateFormatter.format(new Date(payment.date)) : 'Date non renseignée'}</span>
+                          <span>{payment.moneyAccountLabel || 'Compte de trésorerie non renseigné'}</span>
                           {payment.voucherRef && (
                             <span className="font-mono text-[11px] text-slate-500">{payment.voucherRef}</span>
                           )}

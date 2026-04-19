@@ -13,6 +13,10 @@ function asNumber(v) {
   return Number(v || 0);
 }
 
+function capitalJournalSourceId(entity, id, suffix = "base") {
+  return `capital:${entity}:${id}:${suffix}`;
+}
+
 async function resolveAccountIdByNumber(tx, accountNumber, companyId) {
   const acc = await tx.account.findFirst({
     where: { number: accountNumber, ...(companyId ? { companyId } : {}) },
@@ -55,8 +59,9 @@ export async function postCapitalPayment(tx, { payment, account, companyId }) {
     },
   });
   const je = await finalizeBatchToJournal(tx, {
-    kind: "CAPITAL_PAYMENT",
-    reference: payment.callId,
+    sourceType: "OTHER",
+    sourceId: capitalJournalSourceId("payment", payment.id),
+    description: `Paiement appel capital ${payment.callId}`,
     date: new Date(payment.paymentDate || new Date()),
     transactions: [debit, credit],
   });
@@ -85,51 +90,52 @@ export async function postCapitalCall(tx, { call, companyId }) {
     await tx.transaction.create({
       data: {
         date,
-        description: `Appel fonds capital ${call.callNumber}`,
-      amount: amt,
-      direction: "DEBIT",
-      kind: "CAPITAL_CALL",
-      accountId: acc4612,
-      companyId: companyId || null,
-    },
-  }),
-  await tx.transaction.create({
-    data: {
-      date,
-      description: "Capital souscrit non appelé (reclassement)",
-      amount: amt,
-      direction: "CREDIT",
-      kind: "CAPITAL_CALL",
-      accountId: acc109,
-      companyId: companyId || null,
-    },
-  }),
-  await tx.transaction.create({
-    data: {
-      date,
-      description: "Capital souscrit non appelé",
-      amount: amt,
-      direction: "DEBIT",
-      kind: "CAPITAL_CALL",
-      accountId: acc1011,
-      companyId: companyId || null,
-    },
-  }),
-  await tx.transaction.create({
-    data: {
-      date,
-      description: "Capital souscrit appelé non versé",
-      amount: amt,
-      direction: "CREDIT",
-      kind: "CAPITAL_CALL",
-      accountId: acc1012,
-      companyId: companyId || null,
-    },
-  })
+        description: `Appel fonds capital ${call.callNumber} (${call.id})`,
+        amount: amt,
+        direction: "DEBIT",
+        kind: "CAPITAL_CALL",
+        accountId: acc4612,
+        companyId: companyId || null,
+      },
+    }),
+    await tx.transaction.create({
+      data: {
+        date,
+        description: `Capital souscrit non appelé (reclassement) (${call.id})`,
+        amount: amt,
+        direction: "CREDIT",
+        kind: "CAPITAL_CALL",
+        accountId: acc109,
+        companyId: companyId || null,
+      },
+    }),
+    await tx.transaction.create({
+      data: {
+        date,
+        description: `Capital souscrit non appelé (${call.id})`,
+        amount: amt,
+        direction: "DEBIT",
+        kind: "CAPITAL_CALL",
+        accountId: acc1011,
+        companyId: companyId || null,
+      },
+    }),
+    await tx.transaction.create({
+      data: {
+        date,
+        description: `Capital souscrit appelé non versé (${call.id})`,
+        amount: amt,
+        direction: "CREDIT",
+        kind: "CAPITAL_CALL",
+        accountId: acc1012,
+        companyId: companyId || null,
+      },
+    })
   );
   const je = await finalizeBatchToJournal(tx, {
-    kind: "CAPITAL_CALL",
-    reference: call.id,
+    sourceType: "OTHER",
+    sourceId: capitalJournalSourceId("call", call.id),
+    description: `Appel de fonds capital ${call.callNumber}`,
     date,
     transactions: txs,
   });
@@ -172,7 +178,7 @@ export async function postCapitalSubscription(
       await tx.transaction.create({
         data: {
           date,
-          description: `Capital souscrit appelé non versé`,
+          description: `Capital souscrit appelé non versé (${subscription.id})`,
           amount: called,
           direction: "CREDIT",
           kind: "CAPITAL_SUBSCRIPTION",
@@ -187,7 +193,7 @@ export async function postCapitalSubscription(
       await tx.transaction.create({
         data: {
           date,
-          description: `Capital souscrit non appelé`,
+          description: `Capital souscrit non appelé (${subscription.id})`,
           amount: notCalled,
           direction: "DEBIT",
           kind: "CAPITAL_SUBSCRIPTION",
@@ -198,7 +204,7 @@ export async function postCapitalSubscription(
       await tx.transaction.create({
         data: {
           date,
-          description: `Capital souscrit non appelé`,
+          description: `Capital souscrit non appelé (${subscription.id})`,
           amount: notCalled,
           direction: "CREDIT",
           kind: "CAPITAL_SUBSCRIPTION",
@@ -210,12 +216,60 @@ export async function postCapitalSubscription(
   }
   if (!txs.length) return null;
   const je = await finalizeBatchToJournal(tx, {
-    kind: "CAPITAL_SUBSCRIPTION",
-    reference: subscription.id,
+    sourceType: "OTHER",
+    sourceId: capitalJournalSourceId("subscription", subscription.id),
+    description: `Souscription capital ${subscription.id}`,
     date,
     transactions: txs,
   });
   return je;
+}
+
+export async function postCapitalSubscriptionAdjustment(
+  tx,
+  { subscription, deltaNominal, companyId, date = new Date() }
+) {
+  const delta = asNumber(deltaNominal);
+  if (Math.abs(delta) < 0.01) return null;
+  const acc109 = await resolveAccountIdByNumber(tx, ACCOUNT_109, companyId);
+  const acc1011 = await resolveAccountIdByNumber(tx, ACCOUNT_1011, companyId);
+  const amount = Math.abs(delta);
+  const isIncrease = delta > 0;
+  const txs = [
+    await tx.transaction.create({
+      data: {
+        date,
+        description: `Ajustement souscription capital (${subscription.id})`,
+        amount,
+        direction: isIncrease ? "DEBIT" : "CREDIT",
+        kind: "CAPITAL_SUBSCRIPTION",
+        accountId: acc109,
+        companyId: companyId || null,
+      },
+    }),
+    await tx.transaction.create({
+      data: {
+        date,
+        description: `Ajustement souscription capital (${subscription.id})`,
+        amount,
+        direction: isIncrease ? "CREDIT" : "DEBIT",
+        kind: "CAPITAL_SUBSCRIPTION",
+        accountId: acc1011,
+        companyId: companyId || null,
+      },
+    }),
+  ];
+  return finalizeBatchToJournal(tx, {
+    sourceType: "OTHER",
+    sourceId: capitalJournalSourceId("subscription", subscription.id, `adjustment:${date.toISOString()}`),
+    description: `Ajustement souscription capital ${subscription.id}`,
+    date,
+    transactions: txs,
+  });
+}
+
+export function buildCapitalSourcePrefix(entity, id) {
+  return `capital:${entity}:${id}:`;
 }
 
 /**

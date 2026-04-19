@@ -2,6 +2,26 @@ import prisma from "../../lib/prisma.js";
 import { validateJournalFilters } from "./journalFilters.js";
 import { calculateJournalEntryTotals } from "./journalCalculations.js";
 
+function deriveDraftTotals(entry) {
+  const draftLines = Array.isArray(entry.draftPayload?.lines)
+    ? entry.draftPayload.lines
+    : [];
+  let debit = 0;
+  let credit = 0;
+  for (const line of draftLines) {
+    debit += Number(line.debit || 0);
+    credit += Number(line.credit || 0);
+  }
+  return {
+    debit,
+    credit,
+    lettered: 0,
+    outstanding: 0,
+    lineCount: draftLines.length,
+    balanced: Math.abs(debit - credit) < 0.001,
+  };
+}
+
 /**
  * Récupère les écritures journal avec filtres et pagination
  */
@@ -60,6 +80,7 @@ export async function getJournalEntries(companyId, rawFilters = {}) {
         { number: like },
         { description: like },
         { sourceId: like },
+        { supportRef: like },
         {
           lines: {
             some: {
@@ -88,6 +109,8 @@ export async function getJournalEntries(companyId, rawFilters = {}) {
     skip: (page - 1) * pageSize,
     take: pageSize,
     include: {
+      preparedByUser: { select: { id: true, username: true, email: true } },
+      validatedByUser: { select: { id: true, username: true, email: true } },
       lines: {
         orderBy: [{ date: "asc" }, { id: "asc" }],
         include: {
@@ -99,13 +122,21 @@ export async function getJournalEntries(companyId, rawFilters = {}) {
 
   // Calculer les totaux pour chaque écriture
   const items = entries.map((entry) => {
-    const totals = calculateJournalEntryTotals(entry.lines);
+    const totals =
+      entry.status === "DRAFT" && (!entry.lines || entry.lines.length === 0)
+        ? deriveDraftTotals(entry)
+        : calculateJournalEntryTotals(entry.lines);
     return {
       id: entry.id,
       number: entry.number,
       date: entry.date,
       sourceType: entry.sourceType,
       sourceId: entry.sourceId,
+      supportRef: entry.supportRef,
+      preparedByUser: entry.preparedByUser,
+      preparedAt: entry.preparedAt,
+      validatedByUser: entry.validatedByUser,
+      validatedAt: entry.validatedAt,
       description: entry.description,
       status: entry.status,
       postedAt: entry.postedAt,
@@ -136,6 +167,8 @@ export async function getJournalEntryById(companyId, entryId) {
   const entry = await prisma.journalEntry.findFirst({
     where: { id: entryId, companyId },
     include: {
+      preparedByUser: { select: { id: true, username: true, email: true } },
+      validatedByUser: { select: { id: true, username: true, email: true } },
       lines: {
         orderBy: [{ date: "asc" }, { id: "asc" }],
         include: {

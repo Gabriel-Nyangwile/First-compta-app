@@ -11,6 +11,12 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
   second: "2-digit",
 });
 
+const letterStatusColors = {
+  UNMATCHED: "bg-red-50 text-red-700 border border-red-200",
+  PARTIAL: "bg-amber-50 text-amber-700 border border-amber-200",
+  MATCHED: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+};
+
 function formatDate(value) {
   if (!value) return "—";
   try {
@@ -143,6 +149,13 @@ export default function SupplierTreasuryPanel({ supplierId }) {
             >
               Enregistrer un paiement
             </Link>
+            <Link
+              href={`/suppliers/${supplier.id}/lettering`}
+              prefetch={false}
+              className="px-3 py-2 rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            >
+              Ouvrir le lettrage
+            </Link>
             <RefreshBadge
               timestamp={lastUpdated}
               onRefresh={() => setLastUpdated(new Date())}
@@ -180,6 +193,26 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                   ? `Prochaine échéance : ${formatDate(summary.nextDueDate)}`
                   : null
               }
+            />
+            <SummaryCard
+              label="Rapprochement paiements"
+              value={summary.unmatchedPaymentsAmount || 0}
+              valueClass={
+                (summary.unmatchedPaymentsCount || 0) > 0
+                  ? "text-red-700"
+                  : "text-emerald-700"
+              }
+              helper={
+                (summary.unmatchedPaymentsCount || 0) > 0
+                  ? `${summary.unmatchedPaymentsCount} paiement(s) à rapprocher`
+                  : "Tous les paiements visibles sont lettrés"
+              }
+              helperClass={
+                (summary.unmatchedPaymentsCount || 0) > 0
+                  ? "text-red-600"
+                  : "text-emerald-600"
+              }
+              footer="Montant des paiements non lettrés ou partiels"
             />
           </section>
 
@@ -279,6 +312,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                     <th className="px-2 py-1">Compte</th>
                     <th className="px-2 py-1">Facture</th>
                     <th className="px-2 py-1">Référence</th>
+                    <th className="px-2 py-1">Lettrage</th>
                     <th className="px-2 py-1">Description</th>
                   </tr>
                 </thead>
@@ -286,7 +320,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                   {payments.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-2 py-3 text-center text-slate-500"
                       >
                         Aucun paiement enregistré.
@@ -320,6 +354,16 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                       </td>
                       <td className="px-2 py-1 font-mono text-[11px]">
                         {payment.voucherRef || "—"}
+                      </td>
+                      <td className="px-2 py-1">
+                        <span
+                          className={`inline-flex items-center text-[11px] px-2 py-1 rounded-full ${
+                            letterStatusColors[payment.letterStatus] ||
+                            "bg-slate-100 text-slate-600 border border-slate-200"
+                          }`}
+                        >
+                          {payment.letterStatus || "UNMATCHED"}
+                        </span>
                       </td>
                       <td className="px-2 py-1 text-slate-600">
                         {payment.description || "—"}

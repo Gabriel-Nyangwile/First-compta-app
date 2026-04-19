@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 const legalForms = ["SARL", "SA", "SAS", "SNC", "EURL", "AUTRE"];
 
 export default function AdminCompaniesPage() {
+  return (
+    <Suspense fallback={<main className="p-6 max-w-5xl mx-auto">Chargement…</main>}>
+      <AdminCompaniesPageContent />
+    </Suspense>
+  );
+}
+
+function AdminCompaniesPageContent() {
   const [companies, setCompanies] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);

@@ -6,6 +6,9 @@ import Amount from '@/components/Amount.jsx';
 const decimalToNumber = (value) => (value && typeof value === "object" && typeof value.toNumber === "function" ? value.toNumber() : Number(value ?? 0));
 
 export default function NewMoneyMovementForm({ accounts }) {
+  const employeeMovementKinds = ['EMPLOYEE_EXPENSE', 'MISSION_ADVANCE', 'PETTY_CASH_OUT'];
+  const class4MovementKinds = ['ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE','MISSION_ADVANCE'];
+  const forcedDirectionKinds = ['CLIENT_RECEIPT','SUPPLIER_PAYMENT','CASH_PURCHASE','EMPLOYEE_EXPENSE','MISSION_ADVANCE','PETTY_CASH_OUT','ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'];
   const [moneyAccountId, setMoneyAccountId] = useState(accounts[0]?.id || '');
   const [direction, setDirection] = useState('IN');
   const [kind, setKind] = useState('OTHER');
@@ -17,6 +20,12 @@ export default function NewMoneyMovementForm({ accounts }) {
   const [vatRate, setVatRate] = useState('0.20');
   const [htAmount, setHtAmount] = useState(''); // Montant HT principal pour CASH_PURCHASE
   const [counterAccount, setCounterAccount] = useState(null);
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [searchingEmployees, setSearchingEmployees] = useState(false);
+  const [employeeResults, setEmployeeResults] = useState([]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [beneficiaryLabel, setBeneficiaryLabel] = useState('');
+  const [supportRef, setSupportRef] = useState('');
   const [loading, setLoading] = useState(false);
   // Invoice selection (client or supplier)
   const [invoiceQuery, setInvoiceQuery] = useState('');
@@ -48,7 +57,9 @@ export default function NewMoneyMovementForm({ accounts }) {
       if (selectedInvoice.kind === 'SUPPLIER' && kind !== 'SUPPLIER_PAYMENT') { setError('Type mouvement incohérent avec facture fournisseur'); return; }
     }
   if (kind === 'CASH_PURCHASE' && (!htAmount || Number(htAmount) <= 0)) { setError('Montant HT requis'); return; }
-    if (!selectedInvoice && ['CASH_PURCHASE','VAT_PAYMENT','TAX_PAYMENT'].includes(kind) && !counterAccount) { setError('Compte contrepartie requis'); return; }
+    if (!selectedInvoice && ['CASH_PURCHASE','VAT_PAYMENT','TAX_PAYMENT', ...employeeMovementKinds].includes(kind) && !counterAccount) { setError('Compte contrepartie requis'); return; }
+    if (kind === 'MISSION_ADVANCE' && !selectedEmployee) { setError('Employé requis pour une avance de mission'); return; }
+    if (employeeMovementKinds.includes(kind) && !selectedEmployee && !beneficiaryLabel.trim()) { setError('Bénéficiaire requis'); return; }
 
     // Calcul montant total pour CASH_PURCHASE
     let computedTotal = null;
@@ -67,6 +78,9 @@ export default function NewMoneyMovementForm({ accounts }) {
       // on ne transmet plus voucherRef si vide: le serveur génèrera
       voucherRef: voucherRef.trim() || undefined,
       counterpartAccountId: selectedInvoice ? null : (counterAccount?.id || null),
+      employeeId: selectedEmployee?.id || null,
+      beneficiaryLabel: beneficiaryLabel.trim() || null,
+      supportRef: supportRef.trim() || null,
     };
     if (selectedInvoice) {
       if (selectedInvoice.kind === 'CLIENT') payload.invoiceId = selectedInvoice.id;
@@ -82,9 +96,9 @@ export default function NewMoneyMovementForm({ accounts }) {
       setLoading(true);
       const res = await fetch('/api/treasury/movements', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur serveur');
-      setOkMsg('Mouvement créé');
-  setAmount(''); setDescription(''); setHtAmount(''); setSelectedInvoice(null); setInvoiceQuery(''); setInvoiceResults([]); setVoucherRef('');
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur lors de l’enregistrement de l’opération');
+      setOkMsg('Opération de trésorerie enregistrée');
+  setAmount(''); setDescription(''); setHtAmount(''); setSelectedInvoice(null); setInvoiceQuery(''); setInvoiceResults([]); setVoucherRef(''); setSelectedEmployee(null); setEmployeeQuery(''); setEmployeeResults([]); setBeneficiaryLabel(''); setSupportRef('');
       window.location.href = `/treasury?account=${moneyAccountId}`; // simple refresh
     } catch(err) {
       setError(err.message);
@@ -111,7 +125,7 @@ export default function NewMoneyMovementForm({ accounts }) {
         const all = [];
         for (const ep of endpoints) {
           const res = await fetch(ep);
-          if (!res.ok) throw new Error('Erreur API');
+          if (!res.ok) throw new Error('Erreur de chargement des pièces à rapprocher');
           const data = await res.json();
           for (const r of data) {
             all.push({
@@ -142,6 +156,41 @@ export default function NewMoneyMovementForm({ accounts }) {
     }
   }, [selectedInvoice]);
 
+  useEffect(() => {
+    if (!employeeMovementKinds.includes(kind)) {
+      setSelectedEmployee(null);
+      setEmployeeQuery('');
+      setEmployeeResults([]);
+      setBeneficiaryLabel('');
+      setSupportRef('');
+    }
+  }, [kind]);
+
+  useEffect(() => {
+    if (!employeeMovementKinds.includes(kind)) { setEmployeeResults([]); return; }
+    if (!employeeQuery) { setEmployeeResults([]); return; }
+    let active = true;
+    const t = setTimeout(async () => {
+      try {
+        setSearchingEmployees(true);
+        const res = await fetch(`/api/employee?q=${encodeURIComponent(employeeQuery)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur de chargement des employés');
+        if (!active) return;
+        setEmployeeResults((data.employees || []).slice(0, 20).map((employee) => ({
+          id: employee.id,
+          employeeNumber: employee.employeeNumber || '',
+          label: `${employee.employeeNumber || '—'} ${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+        })));
+      } catch (e) {
+        if (active) setEmployeeResults([]);
+      } finally {
+        if (active) setSearchingEmployees(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(t); };
+  }, [employeeQuery, kind]);
+
   // Reset invoice selection when kind changes
   useEffect(() => { setSelectedInvoice(null); setInvoiceQuery(''); setInvoiceResults([]); }, [kind]);
   // Auto-description par défaut selon la nature si champ vide
@@ -150,7 +199,10 @@ export default function NewMoneyMovementForm({ accounts }) {
       ASSOCIATE_CONTRIBUTION: 'Apport associé',
       ASSOCIATE_WITHDRAWAL: 'Remboursement associé',
       SALARY_PAYMENT: 'Paiement salaires',
-      SALARY_ADVANCE: 'Avance sur salaire'
+      SALARY_ADVANCE: 'Avance sur salaire',
+      EMPLOYEE_EXPENSE: 'Remboursement de frais',
+      MISSION_ADVANCE: 'Avance de mission',
+      PETTY_CASH_OUT: 'Sortie de caisse'
     };
     if (defaults[kind] && !description) {
       setDescription(defaults[kind]);
@@ -162,6 +214,9 @@ export default function NewMoneyMovementForm({ accounts }) {
       CLIENT_RECEIPT: 'IN',
       SUPPLIER_PAYMENT: 'OUT',
       CASH_PURCHASE: 'OUT',
+      EMPLOYEE_EXPENSE: 'OUT',
+      MISSION_ADVANCE: 'OUT',
+      PETTY_CASH_OUT: 'OUT',
       ASSOCIATE_CONTRIBUTION: 'IN',
       ASSOCIATE_WITHDRAWAL: 'OUT',
       SALARY_PAYMENT: 'OUT',
@@ -171,7 +226,7 @@ export default function NewMoneyMovementForm({ accounts }) {
   }, [kind, direction]);
 
   // Clear error on key input changes
-  useEffect(() => { if (error) setError(''); setJustHadInsufficient(false); }, [moneyAccountId, amount, htAmount, vatRate, direction, kind]);
+  useEffect(() => { if (error) setError(''); setJustHadInsufficient(false); }, [moneyAccountId, amount, htAmount, vatRate, direction, kind, selectedEmployee, beneficiaryLabel, supportRef]);
 
   const selectedMoneyAccount = accounts.find(a => a.id === moneyAccountId);
   const currentBalance = selectedMoneyAccount ? Number(selectedMoneyAccount.computedBalance || 0) : 0;
@@ -182,7 +237,7 @@ export default function NewMoneyMovementForm({ accounts }) {
   const willBeNegative = isCash && direction === 'OUT' && effectiveOutAmount > 0 && (currentBalance - effectiveOutAmount) < 0;
 
   function resetForm() {
-    setKind('OTHER'); setDirection('IN'); setAmount(''); setDescription(''); setHtAmount(''); setVatRate('0.20'); setVatEnabled(true); setCounterAccount(null); setSelectedInvoice(null); setInvoiceQuery(''); setInvoiceResults([]); setError(''); setOkMsg(''); setJustHadInsufficient(false);
+    setKind('OTHER'); setDirection('IN'); setAmount(''); setDescription(''); setHtAmount(''); setVatRate('0.20'); setVatEnabled(true); setCounterAccount(null); setSelectedInvoice(null); setInvoiceQuery(''); setInvoiceResults([]); setSelectedEmployee(null); setEmployeeQuery(''); setEmployeeResults([]); setBeneficiaryLabel(''); setSupportRef(''); setError(''); setOkMsg(''); setJustHadInsufficient(false);
   }
 
   // Prefill invoice data from query params (quickInvoice / quickIncoming)
@@ -234,10 +289,10 @@ export default function NewMoneyMovementForm({ accounts }) {
 
   return (
   <form onSubmit={handleSubmit} className="space-y-4 bg-white border rounded p-6 max-w-5xl">
-      <h3 className="font-semibold text-sm">Nouveau mouvement</h3>
+      <h3 className="font-semibold text-sm">Saisir une opération de trésorerie</h3>
       {selectedMoneyAccount && (
         <div className="text-xs text-slate-600 flex flex-wrap gap-4">
-          <span>Compte sélectionné: <strong>{selectedMoneyAccount.label}</strong> ({selectedMoneyAccount.type})</span>
+          <span>Compte de règlement sélectionné: <strong>{selectedMoneyAccount.label}</strong> ({selectedMoneyAccount.type})</span>
           <span>Solde actuel: <strong><Amount value={currentBalance} /></strong></span>
           {direction==='OUT' && effectiveOutAmount>0 && (
             <span>Solde après: <strong className={(willBeNegative?'text-red-600':'')}><Amount value={currentBalance - effectiveOutAmount} /></strong></span>
@@ -251,7 +306,7 @@ export default function NewMoneyMovementForm({ accounts }) {
           </select>
         </label>
         <label className="flex flex-col">Sens
-          {(['CLIENT_RECEIPT','SUPPLIER_PAYMENT','CASH_PURCHASE','ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind)) ? (
+          {(forcedDirectionKinds.includes(kind)) ? (
             <div className="mt-1 px-2 py-1 border rounded bg-slate-100 text-xs font-medium flex items-center gap-2">
               <span>{direction === 'IN' ? 'Entrée (forcée)' : 'Sortie (forcée)'}</span>
               <span className="text-[10px] text-slate-500" title="Sens imposé par la nature du mouvement">ⓘ</span>
@@ -272,6 +327,11 @@ export default function NewMoneyMovementForm({ accounts }) {
               <option value="CASH_PURCHASE">Achat cash</option>
               <option value="TRANSFER">Transfert (formulaire à droite)</option>
             </optgroup>
+            <optgroup label="Caisse / Missions / Frais">
+              <option value="EMPLOYEE_EXPENSE">Frais employé remboursés</option>
+              <option value="MISSION_ADVANCE">Avance de mission</option>
+              <option value="PETTY_CASH_OUT">Sortie de caisse</option>
+            </optgroup>
             <optgroup label="Fiscal & Taxes">
               <option value="VAT_PAYMENT">Paiement TVA</option>
               <option value="TAX_PAYMENT">Paiement taxe</option>
@@ -289,7 +349,7 @@ export default function NewMoneyMovementForm({ accounts }) {
         <div className="grid md:grid-cols-4 gap-3 text-sm">
           <label className="flex flex-col">Montant
             <input value={amount} onChange={e=>setAmount(e.target.value)} type="number" step="0.01" className={`mt-1 border rounded px-2 py-1 ${willBeNegative ? 'border-red-500 bg-red-50' : ''}`} required />
-            {willBeNegative && <span className="text-[10px] text-red-600 mt-1">Solde insuffisant (pré‑validation)</span>}
+            {willBeNegative && <span className="text-[10px] text-red-600 mt-1">Solde insuffisant sur ce compte de caisse</span>}
           </label>
           <label className="flex flex-col">Description
             <input value={description} onChange={e=>setDescription(e.target.value)} type="text" className="mt-1 border rounded px-2 py-1" />
@@ -298,14 +358,71 @@ export default function NewMoneyMovementForm({ accounts }) {
             <span>Réf pièce</span>
             <span className="mt-1 px-2 py-1 border rounded bg-slate-50">Automatique</span>
           </div>
-          {!selectedInvoice && ['CASH_PURCHASE','VAT_PAYMENT','TAX_PAYMENT','ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind) && (
+          {!selectedInvoice && ['CASH_PURCHASE','VAT_PAYMENT','TAX_PAYMENT', ...employeeMovementKinds, 'ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind) && (
             <label className="flex flex-col">Compte contrepartie
-              <AccountAutocomplete value={counterAccount} onChange={setCounterAccount} filterPrefix={['ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind) ? '4' : undefined} />
-              {['ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind) && (
+              <AccountAutocomplete value={counterAccount} onChange={setCounterAccount} filterPrefix={class4MovementKinds.includes(kind) ? '4' : undefined} />
+              {class4MovementKinds.includes(kind) && (
                 <span className="text-[10px] text-slate-500 mt-1">Doit appartenir à la classe 4 (ex: 455, 421, 425...).</span>
               )}
             </label>
           )}
+        </div>
+      )}
+      {employeeMovementKinds.includes(kind) && (
+        <div className="border rounded p-3 bg-slate-50 space-y-3 text-sm">
+          <div className="grid md:grid-cols-3 gap-3">
+            <label className="flex flex-col">Rechercher employé
+              <input
+                value={employeeQuery}
+                onChange={e=>setEmployeeQuery(e.target.value)}
+                type="text"
+                placeholder="Matricule, nom, email..."
+                className="mt-1 border rounded px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col">Bénéficiaire libre
+              <input
+                value={beneficiaryLabel}
+                onChange={e=>setBeneficiaryLabel(e.target.value)}
+                type="text"
+                placeholder="Nom sur pièce de caisse"
+                className="mt-1 border rounded px-2 py-1"
+                disabled={!!selectedEmployee}
+              />
+            </label>
+            <label className="flex flex-col">Pièce / justificatif
+              <input
+                value={supportRef}
+                onChange={e=>setSupportRef(e.target.value)}
+                type="text"
+                placeholder="PCD-..., OM-..., note de frais..."
+                className="mt-1 border rounded px-2 py-1"
+              />
+            </label>
+          </div>
+          {selectedEmployee ? (
+            <div className="text-xs text-green-700 flex items-center gap-3">
+              <span>Employé sélectionné: {selectedEmployee.label}</span>
+              <button type="button" onClick={() => { setSelectedEmployee(null); setEmployeeQuery(''); }} className="text-blue-600 underline">Réinitialiser</button>
+            </div>
+          ) : (
+            <div className="max-h-40 overflow-auto divide-y border rounded bg-white">
+              {searchingEmployees && <div className="p-2 text-xs text-slate-500">Recherche des employés...</div>}
+              {!searchingEmployees && employeeQuery && employeeResults.length === 0 && (
+                <div className="p-2 text-xs text-slate-500">Aucun employé trouvé</div>
+              )}
+              {employeeResults.map((employee) => (
+                <button type="button" key={employee.id} onClick={() => { setSelectedEmployee(employee); setBeneficiaryLabel(''); }} className="w-full text-left px-2 py-1 hover:bg-blue-50 text-xs">
+                  {employee.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="text-[11px] text-slate-500">
+            {kind === 'MISSION_ADVANCE' && 'Utiliser un compte de classe 4 de type avances à justifier (425/467).'}
+            {kind === 'EMPLOYEE_EXPENSE' && 'Utiliser un compte de charge ou de refacturation selon la nature des frais.'}
+            {kind === 'PETTY_CASH_OUT' && 'Utiliser un compte de charge, d’attente ou de tiers selon la pièce de caisse.'}
+          </div>
         </div>
       )}
       {kind === 'CASH_PURCHASE' && (
@@ -332,7 +449,7 @@ export default function NewMoneyMovementForm({ accounts }) {
             {htAmount && (
               (() => {
                 const base = Number(htAmount)||0; const rate = vatEnabled?Number(vatRate)||0:0; const vat = base*rate; const total=base+vat; return (
-                  <span>Total TTC calculé: <strong><Amount value={total} /></strong> (TVA <Amount value={vat} />)</span>
+              <span>Total TTC calculé: <strong><Amount value={total} /></strong> (TVA <Amount value={vat} />)</span>
                 );
               })()
             )}
@@ -340,8 +457,8 @@ export default function NewMoneyMovementForm({ accounts }) {
           {!selectedInvoice && (
             <div className="text-xs">
               <label className="flex flex-col">Compte contrepartie
-                <AccountAutocomplete value={counterAccount} onChange={setCounterAccount} filterPrefix={['ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind) ? '4' : undefined} />
-                {['ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'].includes(kind) && (
+                <AccountAutocomplete value={counterAccount} onChange={setCounterAccount} filterPrefix={class4MovementKinds.includes(kind) ? '4' : undefined} />
+                {class4MovementKinds.includes(kind) && (
                   <span className="text-[10px] text-slate-500 mt-1">Classe 4 uniquement (contrôle serveur).</span>
                 )}
               </label>
@@ -360,13 +477,13 @@ export default function NewMoneyMovementForm({ accounts }) {
               className="flex-1 border rounded px-2 py-1"
             />
             {selectedInvoice && (
-              <button type="button" onClick={()=>setSelectedInvoice(null)} className="text-xs text-blue-600 underline">Réinitialiser</button>
+              <button type="button" onClick={()=>setSelectedInvoice(null)} className="text-xs text-blue-600 underline">Changer de pièce</button>
             )}
           </div>
           {invoiceSearchError && <div className="text-red-600 text-xs">{invoiceSearchError}</div>}
           {selectedInvoice ? (
             <div className="text-xs text-green-700 flex flex-wrap gap-3">
-              <span>Facture sélectionnée: {selectedInvoice.number}</span>
+              <span>Pièce sélectionnée: {selectedInvoice.number}</span>
               <span>Tiers: {selectedInvoice.thirdPartyName}</span>
               <span>Total: <Amount value={selectedInvoice.total} /></span>
               <span>Payé: <Amount value={selectedInvoice.paid} /></span>
@@ -374,8 +491,8 @@ export default function NewMoneyMovementForm({ accounts }) {
             </div>
           ) : (
             <div className="max-h-40 overflow-auto divide-y border rounded bg-white">
-              {searchingInvoices && <div className="p-2 text-xs text-slate-500">Recherche...</div>}
-              {!searchingInvoices && invoiceQuery && invoiceResults.length === 0 && <div className="p-2 text-xs text-slate-500">Aucun résultat</div>}
+              {searchingInvoices && <div className="p-2 text-xs text-slate-500">Recherche des pièces...</div>}
+              {!searchingInvoices && invoiceQuery && invoiceResults.length === 0 && <div className="p-2 text-xs text-slate-500">Aucune pièce trouvée</div>}
               {invoiceResults.map(inv => (
                 <button type="button" key={inv.id} onClick={()=>setSelectedInvoice(inv)} className="w-full text-left px-2 py-1 hover:bg-blue-50 text-xs">
                   <span className="font-mono">{inv.number}</span> — {inv.thirdPartyName} — Total <Amount value={inv.total} /> — Payé <Amount value={inv.paid} /> — Reste <Amount value={inv.remaining} />
@@ -389,9 +506,9 @@ export default function NewMoneyMovementForm({ accounts }) {
       {justHadInsufficient && !willBeNegative && <div className="text-xs text-amber-600">Le solde a peut-être changé entre temps. Réessayez.</div>}
       {okMsg && <div className="text-green-600 text-sm">{okMsg}</div>}
       <div className="flex gap-2">
-        <button disabled={loading || willBeNegative} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500 disabled:opacity-50" type="submit">{loading? 'En cours...' : 'Créer'}</button>
+        <button disabled={loading || willBeNegative} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500 disabled:opacity-50" type="submit">{loading? 'En cours...' : 'Enregistrer'}</button>
         <button type="button" onClick={resetForm} className="px-3 py-2 text-sm border rounded hover:bg-slate-50">Réinitialiser</button>
-        <a href={selectedMoneyAccount?`/treasury?account=${selectedMoneyAccount.id}`:'/treasury'} className="px-3 py-2 text-sm border rounded hover:bg-slate-50">Rafraîchir solde</a>
+        <a href={selectedMoneyAccount?`/treasury?account=${selectedMoneyAccount.id}`:'/treasury'} className="px-3 py-2 text-sm border rounded hover:bg-slate-50">Actualiser le solde</a>
       </div>
     </form>
   );

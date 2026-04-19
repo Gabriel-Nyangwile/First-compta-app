@@ -186,13 +186,6 @@ function AnalyseMenu() {
           >
             Récap TVA
           </Link>
-          <Link
-            href="/treasury"
-            className="block px-4 py-2 text-sm hover:bg-blue-800"
-            onClick={close}
-          >
-            Trésorerie
-          </Link>
         </div>
       )}
     </div>
@@ -326,7 +319,7 @@ function TreasuryOperationsMenu() {
         onClick={() => setOpen((o) => !o)}
         className="px-3 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center gap-1"
       >
-        <span>Op. Trésorerie</span>
+        <span>Trésorerie</span>
         <span className="text-[10px] opacity-70">{open ? "▲" : "▼"}</span>
       </button>
       {open && (

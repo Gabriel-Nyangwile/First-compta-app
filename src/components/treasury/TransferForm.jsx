@@ -22,8 +22,8 @@ export default function TransferForm({ accounts }) {
       setLoading(true);
   const res = await fetch('/api/treasury/transfers', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ fromMoneyAccountId: fromId, toMoneyAccountId: toId, amount: Number(amount), description }) });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur serveur');
-      setOkMsg('Transfert créé');
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur lors de l’enregistrement du transfert');
+      setOkMsg('Transfert interne enregistré');
   setAmount(''); setDescription(''); setVoucherRef('');
       window.location.href = `/treasury?account=${toId}`;
     } catch(err) {
@@ -33,7 +33,7 @@ export default function TransferForm({ accounts }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-white border rounded p-4">
-      <h3 className="font-semibold text-sm">Transfert interne</h3>
+      <h3 className="font-semibold text-sm">Saisir un transfert interne</h3>
       <div className="grid md:grid-cols-3 gap-3 text-sm">
         <label className="flex flex-col">De
           <select value={fromId} onChange={e=>setFromId(e.target.value)} className="mt-1 border rounded px-2 py-1">
@@ -61,7 +61,7 @@ export default function TransferForm({ accounts }) {
       {error && <div className="text-red-600 text-sm">{error}</div>}
       {okMsg && <div className="text-green-600 text-sm">{okMsg}</div>}
       <div className="flex gap-2">
-        <button disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-500 disabled:opacity-50" type="submit">{loading? 'En cours...' : 'Transférer'}</button>
+        <button disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-500 disabled:opacity-50" type="submit">{loading? 'En cours...' : 'Enregistrer le transfert'}</button>
       </div>
     </form>
   );

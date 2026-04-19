@@ -19,8 +19,8 @@ export default function NewMoneyAccountForm() {
       setLoading(true);
       const res = await fetch('/api/treasury/accounts/create', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ type, label, currency, openingBalance: Number(openingBalance), code: code || null }) });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur création compte');
-      setOk('Compte créé');
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur lors de la création du compte');
+      setOk('Compte de trésorerie enregistré');
       setLabel(''); setOpeningBalance('0'); setCode('');
       // reload to refresh list
       window.location.href = '/treasury';
@@ -33,7 +33,7 @@ export default function NewMoneyAccountForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-white border rounded p-4 text-sm">
-      <h3 className="font-semibold text-sm">Nouveau compte trésorerie</h3>
+      <h3 className="font-semibold text-sm">Créer un compte de trésorerie</h3>
       <label className="flex flex-col">Type
         <select value={type} onChange={e=>setType(e.target.value)} className="mt-1 border rounded px-2 py-1">
           <option value="BANK">Banque (521xxx)</option>
@@ -61,7 +61,7 @@ export default function NewMoneyAccountForm() {
       </label>
       {error && <div className="text-red-600 text-xs">{error}</div>}
       {ok && <div className="text-green-600 text-xs">{ok}</div>}
-      <button disabled={loading} className="px-3 py-2 bg-blue-600 text-white rounded text-xs hover:bg-blue-500 disabled:opacity-50" type="submit">{loading ? 'Création...' : 'Créer'}</button>
+      <button disabled={loading} className="px-3 py-2 bg-blue-600 text-white rounded text-xs hover:bg-blue-500 disabled:opacity-50" type="submit">{loading ? 'Création...' : 'Enregistrer le compte'}</button>
     </form>
   );
 }

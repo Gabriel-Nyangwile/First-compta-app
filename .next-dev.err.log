@@ -1,0 +1,171 @@
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/journal/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at JournalEntryDetail (src\app\journal\[id]\page.jsx:41:25)
+  39 |   }
+  40 |   const entry = await prisma.journalEntry.findFirst({
+> 41 |     where: { id: params.id, companyId },
+     |                         ^
+  42 |     include: {
+  43 |       lines: {
+  44 |         orderBy: [{ date: "asc" }, { id: "asc" }],
+Error: Route "/api/journal-entries/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src\app\api\journal-entries\[id]\route.js:15:13)
+  13 |   try {
+  14 |     const companyId = requireCompanyId(req);
+> 15 |     const { id } = params;
+     |             ^
+  16 |     const { searchParams } = new URL(req.url);
+  17 |     const format = searchParams.get("format") || undefined;
+  18 |     const entry = await prisma.journalEntry.findFirst({

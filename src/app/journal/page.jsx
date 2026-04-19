@@ -59,6 +59,24 @@ export default async function JournalPage({ searchParams }) {
         <div className="flex gap-4 text-sm">
           <Link
             className="text-blue-600 hover:underline"
+            href="/journal/manual-od"
+          >
+            Nouvelle OD manuelle
+          </Link>
+          <Link
+            className="text-blue-600 hover:underline"
+            href="/journal/manual-od/pending"
+          >
+            OD à valider
+          </Link>
+          <Link
+            className="text-blue-600 hover:underline"
+            href="/journal/od"
+          >
+            OD auto orphelins
+          </Link>
+          <Link
+            className="text-blue-600 hover:underline"
             href={`/api/journal-entries?${buildQueryString(baseQuery, {
               page: 1,
               pageSize: 1000,

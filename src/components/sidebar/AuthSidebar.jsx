@@ -57,7 +57,6 @@ const GROUPS = [
     items: [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/vat-recap", label: "Récap TVA" },
-      { href: "/treasury", label: "Trésorerie" },
     ],
   },
   {
@@ -128,8 +127,16 @@ const GROUPS = [
     label: "Trésorerie",
     items: [
       {
+        href: "/treasury",
+        label: "Vue générale trésorerie",
+      },
+      {
+        href: "/authorizations",
+        label: "Autorisations de trésorerie",
+      },
+      {
         href: "/authorizations?scope=CASH&flow=OUT",
-        label: "Paiements caisse",
+        label: "Décaissements caisse",
       },
       {
         href: "/authorizations?scope=CASH&flow=IN",
@@ -137,15 +144,15 @@ const GROUPS = [
       },
       {
         href: "/authorizations?scope=BANK&flow=OUT",
-        label: "Paiements banque",
+        label: "Décaissements banque",
       },
       {
         href: "/authorizations?scope=BANK&flow=IN",
         label: "Encaissements banque",
       },
-      { href: "/treasury/suppliers", label: "Suivi fournisseurs" },
+      { href: "/treasury/suppliers", label: "Règlements fournisseurs" },
       { href: "/bank-advices", label: "Avis bancaires" },
-      { href: "/treasury#transfers", label: "Transferts" },
+      { href: "/treasury#transfers", label: "Transferts internes" },
     ],
   },
 ];

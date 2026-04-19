@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { postCapitalSubscription } from "@/lib/capitalPosting";
+import {
+  buildCapitalSourcePrefix,
+  postCapitalSubscription,
+  postCapitalSubscriptionAdjustment,
+} from "@/lib/capitalPosting";
 import { requireCompanyId } from "@/lib/tenant";
 
 export async function PATCH(req, { params }) {
@@ -10,23 +14,63 @@ export async function PATCH(req, { params }) {
   try {
     const body = await req.json();
     const { nominalAmount, premiumAmount, sharesCount, note } = body;
-    const updated = await prisma.capitalSubscription.updateMany({
-      where: { id, companyId },
-      data: {
-        nominalAmount: nominalAmount != null ? nominalAmount.toString() : undefined,
-        premiumAmount: premiumAmount != null ? premiumAmount.toString() : undefined,
-        sharesCount: sharesCount != null ? Number(sharesCount) : undefined,
-        note: note ?? undefined,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.capitalSubscription.findFirst({
+        where: { id, companyId },
+        include: {
+          calls: {
+            select: { amountCalled: true },
+          },
+        },
+      });
+      if (!existing) {
+        throw new Error("Souscription introuvable");
+      }
+      const nextNominal =
+        nominalAmount != null
+          ? Number(nominalAmount)
+          : Number(existing.nominalAmount?.toNumber?.() ?? existing.nominalAmount ?? 0);
+      const totalCalled = existing.calls.reduce(
+        (sum, call) => sum + Number(call.amountCalled?.toNumber?.() ?? call.amountCalled ?? 0),
+        0
+      );
+      if (nextNominal + 0.001 < totalCalled) {
+        throw new Error(
+          `Montant nominal incohérent : ${nextNominal} inférieur aux appels déjà saisis (${totalCalled})`
+        );
+      }
+      const saved = await tx.capitalSubscription.update({
+        where: { id },
+        data: {
+          nominalAmount: nominalAmount != null ? nominalAmount.toString() : undefined,
+          premiumAmount: premiumAmount != null ? premiumAmount.toString() : undefined,
+          sharesCount: sharesCount != null ? Number(sharesCount) : undefined,
+          note: note ?? undefined,
+        },
+        include: {
+          shareholder: true,
+          calls: true,
+        },
+      });
+      const previousNominal = Number(
+        existing.nominalAmount?.toNumber?.() ?? existing.nominalAmount ?? 0
+      );
+      const deltaNominal = nextNominal - previousNominal;
+      if (Math.abs(deltaNominal) >= 0.01) {
+        await postCapitalSubscriptionAdjustment(tx, {
+          subscription: saved,
+          deltaNominal,
+          companyId,
+        });
+      }
+      return saved;
     });
-    if (!updated.count) {
-      return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
-    }
-    const sub = await prisma.capitalSubscription.findFirst({ where: { id, companyId } });
-    return NextResponse.json(sub);
+    return NextResponse.json(updated);
   } catch (e) {
     const msg = e.message || "Erreur mise à jour souscription";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const status =
+      msg.toLowerCase().includes("introuvable") ? 404 : msg.toLowerCase().includes("incohérent") ? 400 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
 
@@ -38,11 +82,32 @@ export async function POST(_req, { params }) {
   try {
     const sub = await prisma.capitalSubscription.findFirst({
       where: { id, companyId },
+      include: { calls: { select: { amountCalled: true } } },
     });
     if (!sub) return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
     await prisma.$transaction(async (tx) => {
-      const called = Number(sub.nominalAmount || 0);
-      const notCalled = 0;
+      const sourcePrefix = buildCapitalSourcePrefix("subscription", id);
+      const existingTxns = await tx.transaction.findMany({
+        where: {
+          companyId,
+          kind: "CAPITAL_SUBSCRIPTION",
+          OR: [
+            { journalEntry: { sourceId: { startsWith: sourcePrefix } } },
+            { description: { contains: id } },
+          ],
+        },
+        select: { id: true, journalEntryId: true },
+      });
+      const txnIds = existingTxns.map((entry) => entry.id);
+      const jeIds = [...new Set(existingTxns.map((entry) => entry.journalEntryId).filter(Boolean))];
+      if (txnIds.length) {
+        await tx.transaction.deleteMany({ where: { id: { in: txnIds } } });
+      }
+      if (jeIds.length) {
+        await tx.journalEntry.deleteMany({ where: { id: { in: jeIds }, companyId } });
+      }
+      const called = 0;
+      const notCalled = Number(sub.nominalAmount?.toNumber?.() ?? sub.nominalAmount ?? 0);
       await postCapitalSubscription(tx, {
         subscription: sub,
         amountCalled: called,
@@ -77,7 +142,10 @@ export async function DELETE(req, { params }) {
       const txns = await tx.transaction.findMany({
         where: {
           kind: "CAPITAL_SUBSCRIPTION",
-          description: { contains: id },
+          OR: [
+            { journalEntry: { sourceId: { startsWith: buildCapitalSourcePrefix("subscription", id) } } },
+            { description: { contains: id } },
+          ],
           companyId,
         },
       });

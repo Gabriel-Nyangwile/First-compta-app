@@ -18,6 +18,8 @@ export async function GET(req, { params }) {
     const entry = await prisma.journalEntry.findFirst({
       where: { id, companyId },
       include: {
+        preparedByUser: { select: { id: true, username: true, email: true } },
+        validatedByUser: { select: { id: true, username: true, email: true } },
         lines: {
           orderBy: [{ date: "asc" }, { id: "asc" }],
           include: {
@@ -44,8 +46,24 @@ export async function GET(req, { params }) {
     let totalCredit = 0;
     let totalLettered = 0;
     let totalOutstanding = 0;
+    const effectiveLines =
+      entry.status === "DRAFT" && (!entry.lines || entry.lines.length === 0)
+        ? (entry.draftPayload?.lines || []).map((line, index) => ({
+            id: `draft-${index}`,
+            account: null,
+            amount: Number(line.debit || line.credit || 0),
+            direction: Number(line.debit || 0) > 0 ? "DEBIT" : "CREDIT",
+            kind: "ADJUSTMENT",
+            description:
+              line.description || entry.description || "OD manuelle en brouillon",
+            letterStatus: "UNMATCHED",
+            letterRef: null,
+            letteredAmount: 0,
+            letteredAt: null,
+          }))
+        : entry.lines;
 
-    const lines = entry.lines.map((line, index) => {
+    const lines = effectiveLines.map((line, index) => {
       const amount = toNumber(line.amount);
       const letteredAmount = toNumber(line.letteredAmount);
       const outstanding = Math.max(0, amount - letteredAmount);
@@ -105,6 +123,7 @@ export async function GET(req, { params }) {
 
     if (format === "csv") {
       const header = [
+        "Référence justificative",
         "Index",
         "Compte",
         "Libellé compte",
@@ -124,6 +143,7 @@ export async function GET(req, { params }) {
       ];
       const csvLines = lines.map((line) =>
         [
+          entry.supportRef || "",
           String(line.index),
           line.accountNumber || "",
           `"${(line.accountLabel || "").replace(/"/g, '""')}"`,
@@ -155,6 +175,11 @@ export async function GET(req, { params }) {
       date: entry.date,
       sourceType: entry.sourceType,
       sourceId: entry.sourceId,
+      supportRef: entry.supportRef,
+      preparedByUser: entry.preparedByUser,
+      preparedAt: entry.preparedAt,
+      validatedByUser: entry.validatedByUser,
+      validatedAt: entry.validatedAt,
       description: entry.description,
       status: entry.status,
       postedAt: entry.postedAt,

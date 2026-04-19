@@ -9,6 +9,27 @@ const toNumber = (value) => {
   return value.toNumber?.() ?? Number(value) ?? 0;
 };
 
+const computeDraftTotals = (entry) => {
+  const draftLines = Array.isArray(entry.draftPayload?.lines)
+    ? entry.draftPayload.lines
+    : [];
+  let totalDebit = 0;
+  let totalCredit = 0;
+  for (const line of draftLines) {
+    totalDebit += Number(line.debit || 0);
+    totalCredit += Number(line.credit || 0);
+  }
+  return {
+    totalDebit,
+    totalCredit,
+    totalLettered: 0,
+    totalOutstanding: 0,
+    lines: [],
+    lineCount: draftLines.length,
+    isBalanced: Math.abs(totalDebit - totalCredit) < 0.001,
+  };
+};
+
 // GET /api/journal-entries?page=&pageSize=&sourceType=&status=&dateFrom=&dateTo=&letterStatus=&accountId=&accountNumber=&q=&format=
 export async function GET(request) {
   try {
@@ -69,6 +90,7 @@ export async function GET(request) {
           { number: like },
           { description: like },
           { sourceId: like },
+          { supportRef: like },
           {
             lines: {
               some: {
@@ -95,6 +117,8 @@ export async function GET(request) {
       skip: format === "csv" ? undefined : (page - 1) * pageSize,
       take: format === "csv" ? undefined : pageSize,
       include: {
+        preparedByUser: { select: { id: true, username: true, email: true } },
+        validatedByUser: { select: { id: true, username: true, email: true } },
         lines: {
           orderBy: [{ date: "asc" }, { id: "asc" }],
           include: {
@@ -105,6 +129,25 @@ export async function GET(request) {
     });
 
     const items = entries.map((entry) => {
+      if (entry.status === "DRAFT" && (!entry.lines || entry.lines.length === 0)) {
+        const draftTotals = computeDraftTotals(entry);
+        return {
+          id: entry.id,
+          reference: entry.number,
+          date: entry.date,
+          sourceType: entry.sourceType,
+          sourceId: entry.sourceId,
+          supportRef: entry.supportRef,
+          preparedByUser: entry.preparedByUser,
+          preparedAt: entry.preparedAt,
+          validatedByUser: entry.validatedByUser,
+          validatedAt: entry.validatedAt,
+          description: entry.description,
+          status: entry.status,
+          postedAt: entry.postedAt,
+          ...draftTotals,
+        };
+      }
       let totalDebit = 0;
       let totalCredit = 0;
       let totalLettered = 0;
@@ -146,6 +189,11 @@ export async function GET(request) {
         date: entry.date,
         sourceType: entry.sourceType,
         sourceId: entry.sourceId,
+        supportRef: entry.supportRef,
+        preparedByUser: entry.preparedByUser,
+        preparedAt: entry.preparedAt,
+        validatedByUser: entry.validatedByUser,
+        validatedAt: entry.validatedAt,
         description: entry.description,
         status: entry.status,
         postedAt: entry.postedAt,
@@ -165,6 +213,7 @@ export async function GET(request) {
         "Date",
         "Source",
         "Référence source",
+        "Référence justificative",
         "Statut",
         "Débit",
         "Crédit",
@@ -180,6 +229,7 @@ export async function GET(request) {
           item.date ? new Date(item.date).toISOString().slice(0, 10) : "",
           item.sourceType || "",
           item.sourceId || "",
+          item.supportRef || "",
           item.status || "",
           item.totalDebit.toFixed(2),
           item.totalCredit.toFixed(2),

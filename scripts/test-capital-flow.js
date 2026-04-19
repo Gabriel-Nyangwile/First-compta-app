@@ -74,6 +74,7 @@ async function main() {
   await ensureOk(res, data, "Capital operation");
   const opId = data.id;
   console.log("Capital operation", opId);
+  const today = new Date().toISOString().slice(0, 10);
 
   // Create subscription
   res = await fetch(`${BASE}/api/capital-operations/${opId}/subscriptions`, {
@@ -81,8 +82,9 @@ async function main() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       shareholderId,
-      nominalAmount: 100000,
+      nominalAmount: 4900,
       premiumAmount: 20000,
+      sharesCount: 490,
     }),
   });
   data = await json(res);
@@ -90,8 +92,25 @@ async function main() {
   const subId = data.id;
   console.log("Subscription", subId);
 
+  // Correct subscription nominal and shares count
+  res = await fetch(`${BASE}/api/capital-subscriptions/${subId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      nominalAmount: 5000,
+      sharesCount: 500,
+    }),
+  });
+  data = await json(res);
+  await ensureOk(res, data, "Subscription correction");
+
+  let tx = await fetchTransactions("CAPITAL_SUBSCRIPTION", today, today);
+  let debit = Number(tx.sums?.debit || 0);
+  let credit = Number(tx.sums?.credit || 0);
+  assert(Math.abs(debit - 5000) < 0.01, `Expected corrected debit=5000, got ${debit}`);
+  assert(Math.abs(credit - 5000) < 0.01, `Expected corrected credit=5000, got ${credit}`);
+
   // Create call
-  const today = new Date().toISOString().slice(0, 10);
   res = await fetch(`${BASE}/api/capital-calls`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

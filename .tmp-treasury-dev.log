@@ -1,0 +1,78 @@
+
+> first-compta@0.1.0 dev
+> cross-env CHOKIDAR_USEPOLLING=1 WATCHPACK_POLLING=true WATCHPACK_POLL_INTERVAL=1500 NEXT_DISABLE_FILE_WATCHING=false next dev
+
+   Ôû▓ Next.js 15.5.3
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.150:3001
+   - Environments: .env.local, .env
+
+ Ô£ô Starting...
+ Ô£ô Ready in 2.9s
+ Ôùï Compiling /suppliers/[id]/treasury ...
+ Ô£ô Compiled /suppliers/[id]/treasury in 8.2s (708 modules)
+ Ô¿» Error: companyId requis
+    at getMissionAdvanceOverview (src\lib\serverActions\money.js:1395:25)
+    at TreasuryPage (src\app\treasury\page.jsx:24:30)
+  1393 |
+  1394 | export async function getMissionAdvanceOverview({ companyId = null } = {}) {
+> 1395 |   if (!companyId) throw new Error("companyId requis");
+       |                         ^
+  1396 |   const advances = await listOpenMissionAdvances({ companyId });
+  1397 |   const now = new Date();
+  1398 |   const rows = advances {
+  digest: '3629143375'
+}
+ Ô¿» Error: companyId requis
+    at getSupplierTreasuryOverview (src\lib\serverActions\money.js:1588:25)
+    at TreasurySuppliersPage (src\app\treasury\suppliers\page.jsx:11:54)
+  1586 |   limit = 25,
+  1587 | } = {}) {
+> 1588 |   if (!companyId) throw new Error("companyId requis");
+       |                         ^
+  1589 |   const where = search
+  1590 |     ? {
+  1591 |         OR: [ {
+  digest: '371116542'
+}
+ HEAD /treasury 500 in 9387ms
+ HEAD /treasury/suppliers 500 in 9437ms
+ HEAD /suppliers/19f4b7c4-b932-4191-98aa-4b93ebe6861b/treasury 404 in 10100ms
+ Ô£ô Compiled in 646ms (445 modules)
+ Ô£ô Compiled in 1386ms (708 modules)
+ HEAD /treasury/suppliers 200 in 685ms
+ Ôùï Compiling /middleware ...
+ Ô£ô Compiled /middleware in 745ms (115 modules)
+ Ôùï Compiling /api/treasury/summary ...
+ Ô£ô Compiled /api/treasury/summary in 541ms (686 modules)
+ GET /api/treasury/summary 200 in 902ms
+ HEAD /treasury 200 in 2773ms
+ Ô£ô Compiled in 1368ms (250 modules)
+ Ô£ô Compiled in 2.8s (264 modules)
+ Ô£ô Compiled in 155ms (250 modules)
+ Ô£ô Compiled in 1492ms (264 modules)
+ Ô£ô Compiled in 105ms (250 modules)
+ Ô£ô Compiled in 1070ms (264 modules)
+ Ô£ô Compiled in 1058ms (264 modules)
+ Ô£ô Compiled in 4.8s (264 modules)
+ Ô£ô Compiled in 1068ms (264 modules)
+ Ô£ô Compiled in 78ms (250 modules)
+ Ô£ô Compiled in 1327ms (264 modules)
+ Ô£ô Compiled in 315ms (250 modules)
+ Ô£ô Compiled in 1724ms (264 modules)
+ Ô£ô Compiled in 1174ms (264 modules)
+ Ô£ô Compiled in 1617ms (264 modules)
+ Ô£ô Compiled in 1310ms (264 modules)
+ Ô£ô Compiled in 1670ms (264 modules)
+ Ô£ô Compiled in 153ms (250 modules)
+ Ô£ô Compiled in 2.1s (264 modules)
+ Ô£ô Compiled in 1320ms (264 modules)
+ Ô£ô Compiled in 1706ms (264 modules)
+ Ô£ô Compiled in 1350ms (264 modules)
+ Ô£ô Compiled in 1674ms (264 modules)
+ Ô£ô Compiled in 1399ms (264 modules)
+ Ô£ô Compiled in 120ms (250 modules)
+ Ô£ô Compiled in 1199ms (264 modules)
+ Ô£ô Compiled in 1762ms (264 modules)
+ Ô£ô Compiled in 1739ms (264 modules)
+ Ô£ô Compiled in 1141ms (264 modules)

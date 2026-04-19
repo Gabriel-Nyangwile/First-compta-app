@@ -134,9 +134,21 @@ export default function JournalTable({ items, baseQuery }) {
                     <span className="text-xs text-neutral-500">
                       {entry.sourceId || "—"}
                     </span>
+                    {entry.supportRef && (
+                      <span className="text-xs text-neutral-500">
+                        PJ : {entry.supportRef}
+                      </span>
+                    )}
                     {entry.description && (
                       <span className="text-xs text-neutral-600 mt-1 line-clamp-2">
                         {entry.description}
+                      </span>
+                    )}
+                    {(entry.preparedByUser || entry.validatedByUser) && (
+                      <span className="text-xs text-neutral-500 mt-1">
+                        Préparé: {entry.preparedByUser?.username || entry.preparedByUser?.email || "—"}
+                        {" • "}
+                        Validé: {entry.validatedByUser?.username || entry.validatedByUser?.email || "—"}
                       </span>
                     )}
                   </div>

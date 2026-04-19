@@ -1,0 +1,116 @@
+
+> first-compta@0.1.0 dev
+> cross-env CHOKIDAR_USEPOLLING=1 WATCHPACK_POLLING=true WATCHPACK_POLL_INTERVAL=1500 NEXT_DISABLE_FILE_WATCHING=false next dev
+
+   Ôû▓ Next.js 15.5.3
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.1.150:3002
+   - Environments: .env.local, .env
+
+ Ô£ô Starting...
+ Ô£ô Ready in 2.8s
+ Ôùï Compiling /treasury ...
+ Ô£ô Compiled /suppliers/[id]/treasury in 8s (708 modules)
+ HEAD /treasury/suppliers 200 in 9356ms
+ Ôùï Compiling /middleware ...
+ Ô£ô Compiled /middleware in 961ms (115 modules)
+ HEAD /suppliers/19f4b7c4-b932-4191-98aa-4b93ebe6861b/treasury 200 in 9365ms
+ Ôùï Compiling /api/treasury/summary ...
+ Ô£ô Compiled /api/treasury/summary in 709ms (702 modules)
+ GET /api/treasury/summary 200 in 1060ms
+ HEAD /treasury 200 in 11369ms
+ Ô£ô Compiled in 6.4s (250 modules)
+ GET /suppliers/19f4b7c4-b932-4191-98aa-4b93ebe6861b/treasury 200 in 6641ms
+ GET /api/treasury/summary 200 in 2324ms
+ GET /treasury/suppliers 200 in 8280ms
+ GET /treasury 200 in 8351ms
+ Ôùï Compiling /api/suppliers/[id]/treasury ...
+ Ô£ô Compiled /api/account/search in 2.1s (466 modules)
+ Ô£ô Compiled in 1023ms (250 modules)
+ GET /favicon.ico 200 in 4606ms
+ GET /favicon.ico 200 in 4135ms
+ GET /favicon.ico 200 in 4915ms
+ GET /api/companies/public 200 in 3752ms
+ GET /api/companies/public 200 in 4796ms
+ GET /api/companies/public 200 in 4088ms
+ GET /api/account/search?query=6 200 in 3807ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /api/suppliers/19f4b7c4-b932-4191-98aa-4b93ebe6861b/treasury 200 in 8244ms
+ GET /api/treasury/summary 200 in 803ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /treasury/suppliers 200 in 4908ms
+ GET /suppliers/19f4b7c4-b932-4191-98aa-4b93ebe6861b/treasury 200 in 1761ms
+ GET /treasury 200 in 6014ms
+ GET /favicon.ico 200 in 923ms
+ GET /favicon.ico 200 in 737ms
+ GET /favicon.ico 200 in 738ms
+ GET /api/companies/public 200 in 895ms
+ GET /api/companies/public 200 in 1202ms
+ GET /api/companies/public 200 in 1213ms
+ GET /api/account/search?query=6 200 in 1218ms
+ GET /api/suppliers/19f4b7c4-b932-4191-98aa-4b93ebe6861b/treasury 200 in 1075ms
+ Ô£ô Compiled in 2.9s (264 modules)
+ Ô£ô Compiled in 146ms (250 modules)
+ Ô£ô Compiled in 1512ms (264 modules)
+ GET /api/treasury/summary 200 in 141ms
+ GET /treasury 200 in 724ms
+ GET /api/companies/public 200 in 449ms
+ GET /favicon.ico 200 in 345ms
+ GET /api/account/search?query=6 200 in 495ms
+ Ô£ô Compiled in 1078ms (264 modules)
+ Ô£ô Compiled in 1099ms (264 modules)
+ Ôùï Compiling /authorizations ...
+ Ô£ô Compiled /authorizations in 946ms (710 modules)
+ HEAD /authorizations?scope=CASH&flow=OUT 200 in 122ms
+ Ô£ô Compiled in 6s (710 modules)
+ Ô£ô Compiled in 1464ms (697 modules)
+ Ô£ô Compiled in 3.6s (711 modules)
+ Ô£ô Compiled in 1136ms (265 modules)
+ Ô£ô Compiled in 3.3s (711 modules)
+ Ô£ô Compiled in 82ms (251 modules)
+ Ô£ô Compiled in 2.5s (711 modules)
+ Ô£ô Compiled in 101ms (251 modules)
+ Ô£ô Compiled in 1741ms (265 modules)
+ Ô£ô Compiled in 3.8s (711 modules)
+ Ôùï Compiling /api/treasury/summary ...
+ Ô£ô Compiled /api/treasury/summary in 1817ms (727 modules)
+ GET /treasury/suppliers 200 in 2593ms
+ GET /api/treasury/summary 200 in 2667ms
+ GET /bank-advices 200 in 2882ms
+ Ô¿» [TypeError: __webpack_modules__[moduleId] is not a function] {
+  digest: '1827412468'
+}
+ GET /authorizations 200 in 3710ms
+ GET /treasury 500 in 4744ms
+ Ô£ô Compiled in 525ms (446 modules)
+ Ô£ô Compiled in 1323ms (267 modules)
+ Ô£ô Compiled /authorizations in 421ms (452 modules)
+ Ô£ô Compiled (467 modules)
+ GET /bank-advices 200 in 2191ms
+ GET /authorizations 200 in 2248ms
+ GET /treasury/suppliers 200 in 2358ms
+ Ô£ô Compiled /api/treasury/summary in 300ms (474 modules)
+ GET /api/treasury/summary 200 in 526ms
+ GET /treasury 200 in 2798ms
+ Ô£ô Compiled in 480ms (446 modules)
+ Ô£ô Compiled in 3.1s (713 modules)
+ Ôùï Compiling /bank-advices ...
+ Ô£ô Compiled /bank-advices in 540ms (461 modules)
+ Ô£ô Compiled (467 modules)
+ GET /bank-advices 200 in 2387ms
+ GET /authorizations 200 in 2490ms
+ GET /treasury/suppliers 200 in 2558ms
+ Ô£ô Compiled /api/treasury/summary in 458ms (474 modules)
+ GET /api/treasury/summary 200 in 766ms
+ GET /treasury 200 in 3267ms
+ Ô£ô Compiled in 1324ms (267 modules)
+ Ô£ô Compiled in 2.4s (713 modules)
+ Ô£ô Compiled in 786ms (446 modules)
+ Ô£ô Compiled /api/treasury/summary in 184ms (453 modules)
+ GET /api/treasury/summary 200 in 533ms
+ GET /treasury 200 in 1300ms
+ Ô£ô Compiled in 526ms (446 modules)
+ Ô£ô Compiled in 1767ms (267 modules)
+ Ô£ô Compiled in 171ms (253 modules)
+ Ô£ô Compiled in 1070ms (267 modules)
