@@ -1,6 +1,7 @@
 import prisma from '../prisma.js';
 import { Prisma } from '@prisma/client';
 import { autoPostTransactions, updateInvoiceSettlementStatus, updateIncomingInvoiceSettlementStatus, ensureLedgerAccountForMoneyAccount } from './money.js';
+import { getCompanyCurrency } from '@/lib/companyContext';
 
 /** Utility: generate a simple docNumber. Real sequencing can replace later. */
 function generateDocNumber(docType) {
@@ -15,10 +16,11 @@ function requireCompanyId(companyId) {
   return companyId;
 }
 
-export async function createAuthorization({ companyId, docType, scope, flow, amount, currency='EUR', beneficiaryType, beneficiaryAccountId, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
+export async function createAuthorization({ companyId, docType, scope, flow, amount, currency, beneficiaryType, beneficiaryAccountId, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
   const scopedCompanyId = requireCompanyId(companyId);
   if (!docType) throw new Error('docType requis');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
+  const resolvedCurrency = currency || await getCompanyCurrency(scopedCompanyId);
 
   const normalizedDocType = String(docType).toUpperCase();
   let resolvedScope;
@@ -67,7 +69,7 @@ export async function createAuthorization({ companyId, docType, scope, flow, amo
       scope: resolvedScope,
       flow: resolvedFlow,
       amount: new Prisma.Decimal(amount),
-      currency,
+      currency: resolvedCurrency,
       beneficiaryType: beneficiaryType || null,
       beneficiaryAccountId: beneficiaryAccountId || null,
       invoiceId: invoiceId || null,
@@ -222,10 +224,11 @@ export async function listAuthorizations({ companyId, status, docType, flow, par
   });
 }
 
-export async function createBankAdvice({ companyId, adviceType, amount, authorizationId, invoiceId, incomingInvoiceId, adviceDate, currency='EUR', refNumber, purpose }) {
+export async function createBankAdvice({ companyId, adviceType, amount, authorizationId, invoiceId, incomingInvoiceId, adviceDate, currency, refNumber, purpose }) {
   const scopedCompanyId = requireCompanyId(companyId);
   if (!adviceType) throw new Error('adviceType requis');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
+  const resolvedCurrency = currency || await getCompanyCurrency(scopedCompanyId);
   if (authorizationId) {
     const auth = await prisma.treasuryAuthorization.findFirst({ where: { id: authorizationId, companyId: scopedCompanyId }, select: { id: true } });
     if (!auth) throw new Error('Autorisation introuvable dans la société active');
@@ -243,7 +246,7 @@ export async function createBankAdvice({ companyId, adviceType, amount, authoriz
       companyId: scopedCompanyId,
       adviceType, amount: new Prisma.Decimal(amount), authorizationId: authorizationId || null,
       invoiceId: invoiceId || null, incomingInvoiceId: incomingInvoiceId || null,
-      adviceDate: adviceDate ? new Date(adviceDate) : new Date(), currency, refNumber: refNumber || null, purpose: purpose || null
+      adviceDate: adviceDate ? new Date(adviceDate) : new Date(), currency: resolvedCurrency, refNumber: refNumber || null, purpose: purpose || null
     }
   });
 }

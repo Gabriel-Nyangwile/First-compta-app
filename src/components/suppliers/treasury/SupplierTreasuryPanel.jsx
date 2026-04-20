@@ -37,7 +37,7 @@ async function fetchTreasury(supplierId) {
   return payload;
 }
 
-export default function SupplierTreasuryPanel({ supplierId }) {
+export default function SupplierTreasuryPanel({ supplierId, defaultCurrency = "XOF" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -166,11 +166,13 @@ export default function SupplierTreasuryPanel({ supplierId }) {
             <SummaryCard
               label="Total facturé"
               value={summary.totalInvoiced}
+              currency={defaultCurrency}
               helper={`${summary.invoiceCount} facture(s)`}
             />
             <SummaryCard
               label="Total payé"
               value={summary.totalPaid}
+              currency={defaultCurrency}
               valueClass="text-green-700"
               helper={
                 summary.lastPaymentDate
@@ -181,6 +183,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
             <SummaryCard
               label="Encours"
               value={summary.totalOutstanding}
+              currency={defaultCurrency}
               valueClass="text-amber-700"
               helper={
                 summary.overdueCount > 0
@@ -197,6 +200,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
             <SummaryCard
               label="Rapprochement paiements"
               value={summary.unmatchedPaymentsAmount || 0}
+              currency={defaultCurrency}
               valueClass={
                 (summary.unmatchedPaymentsCount || 0) > 0
                   ? "text-red-700"
@@ -264,13 +268,13 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                         {formatDate(invoice.dueDate)}
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums">
-                        <Amount value={invoice.total} />
+                        <Amount value={invoice.total} currency={defaultCurrency} />
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums text-green-700">
-                        <Amount value={invoice.paid} />
+                        <Amount value={invoice.paid} currency={defaultCurrency} />
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums font-medium">
-                        <Amount value={invoice.outstanding} />
+                        <Amount value={invoice.outstanding} currency={defaultCurrency} />
                       </td>
                       <td className="px-2 py-1 uppercase text-[10px] text-slate-600">
                         {invoice.status}
@@ -331,7 +335,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                     <tr key={payment.id} className="border-t hover:bg-slate-50">
                       <td className="px-2 py-1">{formatDate(payment.date)}</td>
                       <td className="px-2 py-1 text-right tabular-nums text-green-700">
-                        <Amount value={payment.amount} />
+                        <Amount value={payment.amount} currency={defaultCurrency} />
                       </td>
                       <td className="px-2 py-1 text-xs">
                         {payment.moneyAccount ? (
@@ -421,10 +425,10 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                             : "text-amber-700"
                         }`}
                       >
-                        <Amount value={event.delta} />
+                        <Amount value={event.delta} currency={defaultCurrency} />
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums font-medium">
-                        <Amount value={event.balanceAfter} />
+                        <Amount value={event.balanceAfter} currency={defaultCurrency} />
                       </td>
                       <td className="px-2 py-1 text-xs text-slate-500 space-x-2">
                         {event.type === "INVOICE" && event.meta?.dueDate ? (
@@ -486,7 +490,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
                             : "text-amber-700"
                         }`}
                       >
-                        <Amount value={event.delta} />
+                        <Amount value={event.delta} currency={defaultCurrency} />
                       </p>
                     </div>
                   </li>
@@ -503,6 +507,7 @@ export default function SupplierTreasuryPanel({ supplierId }) {
 function SummaryCard({
   label,
   value,
+  currency,
   valueClass = "",
   helper,
   helperClass = "",
@@ -512,7 +517,7 @@ function SummaryCard({
     <div className="bg-white border rounded p-4 space-y-2">
       <div className="text-xs text-slate-500 uppercase">{label}</div>
       <div className={`text-xl font-semibold tabular-nums ${valueClass}`}>
-        <Amount value={value} />
+        <Amount value={value} currency={currency} />
       </div>
       {helper && (
         <div className={`text-xs ${helperClass || "text-slate-500"}`}>

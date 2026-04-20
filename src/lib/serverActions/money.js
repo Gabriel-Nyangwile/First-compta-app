@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { nextSequence as nextScopedSequence } from "../sequence.js";
 import { finalizeBatchToJournal } from "../journal.js";
+import { getCompanyCurrency } from "@/lib/companyContext";
 
 async function nextSequence(name) {
   const raw = await nextScopedSequence(prisma, name, "", null);
@@ -347,19 +348,20 @@ export async function createMoneyAccount({
   type,
   label,
   code,
-  currency = "EUR",
+  currency,
   openingBalance = 0,
 }) {
   if (!["BANK", "CASH"].includes(type)) throw new Error("type invalide");
   if (!label) throw new Error("label requis");
   if (!companyId) throw new Error("companyId requis");
+  const resolvedCurrency = currency || await getCompanyCurrency(companyId);
   const created = await prisma.moneyAccount.create({
     data: {
       companyId,
       type,
       label,
       code: code || null,
-      currency,
+      currency: resolvedCurrency,
       openingBalance: new Prisma.Decimal(openingBalance),
     },
   });

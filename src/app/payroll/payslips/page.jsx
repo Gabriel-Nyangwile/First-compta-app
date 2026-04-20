@@ -1,6 +1,8 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
+import { formatAmount } from '@/lib/utils';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 
@@ -11,6 +13,8 @@ export default async function PayslipListPage() {
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) return <div className="p-6 text-sm text-gray-600">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const currencyContext = await getPayrollCurrencyContext(companyId);
+  const fmt = (value) => formatAmount(value, currencyContext.processingCurrency);
   const payslips = await prisma.payslip.findMany({
     where: { companyId },
     orderBy: { createdAt: 'desc' },
@@ -21,6 +25,9 @@ export default async function PayslipListPage() {
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Bulletins (50 derniers)</h1>
+      <div className="text-sm text-gray-600">
+        Devise de traitement: <span className="font-medium">{currencyContext.processingCurrency}</span> · Devise fiscale: <span className="font-medium">{currencyContext.fiscalCurrency}</span>
+      </div>
       <table className="text-sm min-w-[700px] border">
         <thead>
           <tr className="bg-gray-100">
@@ -39,8 +46,8 @@ export default async function PayslipListPage() {
               <td className="px-2 py-1"><a className="text-blue-600 underline" href={`/payroll/payslips/${ps.id}`}>{ps.ref}</a></td>
               <td className="px-2 py-1">{ps.employee.lastName} {ps.employee.firstName} ({ps.employee.employeeNumber || '—'})</td>
               <td className="px-2 py-1">{ps.period.month}/{ps.period.year}</td>
-              <td className="px-2 py-1">{ps.grossAmount.toString()}</td>
-              <td className="px-2 py-1">{ps.netAmount.toString()}</td>
+              <td className="px-2 py-1">{fmt(ps.grossAmount)}</td>
+              <td className="px-2 py-1">{fmt(ps.netAmount)}</td>
               <td className="px-2 py-1">{ps.locked ? 'LOCKED' : 'EDITABLE'}</td>
               <td className="px-2 py-1"><a className="underline" href={`/api/payroll/payslips/${ps.id}/pdf`}>PDF</a></td>
             </tr>

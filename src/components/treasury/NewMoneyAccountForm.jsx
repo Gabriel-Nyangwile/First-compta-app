@@ -1,15 +1,19 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export default function NewMoneyAccountForm() {
+export default function NewMoneyAccountForm({ defaultCurrency = 'XOF' }) {
   const [type, setType] = useState('BANK');
   const [label, setLabel] = useState('');
-  const [currency, setCurrency] = useState('EUR');
+  const [currency, setCurrency] = useState(defaultCurrency);
   const [openingBalance, setOpeningBalance] = useState('0');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+
+  useEffect(() => {
+    setCurrency((current) => (current === 'EUR' || !current ? defaultCurrency : current));
+  }, [defaultCurrency]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -21,7 +25,7 @@ export default function NewMoneyAccountForm() {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur lors de la création du compte');
       setOk('Compte de trésorerie enregistré');
-      setLabel(''); setOpeningBalance('0'); setCode('');
+      setLabel(''); setOpeningBalance('0'); setCode(''); setCurrency(defaultCurrency);
       // reload to refresh list
       window.location.href = '/treasury';
     } catch(err) {

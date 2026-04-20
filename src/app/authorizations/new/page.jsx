@@ -4,6 +4,7 @@ import React from 'react';
 import InvoiceLinker from '@/components/authorizations/InvoiceLinker';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
+import { getCompanyCurrency } from '@/lib/companyContext';
 
 // Note: la logique dynamique facture est gérée côté client dans InvoiceLinker (composant séparé)
 
@@ -13,16 +14,19 @@ async function create(formData) {
   const flow = docType === 'PCR' ? 'IN' : 'OUT';
   const scope = docType === 'OP' ? 'BANK' : 'CASH';
   const amount = formData.get('amount');
-  const currency = formData.get('currency') || 'EUR';
+  const companyId = getCompanyIdFromCookies(await cookies());
+  const companyCurrency = await getCompanyCurrency(companyId);
+  const currency = formData.get('currency') || companyCurrency;
   const purpose = formData.get('purpose') || null;
   const invoiceId = formData.get('invoiceId') || null;
   const incomingInvoiceId = formData.get('incomingInvoiceId') || null;
-  const companyId = getCompanyIdFromCookies(await cookies());
   await createAuthorization({ companyId, docType, flow, scope, amount, currency, purpose, invoiceId, incomingInvoiceId });
   redirect('/authorizations');
 }
 
-export default function NewAuthorizationPage() {
+export default async function NewAuthorizationPage() {
+  const companyId = getCompanyIdFromCookies(await cookies());
+  const companyCurrency = await getCompanyCurrency(companyId);
   // Suggestions d'objet basées sur le type choisi (fallback simple côté client via datalist)
   const purposeSuggestions = [
     'Paiement facture fournisseur',
@@ -52,7 +56,7 @@ export default function NewAuthorizationPage() {
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-medium">Devise</label>
-          <input name="currency" defaultValue="EUR" className="border rounded px-2 py-1" />
+          <input name="currency" defaultValue={companyCurrency} className="border rounded px-2 py-1" />
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-medium flex items-center gap-2">Purpose / Objet

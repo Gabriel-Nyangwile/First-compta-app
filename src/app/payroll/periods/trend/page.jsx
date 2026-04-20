@@ -1,4 +1,5 @@
 import TrendCharts from '@/components/payroll/TrendCharts';
+import { formatAmount } from '@/lib/utils';
 
 async function fetchTrend(from, to){
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/payroll/periods/trend?from=${from}&to=${to}`, { cache:'no-store' });
@@ -20,9 +21,15 @@ export default async function TrendPage({ searchParams }) {
   const to = Number(searchParams.to) || defaultTo;
   const trend = await fetchTrend(from, to);
   if(!trend.ok) return <div className="p-6">Trend data unavailable: {trend.error}</div>;
+  const processingCurrency = trend.currencyContext?.processingCurrency || 'XOF';
+  const fiscalCurrency = trend.currencyContext?.fiscalCurrency || 'CDF';
+  const fmt = (value) => formatAmount(value, processingCurrency);
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-xl font-semibold">Tendance Pluriannuelle Paie ({trend.from} → {trend.to})</h1>
+      <div className="text-sm text-gray-600">
+        Devise de traitement: <span className="font-medium">{processingCurrency}</span> · Devise fiscale: <span className="font-medium">{fiscalCurrency}</span>
+      </div>
       <form className="flex gap-4 items-end text-sm" action="" method="get">
         <label className="flex flex-col">De
           <select name="from" defaultValue={from} className="border px-2 py-1 mt-1">{years.map(y => <option key={y}>{y}</option>)}</select>
@@ -32,7 +39,7 @@ export default async function TrendPage({ searchParams }) {
         </label>
         <button type="submit" className="bg-blue-700 text-white px-3 py-1 rounded hover:bg-blue-600">Actualiser</button>
       </form>
-      <TrendCharts years={trend.years} />
+      <TrendCharts years={trend.years} currency={processingCurrency} />
       <table className="min-w-full text-xs border">
         <thead>
           <tr className="bg-gray-100">
@@ -56,19 +63,19 @@ export default async function TrendPage({ searchParams }) {
           {trend.years.map(y => (
             <tr key={y.year} className="odd:bg-white even:bg-gray-50">
               <td className="p-2 border">{y.year}</td>
-              <td className="p-2 border text-right">{y.totals.gross.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.net.toFixed(2)}</td>
-              <td className="p-2 border text-right text-orange-700">{y.totals.corrGross.toFixed(2)}</td>
-              <td className="p-2 border text-right text-orange-700">{y.totals.corrNet.toFixed(2)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.gross)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.net)}</td>
+              <td className="p-2 border text-right text-orange-700">{fmt(y.totals.corrGross)}</td>
+              <td className="p-2 border text-right text-orange-700">{fmt(y.totals.corrNet)}</td>
               <td className="p-2 border text-right">{(y.totals.corrRatioGross*100).toFixed(1)}%</td>
               <td className="p-2 border text-right">{(y.totals.corrRatioNet*100).toFixed(1)}%</td>
-              <td className="p-2 border text-right">{y.totals.cnssSal.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.cnssEmp.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.ipr.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.onem.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.inpp.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.charges.toFixed(2)}</td>
-              <td className="p-2 border text-right">{y.totals.ot.toFixed(2)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.cnssSal)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.cnssEmp)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.ipr)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.onem)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.inpp)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.charges)}</td>
+              <td className="p-2 border text-right">{fmt(y.totals.ot)}</td>
             </tr>
           ))}
         </tbody>

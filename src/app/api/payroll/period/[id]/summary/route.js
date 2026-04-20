@@ -1,11 +1,13 @@
 import { featureFlags } from '@/lib/features';
 import { sanitizePlain } from '@/lib/sanitizePlain';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { aggregatePeriodSummary } from '@/lib/payroll/aggregatePeriod';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
+  const currencyContext = await getPayrollCurrencyContext(companyId);
   const { id } = await params;
   if (!id) return new Response(JSON.stringify({ ok:false, error:'Missing period id'}), { status:400 });
   const summaryRaw = await aggregatePeriodSummary(id, companyId);
@@ -35,5 +37,5 @@ export async function GET(req, { params }) {
     const csv = [headers.join(','), ...rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','))].join('\n');
     return new Response(csv, { status:200, headers:{ 'Content-Type':'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="period_summary_${summary.period.ref}.csv"` } });
   }
-  return new Response(JSON.stringify({ ok:true, ...summary }), { status:200, headers:{ 'Content-Type':'application/json' } });
+  return new Response(JSON.stringify({ ok:true, currencyContext, ...summary }), { status:200, headers:{ 'Content-Type':'application/json' } });
 }

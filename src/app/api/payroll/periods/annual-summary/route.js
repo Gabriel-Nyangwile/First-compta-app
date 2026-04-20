@@ -1,10 +1,12 @@
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
+  const currencyContext = await getPayrollCurrencyContext(companyId);
   const url = new URL(req.url);
   const yearParam = url.searchParams.get('year');
   const year = yearParam ? Number(yearParam) : new Date().getFullYear();
@@ -17,5 +19,5 @@ export async function GET(req) {
     const csv = [headers.join(','), ...rows.map(row => row.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')].join('\n');
     return new Response(csv, { status:200, headers:{ 'Content-Type':'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="annual_payroll_${year}.csv"` } });
   }
-  return new Response(JSON.stringify({ ok:true, year, months: data.months }), { status:200, headers:{ 'Content-Type':'application/json' } });
+  return new Response(JSON.stringify({ ok:true, year, currencyContext, months: data.months }), { status:200, headers:{ 'Content-Type':'application/json' } });
 }

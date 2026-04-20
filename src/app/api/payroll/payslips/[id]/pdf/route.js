@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { loadPrimaryFont, drawFooter, drawPageHeader, drawCompanyIdentity, drawDraftWatermark } from '@/lib/pdf/utils';
 import { featureFlags } from '@/lib/features';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { requireCompanyId } from '@/lib/tenant';
 import { extractPayrollSettlementRef } from '@/lib/payroll/settlement-config';
 
@@ -62,6 +63,7 @@ export async function GET(req, { params }) {
   try {
     if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
     const companyId = requireCompanyId(req);
+    const currencyContext = await getPayrollCurrencyContext(companyId);
     const { id } = await params;
     const payslip = await prisma.payslip.findUnique({
       where: { id, companyId },
@@ -119,6 +121,7 @@ export async function GET(req, { params }) {
     // En-tête employé + récap net + règlement
     line(clean(`Employe: ${payslip.employee.firstName} ${payslip.employee.lastName}`));
     line(clean(`Matricule: ${payslip.employee.employeeNumber || '-'}`));
+    line(`Devise traitement: ${currencyContext.processingCurrency}  Devise fiscale: ${currencyContext.fiscalCurrency}`);
     line(`Brut: ${fmt(payslip.grossAmount)}  Net: ${fmt(payslip.netAmount)}`);
     line(`Deductions: ${fmt(-totals.deductions)}  Charges employeur: ${fmt(totals.employer)}`);
     if (payset) {
@@ -126,7 +129,7 @@ export async function GET(req, { params }) {
     }
     y -= 8;
     currentPage.drawText('Net a payer', { x: 40, y, size: 12, font, color: rgb(0, 0.35, 0) }); y -= 14;
-    currentPage.drawText(`${fmt(payslip.netAmount)} EUR`, { x: 40, y, size: 16, font, color: rgb(0, 0.35, 0) }); y -= 16;
+    currentPage.drawText(`${fmt(payslip.netAmount)} ${currencyContext.processingCurrency}`, { x: 40, y, size: 16, font, color: rgb(0, 0.35, 0) }); y -= 16;
     y -= 4;
     line('Detail lignes:', 11, rgb(0.1, 0.1, 0.5));
     y -= 6;

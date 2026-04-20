@@ -1,12 +1,14 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { toNumber, roundEur } from '@/lib/payroll/currency';
 import { computeCnssQpoFromGrossEur, computeIprBaseFromGrossEur, computeIprTaxFromGrossEur, computeAllocFamEur } from '@/lib/payroll/calc-utils';
 import { notFound } from 'next/navigation';
 import RecalcButton from '../RecalcButton.jsx';
 import ExportPayslipJson from '../ExportPayslipJson.jsx';
 import { sanitizePlain } from '@/lib/sanitizePlain';
+import { formatAmount } from '@/lib/utils';
 import PayButton from '../PayButton.jsx';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
@@ -21,6 +23,9 @@ export default async function PayslipDetailPage({ params }) {
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const currencyContext = await getPayrollCurrencyContext(companyId);
+  const formatProcessingAmount = (value) => formatAmount(value, currencyContext.processingCurrency);
+  const formatFiscalAmount = (value) => formatAmount(value, currencyContext.fiscalCurrency);
   const psRaw = await prisma.payslip.findUnique({
     where: { id, companyId },
     include: { employee: true, lines: true, period: true }
@@ -87,43 +92,46 @@ export default async function PayslipDetailPage({ params }) {
         <div>Période: {ps.period.month}/{ps.period.year}</div>
         {hasSettlement && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">Payé (PAYSET)</span>}
       </div>
-      <div className="text-sm flex items-center gap-4 flex-wrap">Brut: {ps.grossAmount?.toFixed?.(2) ?? ps.grossAmount} | Net (stocké): {ps.netAmount?.toFixed?.(2) ?? ps.netAmount} | Réglé: {settledAmount.toFixed(2)} | Reste: {remainingAmount.toFixed(2)} <ExportPayslipJson payslip={ps} /></div>
+      <div className="text-sm text-gray-600">
+        Devise de traitement: <span className="font-medium">{currencyContext.processingCurrency}</span> · Devise fiscale: <span className="font-medium">{currencyContext.fiscalCurrency}</span>
+      </div>
+      <div className="text-sm flex items-center gap-4 flex-wrap">Brut: {formatProcessingAmount(ps.grossAmount)} | Net (stocké): {formatProcessingAmount(ps.netAmount)} | Réglé: {formatProcessingAmount(settledAmount)} | Reste: {formatProcessingAmount(remainingAmount)} <ExportPayslipJson payslip={ps} /></div>
       {!ps.locked && <RecalcButton payslipId={ps.id} />}
       {ps.period?.status === 'POSTED' && <PayButton periodId={ps.period.id} employeeId={ps.employee.id} disabled={hasSettlement} />}
       <div className="border rounded p-3 bg-white text-sm grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <div className="font-medium mb-1">Montants clés</div>
-          <div>Brut: {ps.grossAmount?.toFixed?.(2) ?? ps.grossAmount}</div>
-          <div>Net stocké: {ps.netAmount?.toFixed?.(2) ?? ps.netAmount}</div>
-          <div>Net estimé (EUR): {netEstEur.toFixed(2)}</div>
-          <div>Net+alloc (EUR): {netPlusAllocEur.toFixed(2)}</div>
+          <div>Brut: {formatProcessingAmount(ps.grossAmount)}</div>
+          <div>Net stocké: {formatProcessingAmount(ps.netAmount)}</div>
+          <div>Net estimé ({currencyContext.processingCurrency}): {formatProcessingAmount(netEstEur)}</div>
+          <div>Net + alloc. ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocEur)}</div>
         </div>
         <div>
           <div className="font-medium mb-1">Cotisations / impôt</div>
-          <div>CNSS salarié: {cnssEmployee.toFixed(2)}</div>
-          <div>IPR: {iprTax.toFixed(2)}</div>
-          <div>Base IPR (RI): {riBase==null?'-':Number(riBase).toFixed(2)}</div>
-          <div>RI CDF: {riCDF==null?'-':Number(riCDF).toFixed(2)}</div>
+          <div>CNSS salarié: {formatProcessingAmount(cnssEmployee)}</div>
+          <div>IPR: {formatProcessingAmount(iprTax)}</div>
+          <div>Base IPR ({currencyContext.processingCurrency}): {riBase==null?'-':formatProcessingAmount(riBase)}</div>
+          <div>RI {currencyContext.fiscalCurrency}: {riCDF==null?'-':formatFiscalAmount(riCDF)}</div>
           <div>FX rate: {fxRate==null?'-':fxRate}</div>
         </div>
         <div>
           <div className="font-medium mb-1">Charges & effectifs</div>
-          <div>CNSS employeur: {cnssEmployer.toFixed(2)}</div>
-          <div>ONEM: {onem.toFixed(2)}</div>
-          <div>INPP: {inpp.toFixed(2)}</div>
-          <div>Charges employeur totales: {employerCharges.toFixed(2)}</div>
-          <div>Déductions salarié totales: {employeeDeductions.toFixed(2)}</div>
-          <div>Heures suppl.: {overtime.toFixed(2)}</div>
+          <div>CNSS employeur: {formatProcessingAmount(cnssEmployer)}</div>
+          <div>ONEM: {formatProcessingAmount(onem)}</div>
+          <div>INPP: {formatProcessingAmount(inpp)}</div>
+          <div>Charges employeur totales: {formatProcessingAmount(employerCharges)}</div>
+          <div>Déductions salarié totales: {formatProcessingAmount(employeeDeductions)}</div>
+          <div>Heures suppl.: {formatProcessingAmount(overtime)}</div>
         </div>
       </div>
       <div className="border rounded p-3 bg-gray-50 text-sm">
         <div className="font-medium mb-2">Calcul (brouillon)</div>
-        <div>CNSS QPO (EUR): {cnssEur.toFixed(2)}</div>
-        <div>Base IPR (EUR): {iprBaseEur.toFixed(2)}</div>
-        <div>IPR (EUR): {iprEur.toFixed(2)}</div>
-        <div>Allocations familiales (EUR) enfants={children}: {allocFamEur.toFixed(2)}</div>
-        <div className="mt-2">Net estimé (EUR, sans allocations): {netEstEur.toFixed(2)}</div>
-        <div>Net + allocations (EUR): {netPlusAllocEur.toFixed(2)}</div>
+        <div>CNSS QPO ({currencyContext.processingCurrency}): {formatProcessingAmount(cnssEur)}</div>
+        <div>Base IPR ({currencyContext.processingCurrency}): {formatProcessingAmount(iprBaseEur)}</div>
+        <div>IPR ({currencyContext.processingCurrency}): {formatProcessingAmount(iprEur)}</div>
+        <div>Allocations familiales ({currencyContext.processingCurrency}) enfants={children}: {formatProcessingAmount(allocFamEur)}</div>
+        <div className="mt-2">Net estimé ({currencyContext.processingCurrency}, sans allocations): {formatProcessingAmount(netEstEur)}</div>
+        <div>Net + allocations ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocEur)}</div>
       </div>
       <div className="text-sm">Statut: {ps.locked ? 'LOCKED' : 'EDITABLE'}</div>
       <a className="inline-block text-blue-600 underline" href={`/api/payroll/payslips/${ps.id}/pdf`}>Télécharger PDF</a>
@@ -147,8 +155,8 @@ export default async function PayslipDetailPage({ params }) {
                   <tr key={l.id || l.code} className="border-t">
                     <td className="px-2 py-1">{l.code}</td>
                     <td className="px-2 py-1">{l.label}</td>
-                    <td className="px-2 py-1">{l.amount?.toFixed?.(2) ?? l.amount}</td>
-                    <td className="px-2 py-1">{l.baseAmount?.toFixed?.(2) ?? (l.baseAmount || '')}</td>
+                    <td className="px-2 py-1">{formatProcessingAmount(l.amount)}</td>
+                    <td className="px-2 py-1">{l.baseAmount == null ? '' : formatProcessingAmount(l.baseAmount)}</td>
                     <td className="px-2 py-1">{typeof l.meta?.rate === 'number' ? (l.meta.rate * 100).toFixed(2) : ''}</td>
                     <td className="px-2 py-1 text-[11px] max-w-[220px] truncate" title={l.meta ? JSON.stringify(l.meta) : ''}>{l.meta ? JSON.stringify(l.meta) : ''}</td>
                   </tr>

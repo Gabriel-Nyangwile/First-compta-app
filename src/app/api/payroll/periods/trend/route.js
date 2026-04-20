@@ -1,11 +1,13 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
+  const currencyContext = await getPayrollCurrencyContext(companyId);
   const url = new URL(req.url);
   const from = Number(url.searchParams.get('from')) || new Date().getFullYear();
   const to = Number(url.searchParams.get('to')) || from;
@@ -28,5 +30,5 @@ export async function GET(req) {
     const csv = [headers.join(','), ...rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')].join('\n');
     return new Response(csv, { status:200, headers:{ 'Content-Type':'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="payroll_trend_${start}_${end}.csv"` } });
   }
-  return new Response(JSON.stringify({ ok:true, from:start, to:end, years }), { status:200, headers:{ 'Content-Type':'application/json' } });
+  return new Response(JSON.stringify({ ok:true, from:start, to:end, currencyContext, years }), { status:200, headers:{ 'Content-Type':'application/json' } });
 }

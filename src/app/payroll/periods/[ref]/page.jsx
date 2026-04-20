@@ -3,8 +3,10 @@ import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 import LockButton from '../LockButton.jsx';
 import PostButton from '../PostButton.jsx';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { auditPayrollPeriod } from '@/lib/payroll/audit';
 import AuditPanel from '../AuditPanel.jsx';
+import RepairStatusButton from '../RepairStatusButton.jsx';
 import ReverseButton from '../ReverseButton.jsx';
 import SettlementButton from '../SettlementButton.jsx';
 import PayrollLetteringButton from '../PayrollLetteringButton.jsx';
@@ -13,6 +15,7 @@ import { listPayrollSettlements } from '@/lib/payroll/settlement';
 import { aggregatePeriodSummary } from '@/lib/payroll/aggregatePeriod';
 import { getCurrentPayrollJournal } from '@/lib/payroll/journals';
 import { getPayrollLetteringSummary } from '@/lib/payroll/lettering';
+import { formatAmount } from '@/lib/utils';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 
@@ -26,6 +29,8 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
+  const currencyContext = await getPayrollCurrencyContext(companyId);
+  const fmt = (value) => formatAmount(value, currencyContext.processingCurrency);
   const rawPeriod = await prisma.payrollPeriod.findUnique({
     where: { companyId_ref: { companyId, ref } },
     include: {
@@ -54,7 +59,15 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
       }
     : null;
   if (!period) return <div className="p-6">Periode introuvable.</div>;
-  const auditRaw = period && period.status === 'POSTED' ? await auditPayrollPeriod(period.id) : null;
+  const payrollJe =
+    period.status === 'POSTED'
+      ? await getCurrentPayrollJournal(prisma, period.id, companyId, { id: true, description: true })
+      : null;
+  const hasJournal = !!payrollJe;
+  const auditRaw =
+    period.status === 'POSTED' && hasJournal
+      ? await auditPayrollPeriod(period.id, prisma, companyId)
+      : null;
   const periodSummary = await aggregatePeriodSummary(period.id, companyId);
   const payrollLettering = await getPayrollLetteringSummary({ periodId: period.id, companyId });
   const totals = periodSummary?.totals || null;
@@ -63,11 +76,6 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   const liabilityLetteringMap = new Map((payrollLettering?.items || []).map((item) => [item.liabilityCode, item]));
   const employeeSettlementMap = new Map((periodSummary?.employees || []).map((employee) => [employee.payslipId, employee]));
   const audit = auditRaw ? sanitizePlain(auditRaw) : null;
-  const payrollJe =
-    period.status === 'POSTED'
-      ? await getCurrentPayrollJournal(prisma, period.id, companyId, { id: true, description: true })
-      : null;
-  const hasJournal = !!payrollJe;
   const allSettlements =
     period.status === 'POSTED' ? await listPayrollSettlements(period.id, companyId) : [];
   let settlements = allSettlements.filter((settlement) => settlement.liabilityCode === 'NET_PAY');
@@ -101,6 +109,17 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
       <h1 className="text-xl font-semibold">Periode {period.ref}</h1>
+      <div className="text-sm text-gray-600">
+        Devise de traitement: <span className="font-medium">{currencyContext.processingCurrency}</span> · Devise fiscale: <span className="font-medium">{currencyContext.fiscalCurrency}</span>
+      </div>
+      {period.status === 'POSTED' && !hasJournal && (
+        <div className="border rounded p-3 bg-amber-50 text-sm text-amber-900 border-amber-200">
+          La période est marquée `POSTED`, mais aucun journal de paie principal n’est lié à cette période. L’audit détaillé est donc indisponible tant que l’écriture de paie n’a pas été régénérée ou rétablie.
+          <div className="mt-3">
+            <RepairStatusButton periodId={period.id} />
+          </div>
+        </div>
+      )}
       {audit && (
         <div className="border rounded p-3 bg-white text-sm flex items-center gap-4 flex-wrap">
           {auditBadge}
@@ -188,8 +207,8 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
         <section className="space-y-2">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="font-medium">Reglements net (PAYSET)</h2>
-            <span className="text-xs text-gray-600">Regle période: {settledTotal.toFixed(2)} / Net période: {(totals?.netTotal ?? 0).toFixed(2)}</span>
-            {employeeFilter && <span className="text-xs text-gray-500">Vue filtrée: {filteredSettledTotal.toFixed(2)}</span>}
+            <span className="text-xs text-gray-600">Regle période: {fmt(settledTotal)} / Net période: {fmt(totals?.netTotal ?? 0)}</span>
+            {employeeFilter && <span className="text-xs text-gray-500">Vue filtrée: {fmt(filteredSettledTotal)}</span>}
             <a
               className="text-xs underline text-blue-700"
               href={`/api/payroll/period/${period.id}/settlements?format=csv${employeeFilter ? `&employeeId=${employeeFilter}` : ''}`}
@@ -235,7 +254,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                   <td className="px-2 py-1">{s.voucherRef || s.description || '-'}</td>
                   <td className="px-2 py-1">{s.number}</td>
                   <td className="px-2 py-1">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-2 py-1">{(s.debit ?? 0).toFixed(2)} / {(s.credit ?? 0).toFixed(2)}</td>
+                  <td className="px-2 py-1">{fmt(s.debit ?? 0)} / {fmt(s.credit ?? 0)}</td>
                   <td className="px-2 py-1">{s.bankAccount || '-'}</td>
                   <td className="px-2 py-1">{s.employeeId ? employeeLabel(s.employeeId) : '-'}</td>
                 </tr>
@@ -250,17 +269,17 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
           <div className="border rounded p-3 bg-white text-xs mb-2">
             <div className="font-semibold mb-1">Totaux periode</div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
-              <div>Brut total: {totals.grossTotal.toFixed(2)}</div>
-              <div>Net total: {totals.netTotal.toFixed(2)}</div>
-              <div>Réglé total: {totals.settledTotal.toFixed(2)}</div>
-              <div>Reste à régler: {totals.remainingTotal.toFixed(2)}</div>
-              <div>CNSS salarie total: {totals.cnssEmployeeTotal.toFixed(2)}</div>
-              <div>IPR total: {totals.iprTaxTotal.toFixed(2)}</div>
-              <div>CNSS employeur total: {totals.cnssEmployerTotal.toFixed(2)}</div>
-              <div>ONEM total: {totals.onemTotal.toFixed(2)}</div>
-              <div>INPP total: {totals.inppTotal.toFixed(2)}</div>
-              <div>Charges employeur totales: {totals.employerChargesTotal.toFixed(2)}</div>
-              <div>Heures suppl. total: {totals.overtimeTotal.toFixed(2)}</div>
+              <div>Brut total: {fmt(totals.grossTotal)}</div>
+              <div>Net total: {fmt(totals.netTotal)}</div>
+              <div>Réglé total: {fmt(totals.settledTotal)}</div>
+              <div>Reste à régler: {fmt(totals.remainingTotal)}</div>
+              <div>CNSS salarie total: {fmt(totals.cnssEmployeeTotal)}</div>
+              <div>IPR total: {fmt(totals.iprTaxTotal)}</div>
+              <div>CNSS employeur total: {fmt(totals.cnssEmployerTotal)}</div>
+              <div>ONEM total: {fmt(totals.onemTotal)}</div>
+              <div>INPP total: {fmt(totals.inppTotal)}</div>
+              <div>Charges employeur totales: {fmt(totals.employerChargesTotal)}</div>
+              <div>Heures suppl. total: {fmt(totals.overtimeTotal)}</div>
               <div>Bulletins: {totals.payslipCount}</div>
             </div>
           </div>
@@ -269,12 +288,12 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
           <div className="border rounded p-3 bg-amber-50 text-xs mb-2">
             <div className="font-semibold mb-1">Passifs paie à régler</div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1">
-              <div>Total passifs: {liabilityTotals.overallTotal.toFixed(2)}</div>
-              <div>Réglé: {liabilityTotals.settledTotal.toFixed(2)}</div>
-              <div>Reste global: {liabilityTotals.remainingTotal.toFixed(2)}</div>
-              <div>Passifs sociaux: {liabilityTotals.socialTotal.toFixed(2)}</div>
-              <div>Passifs fiscaux: {liabilityTotals.fiscalTotal.toFixed(2)}</div>
-              <div>Net salariés: {liabilityTotals.employeeNetTotal.toFixed(2)}</div>
+              <div>Total passifs: {fmt(liabilityTotals.overallTotal)}</div>
+              <div>Réglé: {fmt(liabilityTotals.settledTotal)}</div>
+              <div>Reste global: {fmt(liabilityTotals.remainingTotal)}</div>
+              <div>Passifs sociaux: {fmt(liabilityTotals.socialTotal)}</div>
+              <div>Passifs fiscaux: {fmt(liabilityTotals.fiscalTotal)}</div>
+              <div>Net salariés: {fmt(liabilityTotals.employeeNetTotal)}</div>
             </div>
             <div className="mt-2 text-[11px] text-gray-600">
               Les passifs paie sont réglables et lettrables. Le suivi ci-dessous combine état de règlement et état de rapprochement des lignes de passif dans le grand livre.
@@ -319,9 +338,9 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                   <td className="px-2 py-1">{item.code}</td>
                   <td className="px-2 py-1">{item.label}</td>
                   <td className="px-2 py-1">{item.group}</td>
-                  <td className="px-2 py-1">{item.total.toFixed(2)}</td>
-                  <td className="px-2 py-1">{item.settled.toFixed(2)}</td>
-                  <td className="px-2 py-1">{item.remaining.toFixed(2)}</td>
+                  <td className="px-2 py-1">{fmt(item.total)}</td>
+                  <td className="px-2 py-1">{fmt(item.settled)}</td>
+                  <td className="px-2 py-1">{fmt(item.remaining)}</td>
                   <td className="px-2 py-1">{item.settlementStatus}</td>
                   <td className="px-2 py-1">{item.paymentFlowReady ? 'oui' : 'non'}</td>
                   <td className="px-2 py-1">
@@ -376,7 +395,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                     <td className="px-2 py-1">{settlement.liabilityCode}</td>
                     <td className="px-2 py-1">{settlement.number}</td>
                     <td className="px-2 py-1">{new Date(settlement.date).toLocaleDateString('fr-FR')}</td>
-                    <td className="px-2 py-1">{(settlement.debit ?? 0).toFixed(2)} / {(settlement.credit ?? 0).toFixed(2)}</td>
+                    <td className="px-2 py-1">{fmt(settlement.debit ?? 0)} / {fmt(settlement.credit ?? 0)}</td>
                     <td className="px-2 py-1">{settlement.bankAccount || '-'}</td>
                     <td className="px-2 py-1">{settlement.liabilityAccount || '-'}</td>
                     <td className="px-2 py-1">{settlement.letterStatus || 'UNMATCHED'} · {settlement.letterRef || '—'}</td>
@@ -410,10 +429,10 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
                   </a>
                 </td>
                 <td className="px-2 py-1">{ps.employee.employeeNumber || ''} {ps.employee.firstName} {ps.employee.lastName}</td>
-                <td className="px-2 py-1">{ps.grossAmount}</td>
-                <td className="px-2 py-1">{ps.netAmount}</td>
-                <td className="px-2 py-1">{(settlementInfo?.settledAmount ?? 0).toFixed(2)}</td>
-                <td className="px-2 py-1">{(settlementInfo?.remainingAmount ?? (ps.netAmount || 0)).toFixed(2)}</td>
+                <td className="px-2 py-1">{fmt(ps.grossAmount)}</td>
+                <td className="px-2 py-1">{fmt(ps.netAmount)}</td>
+                <td className="px-2 py-1">{fmt(settlementInfo?.settledAmount ?? 0)}</td>
+                <td className="px-2 py-1">{fmt(settlementInfo?.remainingAmount ?? (ps.netAmount || 0))}</td>
                 <td className="px-2 py-1">{ps.locked ? 'V' : '-'}</td>
                 <td className="px-2 py-1">
                   <a href={`/api/payroll/payslips/${ps.id}/pdf`} className="underline">

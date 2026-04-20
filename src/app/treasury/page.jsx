@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import { listMoneyAccountsWithBalance, getMoneyAccountLedger, getMissionAdvanceOverview } from '@/lib/serverActions/money';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
+import { getCompanyCurrency } from '@/lib/companyContext';
 import Amount from '@/components/Amount.jsx';
+import { formatAmount } from '@/lib/utils';
 import TreasuryModuleNav from '@/components/treasury/TreasuryModuleNav.jsx';
 import NewMoneyMovementForm from '@/components/treasury/NewMoneyMovementForm.jsx';
 import TransferForm from '@/components/treasury/TransferForm.jsx';
@@ -34,10 +36,11 @@ export default async function TreasuryPage(props) {
   const summaryUrl = `${protocol}://${host}/api/treasury/summary`;
 
   // Récupère les comptes et le résumé trésorerie
-  const [accountsRaw, treasurySummaryRes, missionAdvanceOverview] = await Promise.all([
+  const [accountsRaw, treasurySummaryRes, missionAdvanceOverview, companyCurrency] = await Promise.all([
     listMoneyAccountsWithBalance(companyId),
     fetch(summaryUrl, { cache: "no-store", headers: { 'x-company-id': companyId } }).then(r => r.ok ? r.json() : {}),
     getMissionAdvanceOverview({ companyId }),
+    getCompanyCurrency(companyId),
   ]);
   const accounts = accountsRaw.map(a => ({
     id: a.id,
@@ -133,15 +136,15 @@ export default async function TreasuryPage(props) {
         <div className="text-lg font-semibold text-purple-900">
           Solde global&nbsp;
           <span className={`text-2xl font-bold ml-2 ${treasurySummaryRes.balance < 0 ? "text-red-700" : "text-purple-700"}`}>
-            {treasurySummaryRes.balance?.toLocaleString() ?? "-"} €
+            {treasurySummaryRes.balance != null ? formatAmount(treasurySummaryRes.balance, companyCurrency) : "-"}
           </span>
           {treasurySummaryRes.balance < 0 && (
             <span className="ml-2 bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">Solde négatif</span>
           )}
         </div>
         <div className="text-sm text-purple-700">Nombre de comptes: <span className="font-bold">{treasurySummaryRes.accounts ?? '-'}</span></div>
-        <div className="text-sm text-purple-700">Solde max: <span className="font-bold">{treasurySummaryRes.max?.toLocaleString() ?? '-'}</span> €</div>
-        <div className="text-sm text-purple-700">Solde min: <span className="font-bold">{treasurySummaryRes.min?.toLocaleString() ?? '-'}</span> €</div>
+        <div className="text-sm text-purple-700">Solde max: <span className="font-bold">{treasurySummaryRes.max != null ? formatAmount(treasurySummaryRes.max, companyCurrency) : '-'}</span></div>
+        <div className="text-sm text-purple-700">Solde min: <span className="font-bold">{treasurySummaryRes.min != null ? formatAmount(treasurySummaryRes.min, companyCurrency) : '-'}</span></div>
         <div className="text-sm text-purple-700">Mouvements récents: <span className="font-bold">{treasurySummaryRes.recentCount ?? 0}</span></div>
       </section>
       {/* Graphique synthétique solde global */}
@@ -189,13 +192,13 @@ export default async function TreasuryPage(props) {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           <div id="movements">
-            <NewMoneyMovementForm accounts={accounts} />
+            <NewMoneyMovementForm accounts={accounts} defaultCurrency={companyCurrency} />
           </div>
           <div id="transfers">
             <TransferForm accounts={accounts} />
           </div>
           <div id="accounts">
-            <NewMoneyAccountForm />
+            <NewMoneyAccountForm defaultCurrency={companyCurrency} />
           </div>
         </div>
       </section>
@@ -259,13 +262,13 @@ export default async function TreasuryPage(props) {
             >Exporter en PDF</Link>
           </div>
           <div className="text-xs flex flex-wrap gap-6 text-slate-600">
-            <span>Ouverture: <strong><Amount value={ledger.openingBalance} currency={ledger.currency || 'EUR'} /></strong></span>
+            <span>Ouverture: <strong><Amount value={ledger.openingBalance} currency={ledger.currency || companyCurrency} /></strong></span>
             {ledger.filter && (
-              <span>Ouverture initiale compte: <strong><Amount value={ledger.baseOpeningBalance} currency={ledger.currency || 'EUR'} /></strong></span>
+              <span>Ouverture initiale compte: <strong><Amount value={ledger.baseOpeningBalance} currency={ledger.currency || companyCurrency} /></strong></span>
             )}
-            <span>Entrées: <strong className="text-green-700"><Amount value={ledger.totalIn} currency={ledger.currency || 'EUR'} /></strong></span>
-            <span>Sorties: <strong className="text-red-700"><Amount value={ledger.totalOut} currency={ledger.currency || 'EUR'} /></strong></span>
-            <span>Clôture: <strong><Amount value={ledger.closingBalance} currency={ledger.currency || 'EUR'} /></strong></span>
+            <span>Entrées: <strong className="text-green-700"><Amount value={ledger.totalIn} currency={ledger.currency || companyCurrency} /></strong></span>
+            <span>Sorties: <strong className="text-red-700"><Amount value={ledger.totalOut} currency={ledger.currency || companyCurrency} /></strong></span>
+            <span>Clôture: <strong><Amount value={ledger.closingBalance} currency={ledger.currency || companyCurrency} /></strong></span>
             {ledger.limited && <span className="text-amber-600">(affichage limité)</span>}
           </div>
           <table className="w-full text-xs border">
@@ -284,7 +287,7 @@ export default async function TreasuryPage(props) {
             <tbody>
               <tr className="bg-slate-50 font-medium">
                 <td className="px-2 py-1" colSpan={7}>Solde d'ouverture</td>
-                <td className="px-2 py-1 text-right tabular-nums"><Amount value={ledger.openingBalance} currency={ledger.currency || 'EUR'} /></td>
+                <td className="px-2 py-1 text-right tabular-nums"><Amount value={ledger.openingBalance} currency={ledger.currency || companyCurrency} /></td>
               </tr>
               {ledger.movements.map(m => {
                 const treasuryLedgerId = ledger.account?.ledgerAccountId;
@@ -318,7 +321,7 @@ export default async function TreasuryPage(props) {
                           {debitLines[idx] ? (
                             <div className="flex justify-between gap-2">
                               <span className="font-mono truncate max-w-[140px]" title={debitLines[idx].label}>{debitLines[idx].label || 'Compte non précisé'}</span>
-                              <span className="tabular-nums text-green-700"><Amount value={debitLines[idx].amount} currency={ledger.currency || 'EUR'} /></span>
+                              <span className="tabular-nums text-green-700"><Amount value={debitLines[idx].amount} currency={ledger.currency || companyCurrency} /></span>
                             </div>
                           ) : idx === 0 ? (<span className="text-slate-400 text-[11px]">Aucune contrepartie</span>) : null}
                         </td>
@@ -326,12 +329,12 @@ export default async function TreasuryPage(props) {
                           {creditLines[idx] ? (
                             <div className="flex justify-between gap-2">
                               <span className="font-mono truncate max-w-[140px]" title={creditLines[idx].label}>{creditLines[idx].label || 'Compte non précisé'}</span>
-                              <span className="tabular-nums text-red-700"><Amount value={creditLines[idx].amount} currency={ledger.currency || 'EUR'} /></span>
+                              <span className="tabular-nums text-red-700"><Amount value={creditLines[idx].amount} currency={ledger.currency || companyCurrency} /></span>
                             </div>
                           ) : idx === 0 ? (<span className="text-slate-400 text-[11px]">Aucune contrepartie</span>) : null}
                         </td>
                         {idx===0 && (
-                          <td rowSpan={maxRows} className="px-2 py-1 tabular-nums text-right font-medium"><Amount value={m.balanceAfter} currency={ledger.currency || 'EUR'} /></td>
+                          <td rowSpan={maxRows} className="px-2 py-1 tabular-nums text-right font-medium"><Amount value={m.balanceAfter} currency={ledger.currency || companyCurrency} /></td>
                         )}
                       </tr>
                     ))}
@@ -340,9 +343,9 @@ export default async function TreasuryPage(props) {
               })}
               <tr className="bg-slate-100 font-semibold border-t">
                 <td className="px-2 py-1" colSpan={5}>Totaux</td>
-                <td className="px-2 py-1 tabular-nums text-green-700"><Amount value={ledger.totalIn} currency={ledger.currency || 'EUR'} /></td>
-                <td className="px-2 py-1 tabular-nums text-red-700"><Amount value={ledger.totalOut} currency={ledger.currency || 'EUR'} /></td>
-                <td className="px-2 py-1 tabular-nums text-right"><Amount value={ledger.closingBalance} currency={ledger.currency || 'EUR'} /></td>
+                <td className="px-2 py-1 tabular-nums text-green-700"><Amount value={ledger.totalIn} currency={ledger.currency || companyCurrency} /></td>
+                <td className="px-2 py-1 tabular-nums text-red-700"><Amount value={ledger.totalOut} currency={ledger.currency || companyCurrency} /></td>
+                <td className="px-2 py-1 tabular-nums text-right"><Amount value={ledger.closingBalance} currency={ledger.currency || companyCurrency} /></td>
               </tr>
             </tbody>
           </table>

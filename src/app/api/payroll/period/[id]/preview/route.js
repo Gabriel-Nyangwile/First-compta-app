@@ -1,12 +1,14 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import { calculatePayslipForEmployee } from '@/lib/payroll/engine';
+import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { sanitizePlain } from '@/lib/sanitizePlain';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
+  const currencyContext = await getPayrollCurrencyContext(companyId);
   const { id } = await params;
   if (!id) return new Response(JSON.stringify({ ok:false, error:'Missing period id'}), { status:400 });
   const period = await prisma.payrollPeriod.findUnique({ where:{ id, companyId } });
@@ -50,5 +52,11 @@ export async function GET(req, { params }) {
       lines: calc.lines,
     }));
   }
-  return Response.json({ ok:true, count: results.length, period: { id: period.id, ref: period.ref, month: period.month, year: period.year }, results });
+  return Response.json({
+    ok: true,
+    count: results.length,
+    currencyContext,
+    period: { id: period.id, ref: period.ref, month: period.month, year: period.year },
+    results,
+  });
 }

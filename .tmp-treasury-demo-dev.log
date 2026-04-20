@@ -114,3 +114,48 @@
  Ô£ô Compiled in 1767ms (267 modules)
  Ô£ô Compiled in 171ms (253 modules)
  Ô£ô Compiled in 1070ms (267 modules)
+ Ô¿» ./src/app/bank-advices/page.jsx
+Error:   x You're importing a component that needs "next/headers". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+  |
+
+   ,-[C:\Users\Tonton G\reactproject\first-compta\src\app\bank-advices\page.jsx:1:1]
+ 1 | import { cookies } from "next/headers";
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2 | import { getCompanyIdFromCookies } from "@/lib/tenant";
+ 3 | import { getCompanyCurrency } from "@/lib/companyContext";
+ 4 | import BankAdvicesPageClient from "@/components/treasury/BankAdvicesPageClient.jsx";
+   `----
+
+Import trace for requested module:
+./src/app/bank-advices/page.jsx
+ Ô¿» ./src/app/bank-advices/page.jsx
+Error:   x You're importing a component that needs "next/headers". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+  |
+
+   ,-[C:\Users\Tonton G\reactproject\first-compta\src\app\bank-advices\page.jsx:1:1]
+ 1 | import { cookies } from "next/headers";
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2 | import { getCompanyIdFromCookies } from "@/lib/tenant";
+ 3 | import { getCompanyCurrency } from "@/lib/companyContext";
+ 4 | import BankAdvicesPageClient from "@/components/treasury/BankAdvicesPageClient.jsx";
+   `----
+
+Import trace for requested module:
+./src/app/bank-advices/page.jsx
+ Ô¿» ./src/app/bank-advices/page.jsx
+Error:   x You're importing a component that needs "next/headers". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+  |
+
+   ,-[C:\Users\Tonton G\reactproject\first-compta\src\app\bank-advices\page.jsx:1:1]
+ 1 | import { cookies } from "next/headers";
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2 | import { getCompanyIdFromCookies } from "@/lib/tenant";
+ 3 | import { getCompanyCurrency } from "@/lib/companyContext";
+ 4 | import BankAdvicesPageClient from "@/components/treasury/BankAdvicesPageClient.jsx";
+   `----
+
+Import trace for requested module:
+./src/app/bank-advices/page.jsx

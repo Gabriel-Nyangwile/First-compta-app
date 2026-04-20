@@ -17,6 +17,7 @@ import ChartDashboardVentes from "../../components/ChartDashboardVentes";
 import ChartDashboardAchats from "../../components/ChartDashboardAchats";
 import ChartDashboardTresorerie from "../../components/ChartDashboardTresorerie";
 import ChartDashboardPersonnel from "../../components/ChartDashboardPersonnel";
+import { formatAmount } from "@/lib/utils";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
@@ -55,6 +56,20 @@ export default function DashboardPage() {
     }
   };
   const toggleSection = (key) => setSectionsCondensed(prev => ({ ...prev, [key]: !prev[key] }));
+  const companyCurrency = stats?.summary?.company?.currency || "XOF";
+  const fiscalCurrency = stats?.summary?.company?.fiscalCurrency || companyCurrency;
+  const formatMoney = (amount, currency = companyCurrency) => {
+    if (amount == null) return "-";
+    return formatAmount(amount, currency);
+  };
+  const formatCurrencyCode = (currency) => currency || "Non définie";
+  const formatFiscalYearStart = (value) => {
+    if (!value) return "Non défini";
+    const [month, day] = String(value).split("-");
+    if (!month || !day) return value;
+    return `${day}/${month}`;
+  };
+  const stockValue = stats?.stock?.products?.reduce((sum, p) => sum + (p.stockFinal * p.avgCostFinal || 0), 0) ?? 0;
 
   useEffect(() => {
     async function fetchStats() {
@@ -106,6 +121,63 @@ export default function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-4">Dashboard Synthétique</h1>
+      {stats?.summary?.company && (
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-amber-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Fiche société</div>
+                <h2 className="text-2xl font-semibold text-slate-900">
+                  {stats.summary.company.name || "Société active"}
+                </h2>
+                <div className="text-sm text-slate-600">
+                  {[stats.summary.company.legalForm, stats.summary.company.country].filter(Boolean).join(" • ") || "Informations générales"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-900 px-4 py-3 text-slate-50">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-300">État du capital</div>
+                <div className="mt-1 text-lg font-semibold">{stats.summary.capital?.statusLabel || "Non paramétré"}</div>
+                <div className="text-xs text-slate-300">
+                  {stats.summary.capital?.operationsCount ?? 0} opération(s) de capital
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Capital enregistré</div>
+                <div className="mt-1 text-xl font-semibold text-slate-900">
+                  {formatMoney(stats.summary.capital?.registeredNominal)}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Prime enregistrée: {formatMoney(stats.summary.capital?.registeredPremium)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">État des souscriptions</div>
+                <div className="mt-1 text-sm text-slate-700">Souscrit: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.subscribedNominal)}</span></div>
+                <div className="text-sm text-slate-700">Appelé: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.calledAmount)}</span></div>
+                <div className="text-sm text-slate-700">Libéré: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.paidAmount)}</span></div>
+                <div className="text-sm text-slate-700">Reste à appeler: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.uncalledAmount)}</span></div>
+                <div className="text-sm text-slate-700">Reste à libérer: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.unpaidCalledAmount)}</span></div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Contexte devise</div>
+                <div className="mt-1 text-sm text-slate-700">Devise de traitement: <span className="font-semibold text-slate-900">{formatCurrencyCode(companyCurrency)}</span></div>
+                <div className="text-sm text-slate-700">Devise fiscale: <span className="font-semibold text-slate-900">{formatCurrencyCode(fiscalCurrency)}</span></div>
+                <div className="mt-2 text-xs text-slate-500">
+                  Référence fiscale alignée sur la devise société à ce stade.
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repères société</div>
+                <div className="mt-1 text-sm text-slate-700">Capital cible: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.targetNominal)}</span></div>
+                <div className="text-sm text-slate-700">Prime cible: <span className="font-semibold text-slate-900">{formatMoney(stats.summary.capital?.targetPremium)}</span></div>
+                <div className="text-sm text-slate-700">Exercice fiscal: <span className="font-semibold text-slate-900">{formatFiscalYearStart(stats.summary.company.fiscalYearStart)}</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
       {toast && (
         <div className={`fixed bottom-6 right-6 px-3 py-2 rounded text-white text-sm shadow-lg ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
           {toast.message}
@@ -139,11 +211,11 @@ export default function DashboardPage() {
             {!sectionsCondensed.accounting && <>
               <div className="text-sm text-gray-700">Clients: <span className="font-bold">{stats.summary?.clients?.count ?? '-'}</span></div>
               <div className="text-sm text-gray-700">Factures clients: <span className="font-bold">{stats.summary?.invoices?.count ?? '-'}</span></div>
-              <div className="text-sm text-gray-700">Total facturé: <span className="font-bold">{stats.summary?.invoices?.totalAmount?.toLocaleString() ?? '-'}</span> €</div>
+              <div className="text-sm text-gray-700">Total facturé: <span className="font-bold">{formatMoney(stats.summary?.invoices?.totalAmount)}</span></div>
               <div className="text-sm text-gray-700">Fournisseurs: <span className="font-bold">{stats.summary?.suppliers?.count ?? '-'}</span></div>
               <div className="text-sm text-gray-700">Factures reçues: <span className="font-bold">{stats.summary?.incomingInvoices?.count ?? '-'}</span></div>
-              <div className="text-sm text-gray-700">Total factures reçues: <span className="font-bold">{stats.summary?.incomingInvoices?.totalAmount?.toLocaleString() ?? '-'}</span> €</div>
-              <div className="text-sm text-gray-700">Total transactions: <span className="font-bold">{stats.summary?.transactions?.totalAmount?.toLocaleString() ?? '-'}</span> €</div>
+              <div className="text-sm text-gray-700">Total factures reçues: <span className="font-bold">{formatMoney(stats.summary?.incomingInvoices?.totalAmount)}</span></div>
+              <div className="text-sm text-gray-700">Total transactions: <span className="font-bold">{formatMoney(stats.summary?.transactions?.totalAmount)}</span></div>
               <div className="flex gap-2 mt-2">
                 <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">
                   {stats.summary?.invoices?.overdue ?? 0} factures clients en retard
@@ -154,16 +226,16 @@ export default function DashboardPage() {
               </div>
             </>}
             {sectionsCondensed.accounting && <div className="text-sm text-gray-700 flex flex-wrap gap-3">
-              <span>Total facturé: <span className="font-bold">{stats.summary?.invoices?.totalAmount?.toLocaleString() ?? '-'}</span> €</span>
-              <span>Factures reçues: <span className="font-bold">{stats.summary?.incomingInvoices?.totalAmount?.toLocaleString() ?? '-'}</span> €</span>
-              <span>Transac: <span className="font-bold">{stats.summary?.transactions?.totalAmount?.toLocaleString() ?? '-'}</span> €</span>
+              <span>Total facturé: <span className="font-bold">{formatMoney(stats.summary?.invoices?.totalAmount)}</span></span>
+              <span>Factures reçues: <span className="font-bold">{formatMoney(stats.summary?.incomingInvoices?.totalAmount)}</span></span>
+              <span>Transac: <span className="font-bold">{formatMoney(stats.summary?.transactions?.totalAmount)}</span></span>
             </div>}
           </div>
           {/* Carte Stock global + graphique évolution */}
           <div className="bg-blue-50 rounded shadow p-4 flex flex-col gap-2">
             <div className="text-lg font-semibold text-blue-900">Stock global</div>
             <div className="text-2xl font-bold text-blue-700">{stats.stock?.products?.reduce((sum, p) => sum + (p.stockFinal || 0), 0) ?? 0}</div>
-            <div className="text-sm text-blue-600">Valeur totale: {stats.stock?.products?.reduce((sum, p) => sum + (p.stockFinal * p.avgCostFinal || 0), 0).toLocaleString() ?? 0} €</div>
+            <div className="text-sm text-blue-600">Valeur totale: {formatMoney(stockValue)}</div>
             {stockHistory && (
               <div className="mt-2">
                 <Bar
@@ -171,7 +243,7 @@ export default function DashboardPage() {
                     labels: stockHistory.map(h => h.month),
                     datasets: [
                       {
-                        label: "Évolution stock (€)",
+                        label: `Évolution stock (${companyCurrency})`,
                         data: stockHistory.map(h => h.value),
                         backgroundColor: "#3b82f6",
                         borderRadius: 4,
@@ -183,7 +255,7 @@ export default function DashboardPage() {
                       legend: { display: false },
                       tooltip: {
                         callbacks: {
-                          label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} €`,
+                          label: ctx => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}`,
                         },
                       },
                     },
@@ -226,15 +298,15 @@ export default function DashboardPage() {
           <div className="bg-purple-50 rounded shadow p-4 flex flex-col gap-2">
             <div className="text-lg font-semibold text-purple-900">Trésorerie</div>
             <div className={`text-2xl font-bold ${stats.treasury?.balance < 0 ? "text-red-700" : "text-purple-700"}`}>
-              {stats.treasury?.balance ?? "-"} €
+              {formatMoney(stats.treasury?.balance)}
               {!sectionsCondensed.treasury && stats.treasury?.balance < 0 && (
                 <span className="ml-2 bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">Solde négatif</span>
               )}
             </div>
             {!sectionsCondensed.treasury && <>
               <div className="text-sm text-purple-600">Comptes: <span className="font-bold">{stats.treasury?.accounts ?? '-'}</span></div>
-              <div className="text-sm text-purple-600">Solde max: <span className="font-bold">{stats.treasury?.max?.toLocaleString() ?? '-'}</span> €</div>
-              <div className="text-sm text-purple-600">Solde min: <span className="font-bold">{stats.treasury?.min?.toLocaleString() ?? '-'}</span> €</div>
+              <div className="text-sm text-purple-600">Solde max: <span className="font-bold">{formatMoney(stats.treasury?.max)}</span></div>
+              <div className="text-sm text-purple-600">Solde min: <span className="font-bold">{formatMoney(stats.treasury?.min)}</span></div>
               <div className="text-sm text-purple-600">Mouvements récents: {stats.treasury?.recentCount ?? 0}</div>
               <div className="flex flex-wrap gap-2 mt-2">
                 {(stats.treasury?.negativeCashAccountsCount ?? 0) > 0 && (
@@ -261,10 +333,10 @@ export default function DashboardPage() {
             <div className="text-lg font-semibold text-orange-900">Achats</div>
             {!sectionsCondensed.purchases && <>
               <div className="text-sm text-orange-700">Bons de commande : <span className="font-bold">{stats.purchases?.count ?? "-"}</span></div>
-              <div className="text-sm text-orange-700">Total commandes : <span className="font-bold">{stats.purchases?.total?.toLocaleString() ?? "-"}</span> €</div>
+              <div className="text-sm text-orange-700">Total commandes : <span className="font-bold">{formatMoney(stats.purchases?.total)}</span></div>
               <div className="text-sm text-orange-700">Factures reçues : <span className="font-bold">{stats.purchases?.invoiceCount ?? "-"}</span></div>
-              <div className="text-sm text-orange-700">Total factures reçues : <span className="font-bold">{stats.purchases?.invoiceTotal?.toLocaleString() ?? "-"}</span> €</div>
-              <div className="text-sm text-orange-700">Montant moyen commande : <span className="font-bold">{stats.purchases?.avg?.toLocaleString() ?? "-"}</span> €</div>
+              <div className="text-sm text-orange-700">Total factures reçues : <span className="font-bold">{formatMoney(stats.purchases?.invoiceTotal)}</span></div>
+              <div className="text-sm text-orange-700">Montant moyen commande : <span className="font-bold">{formatMoney(stats.purchases?.avg)}</span></div>
               <div className="flex gap-2 mt-2">
                 {stats.purchases?.overdue > 0 && (
                   <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">{stats.purchases?.overdue} factures fournisseurs en retard</span>
@@ -273,8 +345,8 @@ export default function DashboardPage() {
               </div>
             </>}
             {sectionsCondensed.purchases && <div className="text-sm text-orange-700 flex flex-wrap gap-3">
-              <span>Commandes: <span className="font-bold">{stats.purchases?.total?.toLocaleString() ?? '-'}</span> €</span>
-              <span>Fact. reçues: <span className="font-bold">{stats.purchases?.invoiceTotal?.toLocaleString() ?? '-'}</span> €</span>
+              <span>Commandes: <span className="font-bold">{formatMoney(stats.purchases?.total)}</span></span>
+              <span>Fact. reçues: <span className="font-bold">{formatMoney(stats.purchases?.invoiceTotal)}</span></span>
             </div>}
           </div>
           {/* Carte Ventes enrichie */}
@@ -282,9 +354,9 @@ export default function DashboardPage() {
             <div className="text-lg font-semibold text-teal-900">Ventes</div>
             {!sectionsCondensed.sales && <>
               <div className="text-sm text-teal-700">Factures clients : <span className="font-bold">{stats.sales?.count ?? "-"}</span></div>
-              <div className="text-sm text-teal-700">Total facturé : <span className="font-bold">{stats.sales?.total?.toLocaleString() ?? "-"}</span> €</div>
+              <div className="text-sm text-teal-700">Total facturé : <span className="font-bold">{formatMoney(stats.sales?.total)}</span></div>
               <div className="text-sm text-teal-700">Clients : <span className="font-bold">{stats.sales?.clientCount ?? "-"}</span></div>
-              <div className="text-sm text-teal-700">Montant moyen facture : <span className="font-bold">{stats.sales?.avg?.toLocaleString() ?? "-"}</span> €</div>
+              <div className="text-sm text-teal-700">Montant moyen facture : <span className="font-bold">{formatMoney(stats.sales?.avg)}</span></div>
               <div className="flex gap-2 mt-2">
                 {stats.sales?.overdue > 0 && (
                   <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">{stats.sales?.overdue} factures clients en retard</span>
@@ -293,7 +365,7 @@ export default function DashboardPage() {
               </div>
             </>}
             {sectionsCondensed.sales && <div className="text-sm text-teal-700 flex flex-wrap gap-3">
-              <span>Facturé: <span className="font-bold">{stats.sales?.total?.toLocaleString() ?? '-'}</span> €</span>
+              <span>Facturé: <span className="font-bold">{formatMoney(stats.sales?.total)}</span></span>
               <span>Clients: <span className="font-bold">{stats.sales?.clientCount ?? '-'}</span></span>
             </div>}
           </div>
@@ -400,8 +472,8 @@ export default function DashboardPage() {
             {!sectionsCondensed.personnel && (
               <div className="mt-2 text-sm text-indigo-700">
                 <div className="font-semibold">Rémunération</div>
-                <div>Mois (Brut / Net moy): {stats.personnel?.compensation?.month?.avgGross?.toLocaleString?.() ?? 0} € / {stats.personnel?.compensation?.month?.avgNet?.toLocaleString?.() ?? 0} €</div>
-                <div>YTD (Brut / Net moy): {stats.personnel?.compensation?.ytd?.avgGross?.toLocaleString?.() ?? 0} € / {stats.personnel?.compensation?.ytd?.avgNet?.toLocaleString?.() ?? 0} €</div>
+                <div>Mois (Brut / Net moy): {formatMoney(stats.personnel?.compensation?.month?.avgGross)} / {formatMoney(stats.personnel?.compensation?.month?.avgNet)}</div>
+                <div>YTD (Brut / Net moy): {formatMoney(stats.personnel?.compensation?.ytd?.avgGross)} / {formatMoney(stats.personnel?.compensation?.ytd?.avgNet)}</div>
               </div>
             )}
             {stats.personnelTrend?.months?.length > 0 && (

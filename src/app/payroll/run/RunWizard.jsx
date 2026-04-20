@@ -27,7 +27,7 @@ function Toasts({ toasts }) {
   </div>;
 }
 
-export default function RunWizard() {
+export default function RunWizard({ currencyContext }) {
   const { toasts, push } = useToasts();
   const [periods, setPeriods] = useState([]);
   const [loadingPeriods, setLoadingPeriods] = useState(false);
@@ -38,6 +38,8 @@ export default function RunWizard() {
   const [generateResult, setGenerateResult] = useState(null);
   const [locking, setLocking] = useState(false);
   const [lockedInfo, setLockedInfo] = useState(null);
+  const processingCurrency = currencyContext?.processingCurrency || 'XOF';
+  const fiscalCurrency = currencyContext?.fiscalCurrency || 'CDF';
 
   async function loadPeriods() {
     setLoadingPeriods(true);
@@ -161,6 +163,9 @@ export default function RunWizard() {
     <div className="space-y-4">
       <Toasts toasts={toasts} />
       <div className="border rounded p-3 bg-gray-50 space-y-2">
+        <div className="text-[11px] text-gray-600">
+          Devise de traitement: <span className="font-medium">{processingCurrency}</span> · Devise fiscale: <span className="font-medium">{fiscalCurrency}</span>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">Période ouverte:</span>
           {loadingPeriods && <span className="text-xs">Chargement...</span>}
@@ -186,6 +191,9 @@ export default function RunWizard() {
       {preview && (
         <div className="space-y-2">
           <h2 className="font-medium text-sm">Prévisualisation ({preview.count})</h2>
+          <div className="text-[11px] text-gray-600">
+            Montants de bulletin restitués en <span className="font-medium">{processingCurrency}</span>. Bases et contrôles fiscaux conservés en <span className="font-medium">{fiscalCurrency}</span>.
+          </div>
           <div className="overflow-x-auto border rounded bg-white">
             <table className="text-xs min-w-[1100px] w-full border-separate border-spacing-0">
               <thead>

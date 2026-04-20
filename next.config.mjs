@@ -3,6 +3,7 @@ process.env.NEXT_DISABLE_WEBPACK_CACHE = '1';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
 	webpack: (config, { dev }) => {
 		if (dev) {
 			config.cache = false; // in-memory only
@@ -12,6 +13,7 @@ const nextConfig = {
 					'**/node_modules/**',
 					'**/.git/**',
 					'**/.next/**',
+					'**/.next-dev/**',
 					'**/.turbo/**',
 					'**/backups/**',
 					'**/public/**',

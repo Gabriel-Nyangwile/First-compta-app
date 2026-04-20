@@ -6,6 +6,7 @@ import SupplierTreasuryPanel from "@/components/suppliers/treasury/SupplierTreas
 import TreasuryModuleNav from "@/components/treasury/TreasuryModuleNav.jsx";
 import { cookies } from "next/headers";
 import { getCompanyIdFromCookies } from "@/lib/tenant";
+import { getCompanyCurrency } from "@/lib/companyContext";
 
 export default async function SupplierTreasuryPage({ params }) {
   const { id } = await params;
@@ -33,6 +34,7 @@ export default async function SupplierTreasuryPage({ params }) {
   };
 
   const paymentDelay = normalizeNumber(supplier.paymentDelay);
+  const companyCurrency = await getCompanyCurrency(companyId);
 
   return (
     <main className="min-h-screen pt-24 px-6 bg-gray-50">
@@ -75,7 +77,7 @@ export default async function SupplierTreasuryPage({ params }) {
           </div>
         </div>
 
-        <SupplierTreasuryPanel supplierId={id} />
+        <SupplierTreasuryPanel supplierId={id} defaultCurrency={companyCurrency} />
       </div>
     </main>
   );

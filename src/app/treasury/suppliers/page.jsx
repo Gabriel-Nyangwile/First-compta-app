@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import Amount from '@/components/Amount.jsx';
 import { getSupplierTreasuryOverview } from '@/lib/serverActions/money';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
+import { getCompanyCurrency } from '@/lib/companyContext';
 import TreasuryModuleNav from '@/components/treasury/TreasuryModuleNav.jsx';
 
 const dateFormatter = new Intl.DateTimeFormat('fr-FR');
@@ -19,7 +20,10 @@ export default async function TreasurySuppliersPage(props) {
     );
   }
   const search = sp?.q?.trim?.() || '';
-  const suppliers = await getSupplierTreasuryOverview({ search, companyId });
+  const [suppliers, companyCurrency] = await Promise.all([
+    getSupplierTreasuryOverview({ search, companyId }),
+    getCompanyCurrency(companyId),
+  ]);
   const outstandingTotal = suppliers.reduce((acc, supplier) => acc + supplier.outstandingTotal, 0);
   const suppliersOverdue = suppliers.filter((supplier) => supplier.overdueCount > 0).length;
 
@@ -35,7 +39,7 @@ export default async function TreasurySuppliersPage(props) {
         <div className="flex flex-wrap gap-4 text-sm text-slate-700">
           <div>
             Encours total&nbsp;
-            <strong className="tabular-nums"><Amount value={outstandingTotal} currency="EUR" /></strong>
+            <strong className="tabular-nums"><Amount value={outstandingTotal} currency={companyCurrency} /></strong>
           </div>
           <div>
               Fournisseurs en retard&nbsp;
@@ -91,7 +95,7 @@ export default async function TreasurySuppliersPage(props) {
                 <div className="text-right space-y-1">
                   <div className="text-xs uppercase text-slate-500">Encours</div>
                   <div className="text-xl font-bold tabular-nums">
-                    <Amount value={supplier.outstandingTotal} currency="EUR" />
+                    <Amount value={supplier.outstandingTotal} currency={companyCurrency} />
                   </div>
                   {supplier.overdueCount > 0 ? (
                     <div className="text-sm text-red-600">{supplier.overdueCount} facture(s) en retard</div>
@@ -144,8 +148,8 @@ export default async function TreasurySuppliersPage(props) {
                         <tr key={invoice.id} className="border-t">
                           <td className="px-2 py-1 font-mono text-[11px]">{invoice.number}</td>
                           <td className="px-2 py-1">{invoice.dueDate ? dateFormatter.format(new Date(invoice.dueDate)) : '—'}</td>
-                          <td className="px-2 py-1 text-right tabular-nums"><Amount value={invoice.total} currency="EUR" /></td>
-                          <td className="px-2 py-1 text-right tabular-nums font-medium"><Amount value={invoice.outstanding} currency="EUR" /></td>
+                          <td className="px-2 py-1 text-right tabular-nums"><Amount value={invoice.total} currency={companyCurrency} /></td>
+                          <td className="px-2 py-1 text-right tabular-nums font-medium"><Amount value={invoice.outstanding} currency={companyCurrency} /></td>
                           <td className={`px-2 py-1 ${invoice.isOverdue ? 'text-red-600' : 'text-slate-600'}`}>{invoice.status}</td>
                           <td className="px-2 py-1 text-right">
                             <Link
@@ -179,7 +183,7 @@ export default async function TreasurySuppliersPage(props) {
                             <span className="font-mono text-[11px] text-slate-500">{payment.voucherRef}</span>
                           )}
                         </div>
-                        <span className="tabular-nums font-semibold text-green-700"><Amount value={payment.amount} currency="EUR" /></span>
+                        <span className="tabular-nums font-semibold text-green-700"><Amount value={payment.amount} currency={companyCurrency} /></span>
                       </li>
                     ))}
                   </ul>

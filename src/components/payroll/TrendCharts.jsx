@@ -4,7 +4,7 @@ import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from 'chart.js';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-export default function TrendCharts({ years }) {
+export default function TrendCharts({ years, currency = 'XOF' }) {
   const labels = years.map(y => String(y.year));
   const data = useMemo(() => ({
     labels,
@@ -20,7 +20,21 @@ export default function TrendCharts({ years }) {
     <div className="space-y-6 mt-6">
       <div>
         <h2 className="text-sm font-semibold mb-2">Comparatif Annuel (Brut / Net / Corrections / Charges)</h2>
-        <Bar data={data} options={{ responsive:true, plugins:{ legend:{ position:'bottom' } }, interaction:{ mode:'index', intersect:false } }} />
+        <Bar
+          data={data}
+          options={{
+            responsive:true,
+            plugins:{
+              legend:{ position:'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(ctx.parsed.y ?? 0)}`,
+                },
+              },
+            },
+            interaction:{ mode:'index', intersect:false },
+          }}
+        />
       </div>
     </div>
   );

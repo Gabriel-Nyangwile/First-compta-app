@@ -5,7 +5,7 @@ import Amount from '@/components/Amount.jsx';
 
 const decimalToNumber = (value) => (value && typeof value === "object" && typeof value.toNumber === "function" ? value.toNumber() : Number(value ?? 0));
 
-export default function NewMoneyMovementForm({ accounts }) {
+export default function NewMoneyMovementForm({ accounts, defaultCurrency = 'XOF' }) {
   const employeeMovementKinds = ['EMPLOYEE_EXPENSE', 'MISSION_ADVANCE', 'PETTY_CASH_OUT'];
   const class4MovementKinds = ['ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE','MISSION_ADVANCE'];
   const forcedDirectionKinds = ['CLIENT_RECEIPT','SUPPLIER_PAYMENT','CASH_PURCHASE','EMPLOYEE_EXPENSE','MISSION_ADVANCE','PETTY_CASH_OUT','ASSOCIATE_CONTRIBUTION','ASSOCIATE_WITHDRAWAL','SALARY_PAYMENT','SALARY_ADVANCE'];
@@ -293,9 +293,9 @@ export default function NewMoneyMovementForm({ accounts }) {
       {selectedMoneyAccount && (
         <div className="text-xs text-slate-600 flex flex-wrap gap-4">
           <span>Compte de règlement sélectionné: <strong>{selectedMoneyAccount.label}</strong> ({selectedMoneyAccount.type})</span>
-          <span>Solde actuel: <strong><Amount value={currentBalance} /></strong></span>
+          <span>Solde actuel: <strong><Amount value={currentBalance} currency={selectedMoneyAccount?.currency || defaultCurrency} /></strong></span>
           {direction==='OUT' && effectiveOutAmount>0 && (
-            <span>Solde après: <strong className={(willBeNegative?'text-red-600':'')}><Amount value={currentBalance - effectiveOutAmount} /></strong></span>
+            <span>Solde après: <strong className={(willBeNegative?'text-red-600':'')}><Amount value={currentBalance - effectiveOutAmount} currency={selectedMoneyAccount?.currency || defaultCurrency} /></strong></span>
           )}
         </div>
       )}
@@ -449,7 +449,7 @@ export default function NewMoneyMovementForm({ accounts }) {
             {htAmount && (
               (() => {
                 const base = Number(htAmount)||0; const rate = vatEnabled?Number(vatRate)||0:0; const vat = base*rate; const total=base+vat; return (
-              <span>Total TTC calculé: <strong><Amount value={total} /></strong> (TVA <Amount value={vat} />)</span>
+              <span>Total TTC calculé: <strong><Amount value={total} currency={selectedMoneyAccount?.currency || defaultCurrency} /></strong> (TVA <Amount value={vat} currency={selectedMoneyAccount?.currency || defaultCurrency} />)</span>
                 );
               })()
             )}
@@ -485,9 +485,9 @@ export default function NewMoneyMovementForm({ accounts }) {
             <div className="text-xs text-green-700 flex flex-wrap gap-3">
               <span>Pièce sélectionnée: {selectedInvoice.number}</span>
               <span>Tiers: {selectedInvoice.thirdPartyName}</span>
-              <span>Total: <Amount value={selectedInvoice.total} /></span>
-              <span>Payé: <Amount value={selectedInvoice.paid} /></span>
-              <span>Reste: <Amount value={selectedInvoice.remaining} /></span>
+              <span>Total: <Amount value={selectedInvoice.total} currency={defaultCurrency} /></span>
+              <span>Payé: <Amount value={selectedInvoice.paid} currency={defaultCurrency} /></span>
+              <span>Reste: <Amount value={selectedInvoice.remaining} currency={defaultCurrency} /></span>
             </div>
           ) : (
             <div className="max-h-40 overflow-auto divide-y border rounded bg-white">
@@ -495,7 +495,7 @@ export default function NewMoneyMovementForm({ accounts }) {
               {!searchingInvoices && invoiceQuery && invoiceResults.length === 0 && <div className="p-2 text-xs text-slate-500">Aucune pièce trouvée</div>}
               {invoiceResults.map(inv => (
                 <button type="button" key={inv.id} onClick={()=>setSelectedInvoice(inv)} className="w-full text-left px-2 py-1 hover:bg-blue-50 text-xs">
-                  <span className="font-mono">{inv.number}</span> — {inv.thirdPartyName} — Total <Amount value={inv.total} /> — Payé <Amount value={inv.paid} /> — Reste <Amount value={inv.remaining} />
+                  <span className="font-mono">{inv.number}</span> — {inv.thirdPartyName} — Total <Amount value={inv.total} currency={defaultCurrency} /> — Payé <Amount value={inv.paid} currency={defaultCurrency} /> — Reste <Amount value={inv.remaining} currency={defaultCurrency} />
                 </button>
               ))}
             </div>

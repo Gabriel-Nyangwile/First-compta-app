@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { formatAmount } from '@/lib/utils';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
+import { getCompanyCurrency } from '@/lib/companyContext';
 import TreasuryModuleNav from '@/components/treasury/TreasuryModuleNav.jsx';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,7 @@ export default async function AuthorizationsPage({ searchParams }) {
   const party = sp?.party || '';
   const partialOnly = sp?.partial === '1';
   const exceededOnly = sp?.exceeded === '1';
+  const companyCurrency = await getCompanyCurrency(companyId);
   let rows = await listAuthorizations({ companyId, status: status || undefined, party: party || undefined, limit: 200 });
   if (partialOnly) rows = rows.filter(r => r.partial);
   if (exceededOnly) rows = rows.filter(r => r.exceededRemaining);
@@ -103,15 +105,15 @@ export default async function AuthorizationsPage({ searchParams }) {
           </div>
           <div className="p-2 border rounded bg-slate-50">
             <div className="text-slate-500">Montant cumulé</div>
-            <div className="font-semibold tabular-nums">{formatAmount(stats.totalAmount, 'EUR')}</div>
+            <div className="font-semibold tabular-nums">{formatAmount(stats.totalAmount, companyCurrency)}</div>
           </div>
           <div className="p-2 border rounded bg-amber-50">
             <div className="text-amber-600">Partiels</div>
-            <div className="font-semibold tabular-nums">{stats.partial.count} / {formatAmount(stats.partial.amount, 'EUR')}</div>
+            <div className="font-semibold tabular-nums">{stats.partial.count} / {formatAmount(stats.partial.amount, companyCurrency)}</div>
           </div>
             <div className="p-2 border rounded bg-red-50">
               <div className="text-red-600">Dépassements</div>
-              <div className="font-semibold tabular-nums">{stats.exceeded.count} / {formatAmount(stats.exceeded.amount, 'EUR')}</div>
+              <div className="font-semibold tabular-nums">{stats.exceeded.count} / {formatAmount(stats.exceeded.amount, companyCurrency)}</div>
             </div>
         </div>
         <div className="overflow-auto">
