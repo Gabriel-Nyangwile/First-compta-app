@@ -8,6 +8,18 @@ import prisma from '../src/lib/prisma.js';
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+const COMPANY_NAME = process.env.COMPANY_NAME || 'Entreprise Demo';
+
+async function ensureCompany() {
+  let company = await prisma.company.findFirst({ where: { name: COMPANY_NAME } });
+  if (!company) {
+    company = await prisma.company.create({ data: { name: COMPANY_NAME } });
+    console.log(`Created company "${COMPANY_NAME}"`);
+  } else {
+    console.log(`Company "${COMPANY_NAME}" already exists.`);
+  }
+  return company;
+}
 
 async function ensureAdmin() {
   let user = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } });
@@ -21,10 +33,10 @@ async function ensureAdmin() {
   return user;
 }
 
-async function ensurePrimaryBank() {
-  let ma = await prisma.moneyAccount.findFirst({ where: { label: 'Banque Principale' } });
+async function ensurePrimaryBank(companyId) {
+  let ma = await prisma.moneyAccount.findFirst({ where: { label: 'Banque Principale', companyId } });
   if (!ma) {
-    ma = await prisma.moneyAccount.create({ data: { type: 'BANK', label: 'Banque Principale', currency: 'EUR', openingBalance: 0 } });
+    ma = await prisma.moneyAccount.create({ data: { type: 'BANK', label: 'Banque Principale', currency: 'EUR', openingBalance: 0, companyId } });
     console.log('Created money account Banque Principale');
   } else {
     console.log('Money account Banque Principale already exists.');
@@ -33,8 +45,9 @@ async function ensurePrimaryBank() {
 }
 
 async function main() {
+  const company = await ensureCompany();
   await ensureAdmin();
-  await ensurePrimaryBank();
+  await ensurePrimaryBank(company.id);
   console.log('Minimal seed done.');
   await prisma.$disconnect();
 }
