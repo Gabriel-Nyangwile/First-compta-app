@@ -14,9 +14,13 @@ export async function GET(req) {
   const wb = new ExcelJS.Workbook();
   const meta = wb.addWorksheet('Résumé');
   meta.columns = [ { header:'Clé', key:'k', width:28 }, { header:'Valeur', key:'v', width:22 } ];
-  const totals = annual.months.reduce((acc, m) => { acc.gross += m.grossTotal; acc.net += m.netTotal; acc.cnssEmp += m.cnssEmployerTotal; acc.cnssSal += m.cnssEmployeeTotal; acc.ipr += m.iprTaxTotal; acc.onem += m.onemTotal; acc.inpp += m.inppTotal; acc.charges += m.employerChargesTotal; acc.ot += m.overtimeTotal; return acc; }, { gross:0, net:0, cnssEmp:0, cnssSal:0, ipr:0, onem:0, inpp:0, charges:0, ot:0 });
+  const totals = annual.months.reduce((acc, m) => { acc.gross += m.grossTotal; acc.net += m.netTotal; acc.cnssEmp += m.cnssEmployerTotal; acc.cnssSal += m.cnssEmployeeTotal; acc.ipr += m.iprTaxTotal; acc.onem += m.onemTotal; acc.inpp += m.inppTotal; acc.charges += m.employerChargesTotal; acc.ot += m.overtimeTotal; acc.corrGross += m.grossNegative; acc.corrNet += m.netNegative; return acc; }, { gross:0, net:0, cnssEmp:0, cnssSal:0, ipr:0, onem:0, inpp:0, charges:0, ot:0, corrGross:0, corrNet:0 });
   meta.addRows([
     ['Année', year],
+    ['Devise(s) de traitement', annual.currencySummary.processingCurrencies.join(', ') || ''],
+    ['Devise(s) fiscale(s)', annual.currencySummary.fiscalCurrencies.join(', ') || ''],
+    ['Devises de traitement mixtes', annual.currencySummary.mixedProcessingCurrencies ? 'oui' : 'non'],
+    ['Mois sans taux fiscal', annual.currencySummary.missingFxMonths.map(m => `${m.month}/${m.periodRef}`).join(', ') || ''],
     ['Brut Total (incl corrections)', totals.gross],
     ['Corrections Brut Négatives', totals.corrGross],
     ['Net Total (incl corrections)', totals.net],
@@ -33,6 +37,10 @@ export async function GET(req) {
   const ws = wb.addWorksheet('Mois');
   ws.columns = [
     { header:'Mois', key:'month', width:8 },
+    { header:'Période', key:'periodRef', width:14 },
+    { header:'Devise traitement', key:'processingCurrency', width:18 },
+    { header:'Devise fiscale', key:'fiscalCurrency', width:16 },
+    { header:'Taux fiscal', key:'fxRate', width:14 },
     { header:'Brut', key:'grossTotal', width:12 },
     { header:'Corr Brut', key:'grossNegative', width:12 },
     { header:'Net', key:'netTotal', width:12 },

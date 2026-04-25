@@ -190,6 +190,9 @@ export default function CreateSalesOrderPage() {
         </Link>
       </div>
       <h1 className="text-2xl font-bold mb-6">Nouvelle commande client</h1>
+      <div className="mb-6 rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        Séquence recommandée : `1. créer/choisir le client` ; `2. saisir la commande SO` ; `3. confirmer la commande` ; `4. créer puis confirmer la sortie de stock SW` ; `5. créer la facture à partir de la commande expédiée`.
+      </div>
       {error && <div className="mb-4 text-red-600">{error}</div>}
       {success && <div className="mb-4 text-green-600">{success}</div>}
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -199,6 +202,9 @@ export default function CreateSalesOrderPage() {
             value={clientId ? { id: clientId } : null}
             onChange={(client) => setClientId(client?.id || "")}
           />
+          <p className="mt-1 text-xs text-slate-500">
+            Si le client n'existe pas, crée sa fiche d'abord. Le compte client 411 reste optionnel sur la fiche, mais il sera requis au moment de la facturation.
+          </p>
         </div>
         <div className="flex gap-4">
           <div className="flex-1">
@@ -238,8 +244,11 @@ export default function CreateSalesOrderPage() {
           </label>
           <div className="space-y-2">
             {lines.map((line, idx) => (
-              <div key={idx} className="flex gap-2 items-center">
-                <div className="w-64">
+              <div
+                key={idx}
+                className="grid gap-2 items-start rounded border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,2.2fr)_90px_110px_90px_minmax(260px,1.6fr)_44px]"
+              >
+                <div className="min-w-0">
                   <ProductAutocomplete
                     value={
                       line.productId
@@ -279,7 +288,7 @@ export default function CreateSalesOrderPage() {
                   }
                   required
                   placeholder="Qté"
-                  className="w-20 border rounded px-2 py-1"
+                  className="w-full border rounded px-2 py-1"
                 />
                 <input
                   type="number"
@@ -291,7 +300,7 @@ export default function CreateSalesOrderPage() {
                   }
                   required
                   placeholder="PU"
-                  className="w-20 border rounded px-2 py-1"
+                  className="w-full border rounded px-2 py-1"
                 />
                 <input
                   type="number"
@@ -302,19 +311,23 @@ export default function CreateSalesOrderPage() {
                     handleLineChange(idx, "vatRate", e.target.value)
                   }
                   placeholder="TVA"
-                  className="w-16 border rounded px-2 py-1"
+                  className="w-full border rounded px-2 py-1"
                 />
-                <div className="min-w-[180px]">
+                <div className="min-w-0">
                   <AccountAutocomplete
                     value={line._account}
                     onChange={(account) => handleAccountChange(idx, account)}
                     filterPrefix="70"
+                    placeholder="Compte de vente"
                   />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Compte de produits 70x. Le libellé complet s'affiche sur plusieurs lignes si nécessaire.
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeLine(idx)}
-                  className="text-red-600 px-2"
+                  className="text-red-600 px-2 py-1 self-start"
                 >
                   ✕
                 </button>

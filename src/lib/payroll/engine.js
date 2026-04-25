@@ -6,6 +6,7 @@
 // - Base salary is taken from Position -> Bareme.legalSalary snapshot; primes default to 0 in v1.
 
 import prisma from '../prisma.js';
+import { getFallbackRateToCdf, fromFiscalCurrency, normalizeCurrency, roundCdf, roundCurrency, toFiscalCurrency } from './currency.js';
 import { nextSequence } from '../sequence.js';
 
 function toNumber(x) { return x?.toNumber?.() ?? Number(x ?? 0) ?? 0; }
@@ -55,10 +56,11 @@ function computeIprMonthlyCDF(riCDF, rule) {
   // Safety: tax cannot exceed RI
   // Safety: tax cannot exceed capped RI portion nor RI itself
   monthlyTax = Math.min(monthlyTax, cap, riCDF);
-  return round2(monthlyTax);
+  return roundCdf(monthlyTax);
 }
 
 async function getFxRateForPeriod(baseCurrency, quoteCurrency, year, month, companyId = null) {
+  if (normalizeCurrency(baseCurrency) === normalizeCurrency(quoteCurrency)) return 1;
   // Use last day of month
   const targetDate = new Date(Date.UTC(year, month - 1, 1));
   // Find latest rate <= first day of period month (could shift to end-of-month once available)
@@ -66,11 +68,46 @@ async function getFxRateForPeriod(baseCurrency, quoteCurrency, year, month, comp
     where: { baseCurrency, quoteCurrency, date: { lte: targetDate }, ...(companyId ? { companyId } : {}) },
     orderBy: { date: 'desc' }
   });
-  return rate?.rate?.toNumber?.() ?? 1;
+  return rate?.rate?.toNumber?.() ?? getFallbackRateToCdf(baseCurrency);
+}
+
+async function getProcessingCurrency(companyId) {
+  if (!companyId) return normalizeCurrency(process.env.DEFAULT_COMPANY_CURRENCY, 'XOF');
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { currency: true },
+  });
+  return normalizeCurrency(company?.currency, 'XOF');
+}
+
+export async function resolvePayrollCurrencySnapshot(periodContext = null, companyId = null) {
+  const scopedCompanyId = companyId || periodContext?.companyId || null;
+  const processingCurrency = periodContext?.processingCurrency
+    ? normalizeCurrency(periodContext.processingCurrency, 'XOF')
+    : await getProcessingCurrency(scopedCompanyId);
+  const fiscalCurrency = normalizeCurrency(periodContext?.fiscalCurrency, 'CDF');
+
+  let fxRate = periodContext?.fxRate != null ? toNumber(periodContext.fxRate) : null;
+  if (fxRate == null) {
+    if (periodContext?.year && periodContext?.month) {
+      fxRate = await getFxRateForPeriod(
+        processingCurrency,
+        fiscalCurrency,
+        periodContext.year,
+        periodContext.month,
+        scopedCompanyId,
+      );
+    } else {
+      fxRate = processingCurrency === fiscalCurrency ? 1 : getFallbackRateToCdf(processingCurrency);
+    }
+  }
+
+  return { processingCurrency, fiscalCurrency, fxRate };
 }
 
 export async function calculatePayslipForEmployee(employee, periodContext = null) {
   const companyId = periodContext?.companyId || employee?.companyId || null;
+  const { processingCurrency, fiscalCurrency, fxRate } = await resolvePayrollCurrencySnapshot(periodContext, companyId);
   // Base salary from Position.Bareme
   const baseSalary = toNumber(employee?.position?.bareme?.legalSalary) || 0;
   // Simulated primes via feature flag
@@ -141,58 +178,60 @@ export async function calculatePayslipForEmployee(employee, periodContext = null
   const baseHourly = wdForRate > 0 && hoursPerDay > 0 ? (baseSalary / (wdForRate * hoursPerDay)) : 0;
   const overtimeAmount = round2(baseHourly * otHours * otMultiplier);
 
-  const gross = baseAfterAttendance + variablesPrimeTotal + aen + primes + overtimeAmount;
+  const gross = roundCurrency(baseAfterAttendance + variablesPrimeTotal + aen + primes + overtimeAmount, processingCurrency);
 
   // Load schemes and tax
   const { byCode } = await getActiveSchemes(companyId);
   const iprRule = await getIprRule(companyId);
 
-  // CNSS salarie 5% on BRUT for v1 (practical; RI-based would require circular solve)
+  const grossCDF = toFiscalCurrency(gross, processingCurrency, fxRate);
+
+  // CNSS/ONEM/INPP/IPR are calculated on fiscal CDF bases, then converted back.
   const cnssEmpRate = toNumber(byCode?.CNSS?.employeeRate) || 0.05;
-  const cnssEmp = round2(gross * cnssEmpRate);
+  const cnssEmpCDF = roundCdf(grossCDF * cnssEmpRate);
   // Frais pro 25% default (can be overridden in meta later)
   const fraisPct = 0.25;
-  const frais = round2((gross - cnssEmp) * fraisPct);
-  // RI in base currency (EUR assumption)
-  const riBase = Math.max(0, gross - cnssEmp - frais);
-  // FX conversion for tax (EUR->CDF) using period context if provided
-  let fxRate = 1;
-  if (periodContext) {
-    fxRate = await getFxRateForPeriod('EUR', 'CDF', periodContext.year, periodContext.month, companyId);
-  }
-  const riCDF = round2(riBase * fxRate);
+  const fraisCDF = roundCdf((grossCDF - cnssEmpCDF) * fraisPct);
+  const riCDF = Math.max(0, grossCDF - cnssEmpCDF - fraisCDF);
   const iprCDF = iprRule ? computeIprMonthlyCDF(riCDF, iprRule) : 0;
-  // Convert IPR back to base currency for net calculation
-  const ipr = round2(iprCDF / fxRate);
+  const riBase = fromFiscalCurrency(riCDF, processingCurrency, fxRate);
+  const cnssEmp = fromFiscalCurrency(cnssEmpCDF, processingCurrency, fxRate);
+  const ipr = fromFiscalCurrency(iprCDF, processingCurrency, fxRate);
 
   // Employer contributions
   const cnssErRate = toNumber(byCode?.CNSS?.employerRate) || 0.05;
-  const cnssEr = round2(gross * cnssErRate);
+  const cnssErCDF = roundCdf(grossCDF * cnssErRate);
   const onemRate = toNumber(byCode?.ONEM?.employerRate) || 0.005;
-  const onem = round2(gross * onemRate);
+  const onemCDF = roundCdf(grossCDF * onemRate);
   const inppRate = toNumber(byCode?.INPP_1_50?.employerRate) || 0.03;
-  const inpp = round2(gross * inppRate);
+  const inppCDF = roundCdf(grossCDF * inppRate);
+  const cnssEr = fromFiscalCurrency(cnssErCDF, processingCurrency, fxRate);
+  const onem = fromFiscalCurrency(onemCDF, processingCurrency, fxRate);
+  const inpp = fromFiscalCurrency(inppCDF, processingCurrency, fxRate);
 
-  const net = round2(gross - cnssEmp - ipr); // AEN non-liquidative ignoré v1
+  const net = roundCurrency(gross - cnssEmp - ipr, processingCurrency); // AEN non-liquidative ignoré v1
 
   // Build lines
   const lines = [];
-  lines.push({ kind: 'BASE', code: 'BASE', label: 'Salaire de base', amount: round2(baseAfterAttendance), baseAmount: null, order: 10, meta: attendance ? { daysWorked: toNumber(attendance.daysWorked), workingDays: toNumber(attendance.workingDays) } : undefined });
-  if (primes) lines.push({ kind: 'PRIME', code: 'PRIME', label: 'Primes', amount: round2(primes), baseAmount: null, order: 20 });
-  if (aen) lines.push({ kind: 'BASE', code: 'AEN', label: 'Avantages en nature', amount: round2(aen), baseAmount: null, order: 25 });
-  if (variablesPrimeTotal) lines.push({ kind: 'PRIME', code: 'VAR+', label: 'Variables positives', amount: round2(variablesPrimeTotal), baseAmount: null, order: 27 });
-  if (overtimeAmount) lines.push({ kind: 'PRIME', code: 'OT', label: 'Heures supplémentaires', amount: overtimeAmount, baseAmount: null, order: 28, meta: { otHours, hoursPerDay, otMultiplier, baseHourly: round2(baseHourly) } });
-  lines.push({ kind: 'COTISATION_SALARIALE', code: 'CNSS_EMP', label: 'CNSS part salarié 5%', amount: -cnssEmp, baseAmount: round2(gross), order: 30, meta: { rate: cnssEmpRate } });
-  lines.push({ kind: 'IMPOT', code: 'IPR', label: 'IPR (mensuel)', amount: -round2(ipr), baseAmount: round2(riBase), order: 40, meta: { riCDF, fxRate, iprCDF } });
-  if (variablesDeductionTotal) lines.push({ kind: 'RETENUE', code: 'VAR-', label: 'Variables négatives', amount: -round2(variablesDeductionTotal), baseAmount: null, order: 45 });
-  lines.push({ kind: 'COTISATION_PATRONALE', code: 'CNSS_ER', label: 'CNSS part employeur 5%', amount: round2(cnssEr), baseAmount: round2(gross), order: 50, meta: { rate: cnssErRate } });
-  lines.push({ kind: 'COTISATION_PATRONALE', code: 'ONEM', label: 'ONEM 0.5%', amount: round2(onem), baseAmount: round2(gross), order: 60, meta: { rate: onemRate } });
-  lines.push({ kind: 'COTISATION_PATRONALE', code: 'INPP', label: 'INPP 3%', amount: round2(inpp), baseAmount: round2(gross), order: 70, meta: { rate: inppRate } });
+  lines.push({ kind: 'BASE', code: 'BASE', label: 'Salaire de base', amount: roundCurrency(baseAfterAttendance, processingCurrency), baseAmount: null, order: 10, meta: attendance ? { daysWorked: toNumber(attendance.daysWorked), workingDays: toNumber(attendance.workingDays), processingCurrency, fiscalCurrency } : { processingCurrency, fiscalCurrency } });
+  if (primes) lines.push({ kind: 'PRIME', code: 'PRIME', label: 'Primes', amount: roundCurrency(primes, processingCurrency), baseAmount: null, order: 20, meta: { processingCurrency, fiscalCurrency } });
+  if (aen) lines.push({ kind: 'BASE', code: 'AEN', label: 'Avantages en nature', amount: roundCurrency(aen, processingCurrency), baseAmount: null, order: 25, meta: { processingCurrency, fiscalCurrency } });
+  if (variablesPrimeTotal) lines.push({ kind: 'PRIME', code: 'VAR+', label: 'Variables positives', amount: roundCurrency(variablesPrimeTotal, processingCurrency), baseAmount: null, order: 27, meta: { processingCurrency, fiscalCurrency } });
+  if (overtimeAmount) lines.push({ kind: 'PRIME', code: 'OT', label: 'Heures supplémentaires', amount: roundCurrency(overtimeAmount, processingCurrency), baseAmount: null, order: 28, meta: { otHours, hoursPerDay, otMultiplier, baseHourly: roundCurrency(baseHourly, processingCurrency), processingCurrency, fiscalCurrency } });
+  lines.push({ kind: 'COTISATION_SALARIALE', code: 'CNSS_EMP', label: 'CNSS part salarié 5%', amount: -roundCurrency(cnssEmp, processingCurrency), baseAmount: roundCurrency(gross, processingCurrency), order: 30, meta: { rate: cnssEmpRate, grossCDF, baseAmountCDF: grossCDF, amountCDF: cnssEmpCDF, processingCurrency, fiscalCurrency, fxRate } });
+  lines.push({ kind: 'IMPOT', code: 'IPR', label: 'IPR (mensuel)', amount: -roundCurrency(ipr, processingCurrency), baseAmount: roundCurrency(riBase, processingCurrency), order: 40, meta: { riCDF, fxRate, iprCDF, processingCurrency, fiscalCurrency, amountCDF: iprCDF, baseAmountCDF: riCDF, grossCDF, fraisCDF } });
+  if (variablesDeductionTotal) lines.push({ kind: 'RETENUE', code: 'VAR-', label: 'Variables négatives', amount: -roundCurrency(variablesDeductionTotal, processingCurrency), baseAmount: null, order: 45, meta: { processingCurrency, fiscalCurrency } });
+  lines.push({ kind: 'COTISATION_PATRONALE', code: 'CNSS_ER', label: 'CNSS part employeur 5%', amount: roundCurrency(cnssEr, processingCurrency), baseAmount: roundCurrency(gross, processingCurrency), order: 50, meta: { rate: cnssErRate, grossCDF, baseAmountCDF: grossCDF, amountCDF: cnssErCDF, processingCurrency, fiscalCurrency, fxRate } });
+  lines.push({ kind: 'COTISATION_PATRONALE', code: 'ONEM', label: 'ONEM 0.5%', amount: roundCurrency(onem, processingCurrency), baseAmount: roundCurrency(gross, processingCurrency), order: 60, meta: { rate: onemRate, grossCDF, baseAmountCDF: grossCDF, amountCDF: onemCDF, processingCurrency, fiscalCurrency, fxRate } });
+  lines.push({ kind: 'COTISATION_PATRONALE', code: 'INPP', label: 'INPP 3%', amount: roundCurrency(inpp, processingCurrency), baseAmount: roundCurrency(gross, processingCurrency), order: 70, meta: { rate: inppRate, grossCDF, baseAmountCDF: grossCDF, amountCDF: inppCDF, processingCurrency, fiscalCurrency, fxRate } });
 
   return {
-    grossAmount: round2(gross),
+    grossAmount: roundCurrency(gross, processingCurrency),
     netAmount: net,
-    employerChargesTotal: round2(cnssEr + onem + inpp),
+    employerChargesTotal: roundCurrency(cnssEr + onem + inpp, processingCurrency),
+    processingCurrency,
+    fiscalCurrency,
+    fxRate,
     lines,
     variableAllocations,
   };
@@ -207,11 +246,26 @@ export async function recalculatePayslip(payslipId, companyId = null) {
   // Load period for FX context
   const scopedCompanyId = companyId || p.companyId || null;
   const period = await prisma.payrollPeriod.findFirst({ where: { id: p.periodId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
-  const res = await calculatePayslipForEmployee(p.employee, period);
+  const currencySnapshot = await resolvePayrollCurrencySnapshot(period, scopedCompanyId);
+  const periodWithSnapshot = { ...period, ...currencySnapshot };
+  const res = await calculatePayslipForEmployee(p.employee, periodWithSnapshot);
   // Replace non-manual lines (in v1: replace all)
   await prisma.$transaction(async (tx) => {
     await tx.payslipLine.deleteMany({ where: { payslipId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
-    await tx.payslip.update({ where: { id: payslipId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, data: { grossAmount: res.grossAmount, netAmount: res.netAmount } });
+    await tx.payrollPeriod.update({
+      where: { id: period.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
+      data: currencySnapshot,
+    });
+    await tx.payslip.update({
+      where: { id: payslipId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
+      data: {
+        grossAmount: res.grossAmount,
+        netAmount: res.netAmount,
+        processingCurrency: res.processingCurrency,
+        fiscalCurrency: res.fiscalCurrency,
+        fxRate: res.fxRate,
+      },
+    });
     for (const [i, l] of res.lines.entries()) {
       await tx.payslipLine.create({ data: { payslipId, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
     }
@@ -232,22 +286,37 @@ export async function generatePayslipsForPeriod(periodId, companyId = null) {
   const period = await prisma.payrollPeriod.findFirst({ where: { id: periodId, ...(companyId ? { companyId } : {}) } });
   if (!period) throw new Error('Period not found');
   const scopedCompanyId = companyId || period.companyId || null;
+  const currencySnapshot = await resolvePayrollCurrencySnapshot(period, scopedCompanyId);
+  const periodWithSnapshot = { ...period, ...currencySnapshot };
   const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE', ...(companyId ? { companyId } : {}) }, include: { position: { include: { bareme: true } }, costAllocations: true } });
   const results = [];
   await prisma.$transaction(async (tx) => {
+    await tx.payrollPeriod.update({
+      where: { id: periodId, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
+      data: currencySnapshot,
+    });
     for (const e of employees) {
       // Upsert payslip
       const existing = await tx.payslip.findFirst({ where: { employeeId: e.id, periodId } });
       const ps = existing || await (async () => {
         const ref = await nextSequence(tx, 'PAYSLIP', 'PSL-', scopedCompanyId);
-        return tx.payslip.create({ data: { companyId: scopedCompanyId, employeeId: e.id, periodId, ref, grossAmount: 0, netAmount: 0 } });
+        return tx.payslip.create({ data: { companyId: scopedCompanyId, employeeId: e.id, periodId, ref, grossAmount: 0, netAmount: 0, ...currencySnapshot } });
       })();
-      const calc = await calculatePayslipForEmployee(e, period);
+      const calc = await calculatePayslipForEmployee(e, periodWithSnapshot);
       // Reset lines
       await tx.payslipLine.deleteMany({ where: { payslipId: ps.id } });
-      await tx.payslip.update({ where: { id: ps.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) }, data: { grossAmount: calc.grossAmount, netAmount: calc.netAmount } });
+      await tx.payslip.update({
+        where: { id: ps.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) },
+        data: {
+          grossAmount: calc.grossAmount,
+          netAmount: calc.netAmount,
+          processingCurrency: calc.processingCurrency,
+          fiscalCurrency: calc.fiscalCurrency,
+          fxRate: calc.fxRate,
+        },
+      });
       for (const [i, l] of calc.lines.entries()) {
-        await tx.payslipLine.create({ data: { companyId: companyId || null, payslipId: ps.id, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
+        await tx.payslipLine.create({ data: { companyId: scopedCompanyId, payslipId: ps.id, kind: l.kind, code: l.code, label: l.label, amount: l.amount, baseAmount: l.baseAmount ?? null, order: l.order ?? (i * 10), meta: l.meta ?? null } });
       }
       await tx.payslipCostAllocation.deleteMany({ where: { payslipId: ps.id, ...(scopedCompanyId ? { companyId: scopedCompanyId } : {}) } });
       const allocs = e.costAllocations?.map(a => ({ costCenterId: a.costCenterId, percent: toNumber(a.percent) })) || [];

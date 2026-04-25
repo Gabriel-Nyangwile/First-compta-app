@@ -3,7 +3,22 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import { NextResponse } from 'next/server';
 import { fetchInvoiceById } from '@/lib/serverActions/clientAndInvoice';
 import { requireCompanyId } from '@/lib/tenant';
-import { embedLogo, formatDateFR, drawLinesTable, drawRecapBreakdown, drawPageHeader, drawFooter, drawCompanyIdentity, drawDraftWatermark, loadPrimaryFont, computeVatBreakdown } from '@/lib/pdf/utils';
+import {
+  cleanPdfText,
+  computeVatBreakdown,
+  drawBox,
+  drawCompanyIdentity,
+  drawDraftWatermark,
+  drawFooter,
+  drawLinesTable,
+  drawPageHeader,
+  drawRecapBreakdown,
+  drawSectionTitle,
+  embedLogo,
+  formatDateFR,
+  loadPrimaryFont,
+  truncateToWidth,
+} from '@/lib/pdf/utils';
 import prisma from '@/lib/prisma';
 
 export async function GET(req, { params }) {
@@ -41,24 +56,24 @@ export async function GET(req, { params }) {
   };
   drawCompanyIdentity(page, { font, company });
 
-  // Titre principal
-  page.drawText('FACTURE', { x: 250, y: 800, size: 28, font, color: rgb(0.1, 0.1, 0.7) });
+  page.drawText('FACTURE', { x: 210, y: 800, size: 24, font, color: rgb(0.1, 0.1, 0.7) });
 
   const fDate = formatDateFR;
 
-  // Infos facture
-  page.drawText(`Numéro : ${invoice.invoiceNumber}`, { x: 40, y: 760, size: 14, font });
-  page.drawText(`Date d'émission : ${fDate(invoice.issueDate)}`, { x: 40, y: 740, size: 12, font });
-  page.drawText(`Date d'échéance : ${fDate(invoice.dueDate)}`, { x: 40, y: 725, size: 12, font });
+  drawSectionTitle(page, 'Informations facture', { x: 40, y: 760, w: 260, font });
+  drawBox(page, { x: 40, y: 686, w: 260, h: 60 });
+  page.drawText(`Numéro : ${cleanPdfText(invoice.invoiceNumber)}`, { x: 52, y: 730, size: 10, font });
+  page.drawText(`Date d'émission : ${fDate(invoice.issueDate)}`, { x: 52, y: 714, size: 10, font });
+  page.drawText(`Date d'échéance : ${fDate(invoice.dueDate)}`, { x: 52, y: 698, size: 10, font });
 
-  // Infos client
-  page.drawText('Client :', { x: 40, y: 700, size: 14, font, color: rgb(0.1, 0.1, 0.7) });
-  page.drawText(`Nom : ${client.name}`, { x: 60, y: 685, size: 12, font });
-  page.drawText(`Email : ${client.email}`, { x: 60, y: 670, size: 12, font });
+  drawSectionTitle(page, 'Client', { x: 40, y: 670, w: 515, font });
+  drawBox(page, { x: 40, y: 604, w: 515, h: 52 });
+  page.drawText(`Nom : ${truncateToWidth(font, client.name, 10, 220)}`, { x: 52, y: 640, size: 10, font });
+  page.drawText(`Email : ${truncateToWidth(font, client.email || '-', 10, 220)}`, { x: 52, y: 624, size: 10, font });
+  page.drawText(`Catégorie : ${truncateToWidth(font, client.category || '-', 10, 180)}`, { x: 320, y: 640, size: 10, font });
   if (client.address) {
-    page.drawText(`Adresse : ${client.address}`, { x: 60, y: 655, size: 12, font });
+    page.drawText(`Adresse : ${truncateToWidth(font, client.address, 10, 220)}`, { x: 320, y: 624, size: 10, font });
   }
-  page.drawText(`Catégorie : ${client.category}`, { x: 60, y: 640, size: 12, font });
 
   const rows = lines.map(l => ({
     accountNumber: l.account?.number || '',
@@ -70,7 +85,7 @@ export async function GET(req, { params }) {
     rawUnitPrice: Number(l.unitPrice),
     vatRate: l.vatRate !== undefined ? Number(l.vatRate) : undefined
   }));
-  const tableResult = drawLinesTable(rows, { pdfDoc, page, font, startY: 600, onNewPage: (p, pageIndex) => {
+  const tableResult = drawLinesTable(rows, { pdfDoc, page, font, startY: 580, onNewPage: (p, pageIndex) => {
     drawPageHeader(p, { font, title: 'FACTURE (suite)', subTitle: `#${invoice.invoiceNumber}` });
     drawCompanyIdentity(p, { font, company });
   }});
@@ -83,7 +98,7 @@ export async function GET(req, { params }) {
   })), { defaultRate: Number(invoice.vat || 0) });
   y = drawRecapBreakdown({ page: lastPage, font, startY: y, breakdown });
 
-  y -= 20; lastPage.drawText(`Statut : ${invoice.status}`, { x: 40, y, size: 12, font });
+  y -= 20; lastPage.drawText(`Statut : ${cleanPdfText(invoice.status)}`, { x: 40, y, size: 10, font });
 
   // Footers with page numbers
   const totalPages = pages.length;

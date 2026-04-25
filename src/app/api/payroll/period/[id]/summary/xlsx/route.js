@@ -19,6 +19,9 @@ export async function GET(req, { params }) {
     ['Période', summary.period.ref],
     ['Statut', summary.period.status],
     ['Statut règlement', summary.period.settlementStatus],
+    ['Devise de traitement', summary.period.processingCurrency || ''],
+    ['Devise fiscale', summary.period.fiscalCurrency || ''],
+    ['Taux fiscal', summary.period.fxRate ?? ''],
     ['Brut Total', t.grossTotal],
     ['Net Total', t.netTotal],
     ['Réglé Total', t.settledTotal],
@@ -47,9 +50,18 @@ export async function GET(req, { params }) {
     { header:'Reste', key:'remaining', width:12 },
     { header:'Statut', key:'settlementStatus', width:20 },
     { header:'Flux prêt', key:'paymentFlowReady', width:12 },
+    { header:'Devise traitement', key:'processingCurrency', width:18 },
+    { header:'Devise fiscale', key:'fiscalCurrency', width:16 },
+    { header:'Taux fiscal', key:'fxRate', width:14 },
   ];
   for (const item of summary.liabilities) {
-    liabilities.addRow({ ...item, paymentFlowReady: item.paymentFlowReady ? 'oui' : 'non' });
+    liabilities.addRow({
+      ...item,
+      paymentFlowReady: item.paymentFlowReady ? 'oui' : 'non',
+      processingCurrency: summary.period.processingCurrency || '',
+      fiscalCurrency: summary.period.fiscalCurrency || '',
+      fxRate: summary.period.fxRate ?? '',
+    });
   }
   const ws = wb.addWorksheet('Employés');
   ws.columns = [
@@ -69,8 +81,17 @@ export async function GET(req, { params }) {
     { header:'Charges Emp', key:'employerCharges', width:14 },
     { header:'HS', key:'overtime', width:8 },
     { header:'Lignes', key:'linesCount', width:8 },
+    { header:'Devise traitement', key:'processingCurrency', width:18 },
+    { header:'Devise fiscale', key:'fiscalCurrency', width:16 },
+    { header:'Taux fiscal', key:'fxRate', width:14 },
   ];
-  for (const e of summary.employees) ws.addRow({ ...e, isSettled: e.isSettled ? 'oui' : 'non' });
+  for (const e of summary.employees) ws.addRow({
+    ...e,
+    isSettled: e.isSettled ? 'oui' : 'non',
+    processingCurrency: summary.period.processingCurrency || '',
+    fiscalCurrency: summary.period.fiscalCurrency || '',
+    fxRate: summary.period.fxRate ?? '',
+  });
   const buf = await wb.xlsx.writeBuffer();
   return new Response(buf, { status:200, headers:{ 'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="period_summary_${summary.period.ref}.xlsx"` } });
 }

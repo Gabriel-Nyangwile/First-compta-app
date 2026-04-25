@@ -32,13 +32,14 @@ const formatAmount = (value) => {
 };
 
 export default async function JournalEntryDetail({ params }) {
+  const { id } = await params;
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) {
     return <div className="px-6 py-10">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
   }
   const entry = await prisma.journalEntry.findFirst({
-    where: { id: params.id, companyId },
+    where: { id, companyId },
     include: {
       preparedByUser: { select: { id: true, username: true, email: true } },
       validatedByUser: { select: { id: true, username: true, email: true } },

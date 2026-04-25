@@ -1,13 +1,11 @@
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
-import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
-  const currencyContext = await getPayrollCurrencyContext(companyId);
   const url = new URL(req.url);
   const from = Number(url.searchParams.get('from')) || new Date().getFullYear();
   const to = Number(url.searchParams.get('to')) || from;
@@ -17,16 +15,36 @@ export async function GET(req) {
   const start = Math.max(minYear, Math.min(maxYear, from));
   const end = Math.max(start, Math.min(maxYear, to));
   const years = [];
+  const processingCurrencies = new Set();
+  const fiscalCurrencies = new Set();
+  const missingFxPeriods = [];
   for (let y=start; y<=end; y++) {
     const annual = await aggregateAnnualPayroll(y, companyId);
+    annual.currencySummary.processingCurrencies.forEach((currency) => processingCurrencies.add(currency));
+    annual.currencySummary.fiscalCurrencies.forEach((currency) => fiscalCurrencies.add(currency));
+    annual.currencySummary.missingFxMonths.forEach((month) => missingFxPeriods.push({ year: y, ...month }));
     const totals = annual.months.reduce((acc,m)=>{ acc.gross+=m.grossTotal; acc.net+=m.netTotal; acc.cnssSal+=m.cnssEmployeeTotal; acc.ipr+=m.iprTaxTotal; acc.cnssEmp+=m.cnssEmployerTotal; acc.onem+=m.onemTotal; acc.inpp+=m.inppTotal; acc.charges+=m.employerChargesTotal; acc.ot+=m.overtimeTotal; acc.corrGross+=m.grossNegative; acc.corrNet+=m.netNegative; return acc; }, { gross:0, net:0, cnssSal:0, ipr:0, cnssEmp:0, onem:0, inpp:0, charges:0, ot:0, corrGross:0, corrNet:0 });
     totals.corrRatioGross = totals.gross!==0 ? (totals.corrGross / Math.abs(totals.gross)) : 0;
     totals.corrRatioNet = totals.net!==0 ? (totals.corrNet / Math.abs(totals.net)) : 0;
-    years.push({ year:y, totals });
+    years.push({ year:y, totals, currencySummary: annual.currencySummary });
   }
+  const currencyContext = {
+    processingCurrency: processingCurrencies.size === 1 ? [...processingCurrencies][0] : ([...processingCurrencies][0] || 'XOF'),
+    fiscalCurrency: fiscalCurrencies.size === 1 ? [...fiscalCurrencies][0] : ([...fiscalCurrencies][0] || 'CDF'),
+    processingCurrencies: [...processingCurrencies],
+    fiscalCurrencies: [...fiscalCurrencies],
+    mixedProcessingCurrencies: processingCurrencies.size > 1,
+    mixedFiscalCurrencies: fiscalCurrencies.size > 1,
+    missingFxPeriods,
+  };
   if (url.searchParams.get('format') === 'csv') {
-    const headers = ['year','gross','net','corrGross','corrNet','corrRatioGross','corrRatioNet','cnssSal','cnssEmp','ipr','onem','inpp','charges','ot'];
-    const rows = years.map(y => headers.map(h => y.totals[h] ?? y[h] ?? ''));
+    const headers = ['year','processingCurrencies','fiscalCurrencies','mixedProcessingCurrencies','gross','net','corrGross','corrNet','corrRatioGross','corrRatioNet','cnssSal','cnssEmp','ipr','onem','inpp','charges','ot'];
+    const rows = years.map(y => headers.map(h => {
+      if (h === 'processingCurrencies') return y.currencySummary.processingCurrencies.join('|');
+      if (h === 'fiscalCurrencies') return y.currencySummary.fiscalCurrencies.join('|');
+      if (h === 'mixedProcessingCurrencies') return y.currencySummary.mixedProcessingCurrencies ? 'yes' : 'no';
+      return y.totals[h] ?? y[h] ?? '';
+    }));
     const csv = [headers.join(','), ...rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')].join('\n');
     return new Response(csv, { status:200, headers:{ 'Content-Type':'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="payroll_trend_${start}_${end}.csv"` } });
   }

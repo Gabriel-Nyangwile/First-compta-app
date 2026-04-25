@@ -1,8 +1,15 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import { formatAmountPlain } from '@/lib/utils';
-import { formatDateFR, loadPrimaryFont, drawFooter, drawPageHeader } from '@/lib/pdf/utils';
-
-const pageSize = [595.28, 841.89]; // A4
+import {
+  A4,
+  drawBox,
+  drawFooter,
+  drawPageHeader,
+  drawRightText,
+  formatDateFR,
+  loadPrimaryFont,
+  truncateToWidth,
+} from '@/lib/pdf/utils';
 
 function toNumber(value) {
   if (value?.toNumber) return value.toNumber();
@@ -13,12 +20,12 @@ function toNumber(value) {
 export async function generateJournalPdf({ entries = [] }) {
   const pdfDoc = await PDFDocument.create();
   const font = await loadPrimaryFont(pdfDoc);
-  let page = pdfDoc.addPage(pageSize);
+  let page = pdfDoc.addPage(A4);
   const pages = [page];
   let y = 810;
 
   const newPage = (title) => {
-    page = pdfDoc.addPage(pageSize);
+    page = pdfDoc.addPage(A4);
     pages.push(page);
     y = 810;
     drawPageHeader(page, { font, title });
@@ -28,31 +35,30 @@ export async function generateJournalPdf({ entries = [] }) {
 
   for (const entry of entries) {
     if (y < 140) newPage('Journal des ecritures');
-    page.drawText(`Ecriture ${entry.number || entry.id || ''}`, { x: 40, y, size: 11, font, color: rgb(0.15, 0.15, 0.4) });
-    y -= 14;
+    drawBox(page, { x: 40, y: y - 36, w: 515, h: 50, fill: rgb(0.985, 0.99, 1), border: rgb(0.78, 0.84, 0.92) });
+    page.drawText(`Écriture ${entry.number || entry.id || ''}`, { x: 52, y, size: 11, font, color: rgb(0.15, 0.15, 0.4) });
     if (entry.date) {
-      page.drawText(`Date: ${formatDateFR(entry.date)}`, { x: 40, y, size: 9, font });
-      y -= 12;
+      page.drawText(`Date: ${formatDateFR(entry.date)}`, { x: 52, y: y - 15, size: 9, font });
     }
     if (entry.label) {
-      page.drawText(`Libelle: ${entry.label}`, { x: 40, y, size: 9, font });
-      y -= 12;
+      page.drawText(`Libellé: ${truncateToWidth(font, entry.label, 9, 360)}`, { x: 165, y: y - 15, size: 9, font });
     }
+    y -= 58;
 
-    page.drawText('Compte', { x: 40, y, size: 9, font });
-    page.drawText('Debit', { x: 280, y, size: 9, font });
-    page.drawText('Credit', { x: 360, y, size: 9, font });
-    page.drawText('Ref', { x: 440, y, size: 9, font });
-    y -= 12;
+    drawBox(page, { x: 40, y: y - 5, w: 515, h: 20, fill: rgb(0.94, 0.97, 1), border: rgb(0.75, 0.82, 0.9) });
+    page.drawText('Compte', { x: 46, y, size: 9, font });
+    page.drawText('Référence', { x: 280, y, size: 9, font });
+    drawRightText(page, 'Débit', { xRight: 430, y, size: 9, font });
+    drawRightText(page, 'Crédit', { xRight: 545, y, size: 9, font });
+    y -= 22;
 
     for (const line of entry.lines || []) {
       if (y < 80) newPage('Journal des ecritures');
-      page.drawText(line.account?.number ? `${line.account.number} ${line.account.label || ''}` : '-', { x: 40, y, size: 9, font });
+      drawBox(page, { x: 40, y: y - 4, w: 515, h: 16, border: rgb(0.92, 0.94, 0.96) });
+      page.drawText(truncateToWidth(font, line.account?.number ? `${line.account.number} ${line.account.label || ''}` : '-', 8, 220), { x: 46, y, size: 8, font });
 
       const debit = toNumber(line.debit);
       const credit = toNumber(line.credit);
-      if (debit) page.drawText(formatAmountPlain(debit), { x: 280, y, size: 9, font });
-      if (credit) page.drawText(formatAmountPlain(credit), { x: 360, y, size: 9, font });
 
       const ref =
         line.invoice?.invoiceNumber ||
@@ -60,10 +66,12 @@ export async function generateJournalPdf({ entries = [] }) {
         line.moneyMovement?.voucherRef ||
         line.client?.name ||
         line.supplier?.name;
-      if (ref) page.drawText(String(ref).slice(0, 28), { x: 440, y, size: 8, font });
-      y -= 12;
+      if (ref) page.drawText(truncateToWidth(font, ref, 8, 130), { x: 280, y, size: 8, font });
+      if (debit) drawRightText(page, formatAmountPlain(debit), { xRight: 430, y, size: 8, font });
+      if (credit) drawRightText(page, formatAmountPlain(credit), { xRight: 545, y, size: 8, font });
+      y -= 16;
     }
-    y -= 10;
+    y -= 12;
   }
 
   const totalPages = pages.length;

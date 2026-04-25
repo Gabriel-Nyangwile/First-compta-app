@@ -35,7 +35,27 @@ export async function aggregateAnnualPayroll(year, companyId = null) {
     const netBaseForRatio = netTotal < 0 ? (netTotal * -1 + netTotal) : netTotal;
     const correctionRatioGross = grossTotal !== 0 ? (grossNegative / Math.abs(grossTotal)) : 0;
     const correctionRatioNet = netTotal !== 0 ? (netNegative / Math.abs(netTotal)) : 0;
-    months.push({ month: m, hasPeriod: !!p, periodRef: p?.ref || null, grossTotal, netTotal, cnssEmployeeTotal, iprTaxTotal, cnssEmployerTotal, onemTotal, inppTotal, employerChargesTotal, overtimeTotal, grossNegative, netNegative, correctionRatioGross, correctionRatioNet });
+    months.push({
+      month: m,
+      hasPeriod: !!p,
+      periodRef: p?.ref || null,
+      processingCurrency: p?.processingCurrency || null,
+      fiscalCurrency: p?.fiscalCurrency || null,
+      fxRate: p?.fxRate?.toNumber?.() ?? p?.fxRate ?? null,
+      grossTotal,
+      netTotal,
+      cnssEmployeeTotal,
+      iprTaxTotal,
+      cnssEmployerTotal,
+      onemTotal,
+      inppTotal,
+      employerChargesTotal,
+      overtimeTotal,
+      grossNegative,
+      netNegative,
+      correctionRatioGross,
+      correctionRatioNet
+    });
   }
   // Year-to-date cumulative (monotonic: ignore negative corrections for gross/net)
   let ytdGross=0,ytdNet=0,ytdCnssEmp=0,ytdIpr=0,ytdCnssEr=0,ytdOnem=0,ytdInpp=0,ytdEmployerCharges=0,ytdOvertime=0,ytdCorrectionsGross=0,ytdCorrectionsNet=0;
@@ -57,5 +77,23 @@ export async function aggregateAnnualPayroll(year, companyId = null) {
     const ytdCorrectionRatioNet = ytdCorrectionsNet !==0 && ytdNet !==0 ? (ytdCorrectionsNet / ytdNet) : 0;
     return { ...row, ytdGross, ytdNet, ytdCorrectionsGross, ytdCorrectionsNet, ytdCorrectionRatioGross, ytdCorrectionRatioNet, ytdCnssEmp, ytdIpr, ytdCnssEr, ytdOnem, ytdInpp, ytdEmployerCharges, ytdOvertime };
   });
-  return { year, months: monthsYtd };
+  const usedMonths = monthsYtd.filter((month) => month.hasPeriod);
+  const processingCurrencies = [...new Set(usedMonths.map((month) => month.processingCurrency).filter(Boolean))];
+  const fiscalCurrencies = [...new Set(usedMonths.map((month) => month.fiscalCurrency).filter(Boolean))];
+  const missingFxMonths = usedMonths
+    .filter((month) => month.processingCurrency !== month.fiscalCurrency && !month.fxRate)
+    .map((month) => ({ month: month.month, periodRef: month.periodRef }));
+  return {
+    year,
+    months: monthsYtd,
+    currencySummary: {
+      processingCurrency: processingCurrencies.length === 1 ? processingCurrencies[0] : null,
+      fiscalCurrency: fiscalCurrencies.length === 1 ? fiscalCurrencies[0] : null,
+      processingCurrencies,
+      fiscalCurrencies,
+      mixedProcessingCurrencies: processingCurrencies.length > 1,
+      mixedFiscalCurrencies: fiscalCurrencies.length > 1,
+      missingFxMonths,
+    },
+  };
 }

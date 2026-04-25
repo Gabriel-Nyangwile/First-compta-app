@@ -151,6 +151,9 @@ export async function aggregatePeriodSummary(periodId, companyId = null) {
       id: period.id,
       ref: period.ref,
       status: period.status,
+      processingCurrency: period.processingCurrency,
+      fiscalCurrency: period.fiscalCurrency,
+      fxRate: period.fxRate?.toNumber?.() ?? period.fxRate ?? null,
       settlementStatus: deriveSettlementStatus(netTotal, settledTotal),
     },
     totals: {

@@ -2,8 +2,8 @@ import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 import { getPayrollCurrencyContext } from '@/lib/payroll/context';
-import { toNumber, roundEur } from '@/lib/payroll/currency';
-import { computeCnssQpoFromGrossEur, computeIprBaseFromGrossEur, computeIprTaxFromGrossEur, computeAllocFamEur } from '@/lib/payroll/calc-utils';
+import { roundCurrency, toNumber } from '@/lib/payroll/currency';
+import { computeAllocFam, computeCnssQpoFromGross, computeIprBaseFromGross, computeIprTaxFromGross } from '@/lib/payroll/calc-utils';
 import { notFound } from 'next/navigation';
 import RecalcButton from '../RecalcButton.jsx';
 import ExportPayslipJson from '../ExportPayslipJson.jsx';
@@ -23,9 +23,6 @@ export default async function PayslipDetailPage({ params }) {
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
-  const currencyContext = await getPayrollCurrencyContext(companyId);
-  const formatProcessingAmount = (value) => formatAmount(value, currencyContext.processingCurrency);
-  const formatFiscalAmount = (value) => formatAmount(value, currencyContext.fiscalCurrency);
   const psRaw = await prisma.payslip.findUnique({
     where: { id, companyId },
     include: { employee: true, lines: true, period: true }
@@ -33,6 +30,14 @@ export default async function PayslipDetailPage({ params }) {
   if (!psRaw) return notFound();
   // Sanitize all Decimal/Date fields to primitives before any potential client boundary.
   const ps = sanitizePlain(psRaw);
+  const companyCurrencyContext = await getPayrollCurrencyContext(companyId);
+  const currencyContext = {
+    processingCurrency: ps.processingCurrency || ps.period?.processingCurrency || companyCurrencyContext.processingCurrency,
+    fiscalCurrency: ps.fiscalCurrency || ps.period?.fiscalCurrency || companyCurrencyContext.fiscalCurrency,
+    fxRate: ps.fxRate ?? ps.period?.fxRate ?? null,
+  };
+  const formatProcessingAmount = (value) => formatAmount(value, currencyContext.processingCurrency);
+  const formatFiscalAmount = (value) => formatAmount(value, currencyContext.fiscalCurrency);
   // Derive breakdown aggregates from stored lines (post-generation) mirroring preview enrichments.
   const lines = ps.lines || [];
   const findLine = code => lines.find(l => l.code === code);
@@ -46,21 +51,21 @@ export default async function PayslipDetailPage({ params }) {
   const iprTax = Math.abs(iprLine?.amount ?? 0);
   const riBase = iprLine?.baseAmount ?? null;
   const riCDF = iprLine?.meta?.riCDF ?? null;
-  const fxRate = iprLine?.meta?.fxRate ?? null;
+  const fxRate = currencyContext.fxRate ?? iprLine?.meta?.fxRate ?? null;
   const cnssEmployer = Math.abs(cnssErLine?.amount ?? 0);
   const onem = Math.abs(onemLine?.amount ?? 0);
   const inpp = Math.abs(inppLine?.amount ?? 0);
   const overtime = overtimeLine?.amount ?? 0;
   const employerCharges = cnssEmployer + onem + inpp;
   const employeeDeductions = cnssEmployee + iprTax + lines.filter(l => l.kind === 'RETENUE').reduce((s,l)=> s + Math.abs(l.amount??0),0);
-  const grossEur = toNumber(ps.grossAmount);
-  const cnssEur = computeCnssQpoFromGrossEur(grossEur);
-  const iprBaseEur = computeIprBaseFromGrossEur(grossEur, cnssEur);
-  const iprEur = computeIprTaxFromGrossEur(grossEur, { cnssQpoEur: cnssEur });
+  const grossAmount = toNumber(ps.grossAmount);
+  const cnssAmount = computeCnssQpoFromGross(grossAmount, { processingCurrency: currencyContext.processingCurrency, fxRate });
+  const iprBaseAmount = computeIprBaseFromGross(grossAmount, cnssAmount, { processingCurrency: currencyContext.processingCurrency, fxRate });
+  const iprAmount = computeIprTaxFromGross(grossAmount, { processingCurrency: currencyContext.processingCurrency, cnssQpoAmount: cnssAmount, fxRate });
   const children = ps.employee?.childrenUnder18 ?? 0;
-  const allocFamEur = computeAllocFamEur(children);
-  const netEstEur = roundEur(grossEur - cnssEur - iprEur);
-  const netPlusAllocEur = roundEur(netEstEur + allocFamEur);
+  const allocFamAmount = computeAllocFam(children, { processingCurrency: currencyContext.processingCurrency, fxRate });
+  const netEstAmount = roundCurrency(grossAmount - cnssAmount - iprAmount, currencyContext.processingCurrency);
+  const netPlusAllocAmount = roundCurrency(netEstAmount + allocFamAmount, currencyContext.processingCurrency);
   // Déterminer si un règlement PAYSET existe pour l'employé dans cette période
   const settlements = ps.period?.id ? await listPayrollSettlements(ps.period.id, companyId, { liabilityCode: 'NET_PAY' }) : [];
   const hasGlobalSettlement = settlements.some((settlement) => !settlement.employeeId);
@@ -103,8 +108,8 @@ export default async function PayslipDetailPage({ params }) {
           <div className="font-medium mb-1">Montants clés</div>
           <div>Brut: {formatProcessingAmount(ps.grossAmount)}</div>
           <div>Net stocké: {formatProcessingAmount(ps.netAmount)}</div>
-          <div>Net estimé ({currencyContext.processingCurrency}): {formatProcessingAmount(netEstEur)}</div>
-          <div>Net + alloc. ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocEur)}</div>
+          <div>Net estimé ({currencyContext.processingCurrency}): {formatProcessingAmount(netEstAmount)}</div>
+          <div>Net + alloc. ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocAmount)}</div>
         </div>
         <div>
           <div className="font-medium mb-1">Cotisations / impôt</div>
@@ -126,12 +131,12 @@ export default async function PayslipDetailPage({ params }) {
       </div>
       <div className="border rounded p-3 bg-gray-50 text-sm">
         <div className="font-medium mb-2">Calcul (brouillon)</div>
-        <div>CNSS QPO ({currencyContext.processingCurrency}): {formatProcessingAmount(cnssEur)}</div>
-        <div>Base IPR ({currencyContext.processingCurrency}): {formatProcessingAmount(iprBaseEur)}</div>
-        <div>IPR ({currencyContext.processingCurrency}): {formatProcessingAmount(iprEur)}</div>
-        <div>Allocations familiales ({currencyContext.processingCurrency}) enfants={children}: {formatProcessingAmount(allocFamEur)}</div>
-        <div className="mt-2">Net estimé ({currencyContext.processingCurrency}, sans allocations): {formatProcessingAmount(netEstEur)}</div>
-        <div>Net + allocations ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocEur)}</div>
+        <div>CNSS QPO ({currencyContext.processingCurrency}): {formatProcessingAmount(cnssAmount)}</div>
+        <div>Base IPR ({currencyContext.processingCurrency}): {formatProcessingAmount(iprBaseAmount)}</div>
+        <div>IPR ({currencyContext.processingCurrency}): {formatProcessingAmount(iprAmount)}</div>
+        <div>Allocations familiales ({currencyContext.processingCurrency}) enfants={children}: {formatProcessingAmount(allocFamAmount)}</div>
+        <div className="mt-2">Net estimé ({currencyContext.processingCurrency}, sans allocations): {formatProcessingAmount(netEstAmount)}</div>
+        <div>Net + allocations ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocAmount)}</div>
       </div>
       <div className="text-sm">Statut: {ps.locked ? 'LOCKED' : 'EDITABLE'}</div>
       <a className="inline-block text-blue-600 underline" href={`/api/payroll/payslips/${ps.id}/pdf`}>Télécharger PDF</a>

@@ -185,7 +185,7 @@ Montant appelé :
 
 | Étape | Action utilisateur | Écriture générée | Résultat |
 | --- | --- | --- | --- |
-| 5A | Appeler `1 500` sur la souscription de Jean | Dr `461200` `1 500` ; Cr `109000` `1 500` ; Dr `101100` `1 500` ; Cr `101200` `1 500` | `1 500` deviennent exigibles sur Jean |
+| 5A | Appeler `1 500` sur la souscription de Jean | Dr `101100` `1 500` ; Cr `109000` `1 500` ; Dr `461200` `1 500` ; Cr `101200` `1 500` | `1 500` deviennent exigibles sur Jean |
 
 ### Exemple 2 - Appel du solde restant
 
@@ -200,7 +200,7 @@ Total :
 
 | Étape | Action utilisateur | Écriture générée | Résultat |
 | --- | --- | --- | --- |
-| 5B | Appeler le solde de `3 500` | Dr `461200` `3 500` ; Cr `109000` `3 500` ; Dr `101100` `3 500` ; Cr `101200` `3 500` | la totalité du capital souscrit devient appelée |
+| 5B | Appeler le solde de `3 500` | Dr `101100` `3 500` ; Cr `109000` `3 500` ; Dr `461200` `3 500` ; Cr `101200` `3 500` | la totalité du capital souscrit devient appelée |
 
 ### Situation après appel total de `5 000`
 
@@ -319,7 +319,7 @@ Hypothèse :
 | 1 | Création de l'opération | aucune | dossier capital ouvert |
 | 2 | Création des 2 associés | aucune | associés disponibles |
 | 3 | Souscriptions `3 000` + `2 000` | Dr `109000` `5 000` ; Cr `101100` `5 000` | capital promis enregistré |
-| 4 | Appel total `5 000` | Dr `461200` `5 000` ; Cr `109000` `5 000` ; Dr `101100` `5 000` ; Cr `101200` `5 000` | capital exigible constaté |
+| 4 | Appel total `5 000` | Dr `101100` `5 000` ; Cr `109000` `5 000` ; Dr `461200` `5 000` ; Cr `101200` `5 000` | capital exigible constaté |
 | 5 | Encaissement total `5 000` | Dr `52xxxx/57xxxx` `5 000` ; Cr `461200` `5 000` | créance éteinte, trésorerie augmentée |
 | 6 | Régularisation finale `5 000` | Dr `101200` `5 000` ; Cr `101300` `5 000` | reclassement final effectué |
 
@@ -355,12 +355,12 @@ Hypothèse :
 
 | Élément | Fichier |
 | --- | --- |
-| Logique de posting capital | [src/lib/capitalPosting.js](</c:/Users/Tonton G/reactproject/first-compta/src/lib/capitalPosting.js>) |
-| Création des associés | [src/app/api/shareholders/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/shareholders/route.js>) |
-| Mise à jour des associés | [src/app/api/shareholders/[id]/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/shareholders/[id]/route.js>) |
-| Création opération capital | [src/app/api/capital-operations/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/capital-operations/route.js>) |
-| Mise à jour et régularisation | [src/app/api/capital-operations/[id]/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/capital-operations/[id]/route.js>) |
-| Création souscription | [src/app/api/capital-operations/[id]/subscriptions/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/capital-operations/[id]/subscriptions/route.js>) |
-| Mise à jour souscription | [src/app/api/capital-subscriptions/[id]/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/capital-subscriptions/[id]/route.js>) |
-| Appel de fonds | [src/app/api/capital-calls/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/capital-calls/route.js>) |
-| Paiement appel de fonds | [src/app/api/capital-calls/[id]/payments/route.js](</c:/Users/Tonton G/reactproject/first-compta/src/app/api/capital-calls/[id]/payments/route.js>) |
+| Logique de posting capital | [src/lib/capitalPosting.js](../src/lib/capitalPosting.js) |
+| Création des associés | [src/app/api/shareholders/route.js](../src/app/api/shareholders/route.js) |
+| Mise à jour des associés | [src/app/api/shareholders/[id]/route.js](../src/app/api/shareholders/[id]/route.js) |
+| Création opération capital | [src/app/api/capital-operations/route.js](../src/app/api/capital-operations/route.js) |
+| Mise à jour et régularisation | [src/app/api/capital-operations/[id]/route.js](../src/app/api/capital-operations/[id]/route.js) |
+| Création souscription | [src/app/api/capital-operations/[id]/subscriptions/route.js](../src/app/api/capital-operations/[id]/subscriptions/route.js) |
+| Mise à jour souscription | [src/app/api/capital-subscriptions/[id]/route.js](../src/app/api/capital-subscriptions/[id]/route.js) |
+| Appel de fonds | [src/app/api/capital-calls/route.js](../src/app/api/capital-calls/route.js) |
+| Paiement appel de fonds | [src/app/api/capital-calls/[id]/payments/route.js](../src/app/api/capital-calls/[id]/payments/route.js) |

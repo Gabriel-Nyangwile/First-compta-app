@@ -4,6 +4,8 @@
 
 Ce document sert de support de pilotage opérationnel pour exécuter les priorités du projet sprint par sprint.
 
+Pour le suivi concret de finalisation à partir de l'état actuel du projet, utiliser aussi la roadmap opérationnelle : [Roadmap de finalisation du projet](./project-finalization-roadmap.md).
+
 ### Priorités structurantes
 
 1. Multi-société de bout en bout

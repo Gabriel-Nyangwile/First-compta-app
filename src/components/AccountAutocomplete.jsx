@@ -9,6 +9,7 @@ export default function AccountAutocomplete({
   onChange,
   maxLength = 20,
   filterPrefix,
+  placeholder = "Numéro de compte",
 }) {
   const safeValue = value && typeof value === "object" ? value : null;
   const [input, setInput] = useState(safeValue?.number || "");
@@ -187,7 +188,7 @@ export default function AccountAutocomplete({
         maxLength={maxLength}
         autoComplete="off"
         className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-        placeholder="Numéro de compte"
+        placeholder={placeholder}
       />
       {isLoading && (
         <div className="absolute left-0 top-full bg-white border px-2 py-1 text-xs">
@@ -195,15 +196,17 @@ export default function AccountAutocomplete({
         </div>
       )}
       {listToDisplay.length > 0 && (
-        <ul className="absolute left-0 right-0 bg-white border border-gray-200 z-10 max-h-40 overflow-auto mt-1 rounded shadow">
+        <ul className="absolute left-0 right-0 min-w-full bg-white border border-gray-200 z-10 max-h-56 overflow-auto mt-1 rounded shadow">
           {listToDisplay.map((acc) => (
             <li
               key={acc.id}
               className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
               onClick={() => handleSelect(acc.number)}
             >
-              <span className="font-mono text-blue-700">{acc.number}</span>{" "}
-              <span className="text-gray-600">{acc.label}</span>
+              <div className="flex flex-col gap-0.5 whitespace-normal break-words leading-tight">
+                <span className="font-mono text-blue-700">{acc.number}</span>
+                <span className="text-gray-600 text-xs">{acc.label}</span>
+              </div>
             </li>
           ))}
         </ul>

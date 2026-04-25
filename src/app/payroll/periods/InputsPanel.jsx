@@ -4,10 +4,15 @@ import { useEffect, useMemo, useState } from 'react';
 
 function toNumber(x) { return typeof x === 'number' ? x : Number(x ?? 0); }
 
-export default function InputsPanel({ periodId, employees, costCenters, readonly }) {
+export default function InputsPanel({ periodId, employees, costCenters, readonly, currencyContext }) {
   const [attendance, setAttendance] = useState([]);
   const [variables, setVariables] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currencyState, setCurrencyState] = useState({
+    processingCurrency: currencyContext?.processingCurrency || 'XOF',
+    fiscalCurrency: currencyContext?.fiscalCurrency || 'CDF',
+    fxRate: currencyContext?.fxRate ?? '',
+  });
   const [formA, setFormA] = useState({ employeeId: '', daysWorked: '', workingDays: '30', overtimeHours: '', notes: '' });
   const [formV, setFormV] = useState({ employeeId: '', kind: 'BONUS', label: '', amount: '', costCenterId: '' });
   const empMap = useMemo(() => Object.fromEntries(employees.map(e => [e.id, e])), [employees]);
@@ -27,6 +32,13 @@ export default function InputsPanel({ periodId, employees, costCenters, readonly
   }
 
   useEffect(() => { refreshAll(); }, [periodId]);
+  useEffect(() => {
+    setCurrencyState({
+      processingCurrency: currencyContext?.processingCurrency || 'XOF',
+      fiscalCurrency: currencyContext?.fiscalCurrency || 'CDF',
+      fxRate: currencyContext?.fxRate ?? '',
+    });
+  }, [currencyContext?.processingCurrency, currencyContext?.fiscalCurrency, currencyContext?.fxRate]);
 
   async function saveAttendance(e) {
     e.preventDefault();
@@ -65,7 +77,32 @@ export default function InputsPanel({ periodId, employees, costCenters, readonly
   async function recalcAll() {
     if (readonly) return;
     const res = await fetch(`/api/payroll/period/${periodId}/generate`, { method: 'POST' });
-    if (res.ok) alert('Recalcul terminé');
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      alert('Recalcul terminé');
+    } else {
+      alert(data?.error || 'Recalcul impossible');
+    }
+  }
+
+  async function saveCurrency(e) {
+    e.preventDefault();
+    if (readonly) return;
+    const res = await fetch(`/api/payroll/period/${periodId}/currency`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fxRate: Number(currencyState.fxRate) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data?.error || 'Enregistrement du taux impossible');
+      return;
+    }
+    setCurrencyState((current) => ({
+      ...current,
+      fxRate: data?.period?.fxRate ?? current.fxRate,
+    }));
+    alert('Taux fiscal enregistré');
   }
 
   return (
@@ -75,6 +112,42 @@ export default function InputsPanel({ periodId, employees, costCenters, readonly
         <button disabled={readonly || loading} onClick={recalcAll} className="px-3 py-1 border rounded bg-blue-600 text-white">Recalculer tous les bulletins</button>
         {readonly && <span className="text-gray-500">Lecture seule (période non-OPEN)</span>}
       </div>
+
+      <section className="space-y-2 rounded border border-blue-100 bg-blue-50 p-3">
+        <h2 className="font-medium">Taux fiscal de la période</h2>
+        <p className="text-xs text-gray-600">
+          Le taux est utilisé pour convertir la devise de traitement ({currencyState.processingCurrency}) vers la devise fiscale ({currencyState.fiscalCurrency}) avant calcul IPR/CNSS/ONEM/INPP.
+        </p>
+        <form onSubmit={saveCurrency} className="flex flex-wrap items-end gap-3 text-sm">
+          <label className="flex flex-col">
+            Devise de traitement
+            <input className="border px-2 py-1 bg-white" value={currencyState.processingCurrency} readOnly />
+          </label>
+          <label className="flex flex-col">
+            Devise fiscale
+            <input className="border px-2 py-1 bg-white" value={currencyState.fiscalCurrency} readOnly />
+          </label>
+          <label className="flex flex-col">
+            Taux de change
+            <input
+              className="border px-2 py-1"
+              type="number"
+              min="0"
+              step="0.000001"
+              value={currencyState.fxRate}
+              onChange={e => setCurrencyState(s => ({ ...s, fxRate: e.target.value }))}
+              disabled={readonly}
+              placeholder="Ex. 2850"
+            />
+          </label>
+          <button className="px-3 py-1 border rounded bg-blue-700 text-white" disabled={readonly}>
+            Enregistrer le taux
+          </button>
+        </form>
+        <p className="text-[11px] text-gray-500">
+          Après modification du taux, cliquez sur “Recalculer tous les bulletins” pour régénérer les montants de paie avec ce taux.
+        </p>
+      </section>
 
       <section className="space-y-2">
         <h2 className="font-medium">Présence (pro-rata de base)</h2>

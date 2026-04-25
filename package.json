@@ -77,6 +77,7 @@
     "audit:payroll:posting": "node --env-file=.env.local scripts/audit-payroll-posting.js",
     "smoke:payroll:audit": "node --env-file=.env.local scripts/smoke-payroll-audit.js",
     "test:capital-flow": "node --env-file=.env.local scripts/test-capital-flow.js",
+    "rebuild:capital": "node --env-file=.env.local scripts/rebuild-capital-postings.js",
     "test:payroll:reverse": "node --env-file=.env.local scripts/test-payroll-reverse.js",
     "opening:templates": "node scripts/generate-opening-templates.js",
     "opening:assets:simulation": "node --env-file=.env.local scripts/generate-opening-assets-simulation.js",

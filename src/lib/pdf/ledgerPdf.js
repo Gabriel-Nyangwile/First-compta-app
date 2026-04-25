@@ -1,8 +1,16 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import { formatAmountPlain } from '@/lib/utils';
-import { formatDateFR, loadPrimaryFont, drawFooter, drawPageHeader } from '@/lib/pdf/utils';
-
-const pageSize = [595.28, 841.89]; // A4
+import {
+  A4,
+  cleanPdfText,
+  drawBox,
+  drawFooter,
+  drawPageHeader,
+  drawRightText,
+  formatDateFR,
+  loadPrimaryFont,
+  truncateToWidth,
+} from '@/lib/pdf/utils';
 
 function toNumber(value) {
   if (value?.toNumber) return value.toNumber();
@@ -13,34 +21,49 @@ function toNumber(value) {
 export async function generateLedgerPdf({ account, transactions = [] }) {
   const pdfDoc = await PDFDocument.create();
   const font = await loadPrimaryFont(pdfDoc);
-  let page = pdfDoc.addPage(pageSize);
+  let page = pdfDoc.addPage(A4);
   const pages = [page];
-  let y = 810;
+  let y = 780;
 
   const headerTitle = account
     ? `Grand livre - ${account.number || ''} ${account.label || ''}`.trim()
     : 'Grand livre';
 
   const newPage = () => {
-    page = pdfDoc.addPage(pageSize);
+    page = pdfDoc.addPage(A4);
     pages.push(page);
-    y = 810;
+    y = 780;
     drawPageHeader(page, { font, title: headerTitle });
+    drawTableHeader();
+  };
+
+  const drawTableHeader = () => {
+    drawBox(page, { x: 40, y: y - 5, w: 515, h: 20, fill: rgb(0.94, 0.97, 1), border: rgb(0.75, 0.82, 0.9) });
+    page.drawText('Date', { x: 46, y, size: 9, font });
+    page.drawText('Pièce', { x: 110, y, size: 9, font });
+    page.drawText('Référence', { x: 210, y, size: 9, font });
+    drawRightText(page, 'Débit', { xRight: 390, y, size: 9, font });
+    drawRightText(page, 'Crédit', { xRight: 470, y, size: 9, font });
+    drawRightText(page, 'Solde', { xRight: 545, y, size: 9, font });
+    y -= 22;
   };
 
   drawPageHeader(page, { font, title: headerTitle });
-
-  page.drawText(`Compte: ${account?.number || '-'} ${account?.label || ''}`, { x: 40, y, size: 11, font, color: rgb(0.15, 0.15, 0.4) });
-  y -= 16;
-  page.drawText('Date', { x: 40, y, size: 9, font });
-  page.drawText('Piece', { x: 120, y, size: 9, font });
-  page.drawText('Debit', { x: 280, y, size: 9, font });
-  page.drawText('Credit', { x: 360, y, size: 9, font });
-  page.drawText('Ref', { x: 440, y, size: 9, font });
-  y -= 12;
+  drawBox(page, { x: 40, y: 744, w: 515, h: 44, fill: rgb(1, 1, 1), border: rgb(0.82, 0.86, 0.9) });
+  page.drawText('Compte', { x: 52, y: 770, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+  page.drawText(truncateToWidth(font, `${account?.number || '-'} ${account?.label || ''}`, 11, 480), {
+    x: 52,
+    y: 754,
+    size: 11,
+    font,
+    color: rgb(0.12, 0.18, 0.42),
+  });
+  y = 720;
+  drawTableHeader();
 
   let totalDebit = 0;
   let totalCredit = 0;
+  let running = 0;
 
   for (const trx of transactions) {
     if (y < 80) newPage();
@@ -48,29 +71,35 @@ export async function generateLedgerPdf({ account, transactions = [] }) {
     const credit = toNumber(trx.credit);
     totalDebit += debit;
     totalCredit += credit;
+    running += debit - credit;
 
-    page.drawText(formatDateFR(trx.date) || '-', { x: 40, y, size: 9, font });
+    drawBox(page, { x: 40, y: y - 4, w: 515, h: 16, border: rgb(0.92, 0.94, 0.96) });
+    page.drawText(formatDateFR(trx.date) || '-', { x: 46, y, size: 8, font });
     const piece = trx.journalEntry?.number || trx.moneyMovement?.voucherRef || '';
-    if (piece) page.drawText(String(piece), { x: 120, y, size: 9, font });
-    if (debit) page.drawText(formatAmountPlain(debit), { x: 280, y, size: 9, font });
-    if (credit) page.drawText(formatAmountPlain(credit), { x: 360, y, size: 9, font });
+    if (piece) page.drawText(truncateToWidth(font, cleanPdfText(piece), 8, 90), { x: 110, y, size: 8, font });
 
     const ref =
       trx.invoice?.invoiceNumber ||
       trx.incomingInvoice?.entryNumber ||
       trx.client?.name ||
       trx.supplier?.name;
-    if (ref) page.drawText(String(ref).slice(0, 28), { x: 440, y, size: 8, font });
-    y -= 12;
+    if (ref) page.drawText(truncateToWidth(font, ref, 8, 140), { x: 210, y, size: 8, font });
+    if (debit) drawRightText(page, formatAmountPlain(debit), { xRight: 390, y, size: 8, font });
+    if (credit) drawRightText(page, formatAmountPlain(credit), { xRight: 470, y, size: 8, font });
+    drawRightText(page, formatAmountPlain(running), { xRight: 545, y, size: 8, font });
+    y -= 16;
   }
 
   if (y < 80) newPage();
-  page.drawText('Totaux', { x: 200, y, size: 10, font, color: rgb(0.15, 0.15, 0.35) });
-  page.drawText(formatAmountPlain(totalDebit), { x: 280, y, size: 10, font });
-  page.drawText(formatAmountPlain(totalCredit), { x: 360, y, size: 10, font });
-  y -= 14;
   const balance = totalDebit - totalCredit;
-  page.drawText(`Solde (${balance >= 0 ? 'Debit' : 'Credit'}): ${formatAmountPlain(Math.abs(balance))}`, { x: 200, y, size: 10, font });
+  drawBox(page, { x: 230, y: y - 36, w: 325, h: 50, fill: rgb(0.98, 0.99, 1), border: rgb(0.75, 0.82, 0.9) });
+  page.drawText('Totaux', { x: 242, y, size: 10, font, color: rgb(0.15, 0.15, 0.35) });
+  drawRightText(page, formatAmountPlain(totalDebit), { xRight: 390, y, size: 10, font });
+  drawRightText(page, formatAmountPlain(totalCredit), { xRight: 470, y, size: 10, font });
+  drawRightText(page, formatAmountPlain(balance), { xRight: 545, y, size: 10, font });
+  y -= 18;
+  page.drawText(`Solde ${balance >= 0 ? 'débiteur' : 'créditeur'}`, { x: 242, y, size: 10, font });
+  drawRightText(page, formatAmountPlain(Math.abs(balance)), { xRight: 545, y, size: 10, font, color: rgb(0.1, 0.18, 0.42) });
 
   const totalPages = pages.length;
   pages.forEach((p, idx) => drawFooter(p, { font, pageNumber: idx + 1, totalPages, legal: 'Grand livre' }));

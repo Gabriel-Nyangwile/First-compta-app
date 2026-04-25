@@ -142,6 +142,89 @@ function NotesSection({ notes }) {
   );
 }
 
+function computeOrderProgress(order) {
+  const lines = order.lines || [];
+  return lines.reduce(
+    (acc, line) => {
+      acc.ordered += Number(line.quantityOrdered || 0);
+      acc.shipped += Number(line.quantityShipped || 0);
+      acc.invoiced += Number(line.quantityInvoiced || 0);
+      return acc;
+    },
+    { ordered: 0, shipped: 0, invoiced: 0 }
+  );
+}
+
+function NextStepPanel({ order }) {
+  const progress = computeOrderProgress(order);
+  const remainingToShip = Math.max(0, progress.ordered - progress.shipped);
+  const remainingToInvoice = Math.max(0, progress.shipped - progress.invoiced);
+
+  let tone = "border-blue-200 bg-blue-50 text-blue-900";
+  let title = "Étape suivante";
+  let message =
+    "Commande créée. Vérifiez le statut et poursuivez le flux métier.";
+
+  if (order.status === "DRAFT") {
+    tone = "border-amber-200 bg-amber-50 text-amber-900";
+    message =
+      "Commencez par confirmer la commande client. Tant qu'elle reste en brouillon, aucune expédition ni facturation n'est possible.";
+  } else if (remainingToShip > 1e-6) {
+    message =
+      "La commande est confirmée. L'étape suivante est l'expédition client : créez une sortie de stock SW, puis confirmez-la et postez-la.";
+  } else if (remainingToInvoice > 1e-6) {
+    tone = "border-emerald-200 bg-emerald-50 text-emerald-900";
+    message =
+      "Les quantités expédiées sont disponibles pour facturation. Vous pouvez créer la facture client à partir de cette commande.";
+  } else {
+    tone = "border-slate-200 bg-slate-50 text-slate-800";
+    title = "Suivi";
+    message =
+      "Cette commande est intégralement expédiée et facturée. Vous pouvez consulter les expéditions et les factures déjà générées.";
+  }
+
+  return (
+    <section className={`rounded border px-4 py-4 ${tone}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide">
+            {title}
+          </h2>
+          <p className="text-sm">{message}</p>
+          <div className="text-xs opacity-80">
+            Expédié : {progress.shipped.toFixed(3)} / {progress.ordered.toFixed(3)} •
+            Facturé : {progress.invoiced.toFixed(3)} / {progress.shipped.toFixed(3)}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/stock-withdrawals?type=SALE&q=${encodeURIComponent(order.number)}`}
+            className="rounded border border-current/20 px-3 py-2 text-sm hover:bg-white/40"
+          >
+            Voir les expéditions
+          </Link>
+          {order.status !== "DRAFT" && (
+            <Link
+              href={`/stock-withdrawals/create?salesOrderId=${encodeURIComponent(order.id)}`}
+              className="rounded border border-current/20 px-3 py-2 text-sm hover:bg-white/40"
+            >
+              Créer une expédition
+            </Link>
+          )}
+          {remainingToInvoice > 1e-6 && (
+            <Link
+              href={`/invoices/create?salesOrderId=${encodeURIComponent(order.id)}`}
+              className="rounded border border-current/20 px-3 py-2 text-sm hover:bg-white/40"
+            >
+              Créer la facture
+            </Link>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SalesOrderDetailView({ order }) {
   return (
     <div className="space-y-4">
@@ -171,6 +254,7 @@ function SalesOrderDetailView({ order }) {
         <TotalsSection order={order} />
       </div>
 
+      <NextStepPanel order={order} />
       <LinesSection order={order} />
       <NotesSection notes={order.notes} />
     </div>

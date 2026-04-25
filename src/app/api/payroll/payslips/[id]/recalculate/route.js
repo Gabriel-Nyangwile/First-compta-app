@@ -15,6 +15,13 @@ export async function POST(req, { params }) {
     if (ps.period?.status !== 'OPEN') {
       return NextResponse.json({ error: `Recalcul interdit: période ${ps.period?.status}` }, { status: 409 });
     }
+    const fxRate = ps.period?.fxRate?.toNumber?.() ?? Number(ps.period?.fxRate ?? 0);
+    if (ps.period?.processingCurrency !== ps.period?.fiscalCurrency && (!fxRate || fxRate <= 0)) {
+      return NextResponse.json(
+        { error: `Taux de change requis pour convertir ${ps.period?.processingCurrency} vers ${ps.period?.fiscalCurrency}` },
+        { status: 400 },
+      );
+    }
     const res = await recalculatePayslip(id, companyId);
     return NextResponse.json({ ok: true, gross: res.grossAmount, net: res.netAmount, lines: res.lines.length });
   } catch (e) {

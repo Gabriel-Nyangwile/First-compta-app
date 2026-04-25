@@ -83,6 +83,18 @@ export default function StockWithdrawalForm({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [querySalesOrderId, setQuerySalesOrderId] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const requestedType = params.get("type") || "";
+    const requestedSalesOrderId = params.get("salesOrderId") || "";
+    setQuerySalesOrderId(requestedSalesOrderId);
+    if (mode === "create" && requestedType === "SALE") {
+      setType("SALE");
+    }
+  }, [mode]);
 
   useEffect(() => {
     if (!initialData) return;
@@ -312,6 +324,16 @@ export default function StockWithdrawalForm({
     }
     return options;
   }, [salesOrders, salesOrderRef, type]);
+
+  useEffect(() => {
+    if (mode !== "create") return;
+    const queryOrderId = querySalesOrderId;
+    if (!queryOrderId || !salesOrders.length) return;
+    const match = salesOrders.find((order) => order?.id === queryOrderId);
+    if (!match) return;
+    setType("SALE");
+    setSalesOrderRef(match.number || "");
+  }, [mode, salesOrders, querySalesOrderId]);
 
   const selectedSalesOrder = useMemo(() => {
     if (!salesOrderRef) return null;

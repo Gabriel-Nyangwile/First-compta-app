@@ -23,6 +23,14 @@ Le périmètre actuel se concentre sur les ventes (clients). Un module fournisse
 
 Les détails fonctionnels et techniques de la logique comptable sont dans : `docs/accounting.md` (non traduit pour l'instant).
 
+Guides opératoires disponibles :
+
+- [Index des guides opératoires](./docs/user-guides-index.md)
+- [Guide opératoire - Ventes](./docs/sales-user-guide.md)
+- [Guide opératoire - Trésorerie](./docs/treasury-user-guide.md)
+- [Manuel illustré - Opérations en capital](./docs/capital-operations-user-guide.md)
+- [Guide opératoire - Gestion du personnel et paie](./docs/personnel-payroll-user-guide.md)
+
 ## 2. Stack & Architecture
 
 | Couche | Technologie | Notes |

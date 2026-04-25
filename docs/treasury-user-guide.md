@@ -371,6 +371,8 @@ Ces alertes remontent dans :
 - l'API `/api/treasury/summary`
 - le dashboard
 
+Pour comprendre précisément ce que signifie **lettré**, **non lettré** ou **partiellement lettré**, consulter le guide transversal : [Guide opératoire - Lettrage transversal](./lettering-user-guide.md).
+
 ## 14. Check-list de fin de période
 
 Avant une clôture mensuelle ou une revue de caisse, vérifier au minimum :
@@ -410,12 +412,12 @@ Emplacement prévu :
 
 | Élément | Fichier |
 | --- | --- |
-| Page Trésorerie | [src/app/treasury/page.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/app/treasury/page.jsx>) |
-| Vue Paiements fournisseurs | [src/app/treasury/suppliers/page.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/app/treasury/suppliers/page.jsx>) |
-| Détail trésorerie fournisseur | [src/app/suppliers/[id]/treasury/page.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/app/suppliers/[id]/treasury/page.jsx>) |
-| Formulaire Saisir une opération de trésorerie | [src/components/treasury/NewMoneyMovementForm.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/components/treasury/NewMoneyMovementForm.jsx>) |
-| Formulaire Transfert interne | [src/components/treasury/TransferForm.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/components/treasury/TransferForm.jsx>) |
-| Formulaire Créer un compte de trésorerie | [src/components/treasury/NewMoneyAccountForm.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/components/treasury/NewMoneyAccountForm.jsx>) |
-| Formulaire Régulariser un dossier d'avance de mission | [src/components/treasury/MissionAdvanceRegularizationForm.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/components/treasury/MissionAdvanceRegularizationForm.jsx>) |
-| Formulaire Enregistrer le remboursement d'un reliquat | [src/components/treasury/MissionAdvanceRefundForm.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/components/treasury/MissionAdvanceRefundForm.jsx>) |
-| Panneau Avances de mission ouvertes | [src/components/treasury/MissionAdvanceOpenPanel.jsx](</c:/Users/Tonton G/reactproject/first-compta/src/components/treasury/MissionAdvanceOpenPanel.jsx>) |
+| Page Trésorerie | [src/app/treasury/page.jsx](../src/app/treasury/page.jsx) |
+| Vue Paiements fournisseurs | [src/app/treasury/suppliers/page.jsx](../src/app/treasury/suppliers/page.jsx) |
+| Détail trésorerie fournisseur | [src/app/suppliers/[id]/treasury/page.jsx](../src/app/suppliers/[id]/treasury/page.jsx) |
+| Formulaire Saisir une opération de trésorerie | [src/components/treasury/NewMoneyMovementForm.jsx](../src/components/treasury/NewMoneyMovementForm.jsx) |
+| Formulaire Transfert interne | [src/components/treasury/TransferForm.jsx](../src/components/treasury/TransferForm.jsx) |
+| Formulaire Créer un compte de trésorerie | [src/components/treasury/NewMoneyAccountForm.jsx](../src/components/treasury/NewMoneyAccountForm.jsx) |
+| Formulaire Régulariser un dossier d'avance de mission | [src/components/treasury/MissionAdvanceRegularizationForm.jsx](../src/components/treasury/MissionAdvanceRegularizationForm.jsx) |
+| Formulaire Enregistrer le remboursement d'un reliquat | [src/components/treasury/MissionAdvanceRefundForm.jsx](../src/components/treasury/MissionAdvanceRefundForm.jsx) |
+| Panneau Avances de mission ouvertes | [src/components/treasury/MissionAdvanceOpenPanel.jsx](../src/components/treasury/MissionAdvanceOpenPanel.jsx) |

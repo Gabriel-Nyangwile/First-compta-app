@@ -6,6 +6,49 @@ import path from 'path';
 import { rgb, StandardFonts } from 'pdf-lib';
 import { formatAmountPlain, formatRatePercent } from '@/lib/utils';
 
+export const A4 = [595.28, 841.89];
+
+export function cleanPdfText(value) {
+  return String(value ?? '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function truncateToWidth(font, value, size, maxWidth) {
+  const text = cleanPdfText(value);
+  if (!text) return '';
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  let out = text;
+  while (out.length > 1 && font.widthOfTextAtSize(`${out}…`, size) > maxWidth) {
+    out = out.slice(0, -1);
+  }
+  return `${out}…`;
+}
+
+export function drawRightText(page, value, { xRight, y, size, font, color = rgb(0, 0, 0) }) {
+  const text = cleanPdfText(value);
+  const width = font.widthOfTextAtSize(text, size);
+  page.drawText(text, { x: xRight - width, y, size, font, color });
+}
+
+export function drawBox(page, { x, y, w, h, border = rgb(0.82, 0.86, 0.9), fill = rgb(1, 1, 1) }) {
+  page.drawRectangle({
+    x,
+    y,
+    width: w,
+    height: h,
+    borderColor: border,
+    borderWidth: 0.8,
+    color: fill,
+  });
+}
+
+export function drawSectionTitle(page, title, { x, y, w, font }) {
+  drawBox(page, { x, y: y - 18, w, h: 24, fill: rgb(0.94, 0.97, 1), border: rgb(0.72, 0.8, 0.9) });
+  page.drawText(cleanPdfText(title), { x: x + 8, y: y - 10, size: 10, font, color: rgb(0.1, 0.18, 0.42) });
+}
+
 /**
  * Attempt to embed logo.png from /public. Returns { image, scaled } or null.
  */
@@ -40,14 +83,15 @@ export function drawLinesTable(rows, { pdfDoc, page, font, startY = 600, headerC
   const pages = [currentPage];
 
   const drawHeader = () => {
-    currentPage.drawText('Lignes', { x: 40, y, size: 14, font, color: headerColor });
-    y -= 20;
-    currentPage.drawText('Compte', { x: 40, y, size: 10, font });
-    currentPage.drawText('Description', { x: 110, y, size: 10, font });
-    currentPage.drawText('Qté', { x: 320, y, size: 10, font });
-    currentPage.drawText('PU', { x: 360, y, size: 10, font });
-    currentPage.drawText('Total', { x: 420, y, size: 10, font });
-    y -= 14;
+    drawSectionTitle(currentPage, 'Lignes', { x: 40, y, w: 515, font });
+    y -= 32;
+    drawBox(currentPage, { x: 40, y: y - 5, w: 515, h: 18, fill: rgb(0.97, 0.98, 0.99) });
+    currentPage.drawText('Compte', { x: 46, y, size: 9, font });
+    currentPage.drawText('Description', { x: 112, y, size: 9, font });
+    drawRightText(currentPage, 'Qté', { xRight: 350, y, size: 9, font });
+    drawRightText(currentPage, 'PU', { xRight: 430, y, size: 9, font });
+    drawRightText(currentPage, 'Total', { xRight: 545, y, size: 9, font });
+    y -= 18;
   };
 
   drawHeader();
@@ -57,18 +101,19 @@ export function drawLinesTable(rows, { pdfDoc, page, font, startY = 600, headerC
     const r = rows[idx];
     if (y < minY) {
       // create new page and continue
-      currentPage = pdfDoc.addPage([595.28, 841.89]);
+      currentPage = pdfDoc.addPage(A4);
       y = 800; // top area for continuation pages
       pages.push(currentPage);
       if (onNewPage) onNewPage(currentPage, pages.length);
       drawHeader();
     }
-    currentPage.drawText(r.accountNumber || '', { x: 40, y, size: 9, font });
-    currentPage.drawText((r.description || '').slice(0,35), { x: 110, y, size: 9, font });
-    currentPage.drawText(r.quantity, { x: 320, y, size: 9, font });
-    currentPage.drawText(r.unitPrice, { x: 360, y, size: 9, font });
-    currentPage.drawText(r.total, { x: 420, y, size: 9, font });
-    y -= 12;
+    drawBox(currentPage, { x: 40, y: y - 4, w: 515, h: 16, border: rgb(0.92, 0.94, 0.96), fill: rgb(1, 1, 1) });
+    currentPage.drawText(truncateToWidth(font, r.accountNumber || '', 8, 58), { x: 46, y, size: 8, font });
+    currentPage.drawText(truncateToWidth(font, r.description || '', 8, 190), { x: 112, y, size: 8, font });
+    drawRightText(currentPage, r.quantity, { xRight: 350, y, size: 8, font });
+    drawRightText(currentPage, r.unitPrice, { xRight: 430, y, size: 8, font });
+    drawRightText(currentPage, r.total, { xRight: 545, y, size: 8, font });
+    y -= 16;
   }
   return { lastPage: currentPage, y, pages };
 }
@@ -120,20 +165,24 @@ export function computeVatBreakdown(lines, { defaultRate }) {
 /** Dessine un récap multi-taux TVA. */
 export function drawRecapBreakdown({ page, font, startY, breakdown }) {
   let y = startY - 24;
-  page.drawText('Récapitulatif', { x: 300, y, size: 12, font, color: rgb(0.1,0.1,0.7) });
-  y -= 14;
+  drawSectionTitle(page, 'Récapitulatif', { x: 300, y, w: 255, font });
+  y -= 28;
   let totalBase = 0; let totalVat = 0;
   for (const [rate, { base, vat }] of breakdown) {
     totalBase += base; totalVat += vat;
-  page.drawText(`Base (${formatRatePercent(rate*100)}%): ${formatAmountPlain(base)} €`, { x: 300, y, size: 10, font });
+    page.drawText(`Base (${formatRatePercent(rate*100)}%)`, { x: 310, y, size: 9, font });
+    drawRightText(page, `${formatAmountPlain(base)} €`, { xRight: 545, y, size: 9, font });
     y -= 12;
-  page.drawText(`TVA  (${formatRatePercent(rate*100)}%): ${formatAmountPlain(vat)} €`, { x: 300, y, size: 9, font, color: rgb(0.2,0.2,0.2) });
+    page.drawText(`TVA (${formatRatePercent(rate*100)}%)`, { x: 310, y, size: 9, font, color: rgb(0.2,0.2,0.2) });
+    drawRightText(page, `${formatAmountPlain(vat)} €`, { xRight: 545, y, size: 9, font, color: rgb(0.2,0.2,0.2) });
     y -= 12;
   }
   const totalTtc = totalBase + totalVat;
-  page.drawText(`Total HT: ${formatAmountPlain(totalBase)} €`, { x: 300, y, size: 10, font }); y -= 12;
-  page.drawText(`Total TVA: ${formatAmountPlain(totalVat)} €`, { x: 300, y, size: 10, font }); y -= 12;
-  page.drawText(`Total TTC: ${formatAmountPlain(totalTtc)} €`, { x: 300, y, size: 11, font, color: rgb(0,0.45,0) });
+  y -= 4;
+  page.drawText('Total HT', { x: 310, y, size: 9.5, font }); drawRightText(page, `${formatAmountPlain(totalBase)} €`, { xRight: 545, y, size: 9.5, font }); y -= 12;
+  page.drawText('Total TVA', { x: 310, y, size: 9.5, font }); drawRightText(page, `${formatAmountPlain(totalVat)} €`, { xRight: 545, y, size: 9.5, font }); y -= 12;
+  page.drawText('Total TTC', { x: 310, y, size: 11, font, color: rgb(0,0.45,0) });
+  drawRightText(page, `${formatAmountPlain(totalTtc)} €`, { xRight: 545, y, size: 11, font, color: rgb(0,0.45,0) });
   return y - 10;
 }
 
@@ -156,7 +205,8 @@ export function drawCompanyIdentity(page, { font, company }) {
   if (!company) return; // company = { name, address, siret, vat, rccm, idNat, taxNumber, cnss, onem, inpp }
   const startX = 350;
   let y = 820;
-  const line = (txt, size = 9) => { page.drawText(txt, { x: startX, y, size, font, color: rgb(0.15,0.15,0.25) }); y -= 12; };
+  drawBox(page, { x: 340, y: 700, w: 215, h: 135, fill: rgb(0.985, 0.99, 1), border: rgb(0.82, 0.88, 0.94) });
+  const line = (txt, size = 9) => { page.drawText(truncateToWidth(font, txt, size, 190), { x: startX, y, size, font, color: rgb(0.15,0.15,0.25) }); y -= 12; };
   if (company.name) line(company.name, 10);
   if (company.address) company.address.split(/\n+/).forEach(a => line(a));
   if (company.siret) line(`SIRET: ${company.siret}`);

@@ -1,7 +1,22 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { embedLogo, formatDateFR, drawLinesTable, drawRecapBreakdown, drawPageHeader, drawFooter, drawCompanyIdentity, drawDraftWatermark, loadPrimaryFont, computeVatBreakdown } from '@/lib/pdf/utils';
+import {
+  cleanPdfText,
+  computeVatBreakdown,
+  drawBox,
+  drawCompanyIdentity,
+  drawDraftWatermark,
+  drawFooter,
+  drawLinesTable,
+  drawPageHeader,
+  drawRecapBreakdown,
+  drawSectionTitle,
+  embedLogo,
+  formatDateFR,
+  loadPrimaryFont,
+  truncateToWidth,
+} from '@/lib/pdf/utils';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req, { params }) {
@@ -43,25 +58,28 @@ export async function GET(req, { params }) {
 
   const fDate = (d) => d ? formatDateFR(d) : '-';
 
-  page.drawText('FACTURE FOURNISSEUR', { x: 200, y: 800, size: 16, font, color: rgb(0.15,0.15,0.55) });
-  page.drawText(`Référence interne: ${invoice.entryNumber}`, { x: 40, y: 760, size: 12, font });
-  page.drawText(`Numéro fournisseur: ${invoice.supplierInvoiceNumber}`, { x: 40, y: 745, size: 12, font });
+  page.drawText('FACTURE FOURNISSEUR', { x: 170, y: 800, size: 18, font, color: rgb(0.15,0.15,0.55) });
+  drawSectionTitle(page, 'Informations facture', { x: 40, y: 760, w: 280, font });
+  drawBox(page, { x: 40, y: 658, w: 280, h: 88 });
+  page.drawText(`Référence interne : ${cleanPdfText(invoice.entryNumber)}`, { x: 52, y: 730, size: 10, font });
+  page.drawText(`Numéro fournisseur : ${cleanPdfText(invoice.supplierInvoiceNumber)}`, { x: 52, y: 714, size: 10, font });
   if (invoice.purchaseOrder) {
-    page.drawText(`Bon de commande lié: ${invoice.purchaseOrder.number}`, { x: 40, y: 730, size: 12, font });
+    page.drawText(`Bon de commande lié : ${cleanPdfText(invoice.purchaseOrder.number)}`, { x: 52, y: 698, size: 10, font });
   }
-  const baseY = invoice.purchaseOrder ? 715 : 730;
-  page.drawText(`Date réception: ${fDate(invoice.receiptDate)}`, { x: 40, y: baseY, size: 12, font });
-  page.drawText(`Date émission: ${fDate(invoice.issueDate)}`, { x: 40, y: baseY - 15, size: 12, font });
-  page.drawText(`Date échéance: ${fDate(invoice.dueDate)}`, { x: 40, y: baseY - 30, size: 12, font });
+  const dateY = invoice.purchaseOrder ? 682 : 698;
+  page.drawText(`Date réception : ${fDate(invoice.receiptDate)}`, { x: 52, y: dateY, size: 10, font });
+  page.drawText(`Date émission : ${fDate(invoice.issueDate)}`, { x: 52, y: dateY - 16, size: 10, font });
+  page.drawText(`Date échéance : ${fDate(invoice.dueDate)}`, { x: 52, y: dateY - 32, size: 10, font });
 
-  // Supplier block
-  let y = (invoice.purchaseOrder ? baseY - 60 : 670);
-  page.drawText('Fournisseur:', { x: 40, y, size: 13, font, color: rgb(0.15,0.15,0.55) });
-  y -= 15; page.drawText(invoice.supplier?.name || '-', { x: 40, y, size: 11, font });
-  if (invoice.supplier?.email) { y -= 12; page.drawText(invoice.supplier.email, { x: 40, y, size: 10, font }); }
-  if (invoice.supplier?.address) { y -= 12; page.drawText(invoice.supplier.address, { x: 40, y, size: 10, font }); }
+  drawSectionTitle(page, 'Fournisseur', { x: 40, y: 635, w: 515, font });
+  drawBox(page, { x: 40, y: 582, w: 515, h: 40 });
+  page.drawText(`Nom : ${truncateToWidth(font, invoice.supplier?.name || '-', 10, 220)}`, { x: 52, y: 606, size: 10, font });
+  page.drawText(`Email : ${truncateToWidth(font, invoice.supplier?.email || '-', 10, 210)}`, { x: 52, y: 590, size: 10, font });
+  if (invoice.supplier?.address) {
+    page.drawText(`Adresse : ${truncateToWidth(font, invoice.supplier.address, 10, 220)}`, { x: 315, y: 606, size: 10, font });
+  }
 
-  y -= 25;
+  let y = 560;
   // On conserve quantité / prix bruts (numériques) pour calcul précis multi-taux.
   // Chaque ligne peut porter son propre taux (l.vatRate) sinon fallback global invoice.vat.
   const rows = invoice.lines.map(l => ({

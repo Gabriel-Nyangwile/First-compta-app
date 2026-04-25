@@ -4,7 +4,7 @@ import { requireCompanyId } from "@/lib/tenant";
 
 export async function POST(req, { params }) {
   const companyId = requireCompanyId(req);
-  const { id: clientId } = params;
+  const { id: clientId } = await params;
   const body = await req.json().catch(() => ({}));
   const { movementId } = body || {};
 

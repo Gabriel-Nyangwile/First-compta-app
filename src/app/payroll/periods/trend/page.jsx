@@ -13,12 +13,13 @@ async function fetchYears(){
 }
 
 export default async function TrendPage({ searchParams }) {
+  const sp = await searchParams;
   const yearsRes = await fetchYears();
   const years = yearsRes.years || [];
   const defaultFrom = years[0] || new Date().getFullYear();
   const defaultTo = years[years.length-1] || defaultFrom;
-  const from = Number(searchParams.from) || defaultFrom;
-  const to = Number(searchParams.to) || defaultTo;
+  const from = Number(sp?.from) || defaultFrom;
+  const to = Number(sp?.to) || defaultTo;
   const trend = await fetchTrend(from, to);
   if(!trend.ok) return <div className="p-6">Trend data unavailable: {trend.error}</div>;
   const processingCurrency = trend.currencyContext?.processingCurrency || 'XOF';
@@ -30,6 +31,16 @@ export default async function TrendPage({ searchParams }) {
       <div className="text-sm text-gray-600">
         Devise de traitement: <span className="font-medium">{processingCurrency}</span> · Devise fiscale: <span className="font-medium">{fiscalCurrency}</span>
       </div>
+      {(trend.currencyContext?.mixedProcessingCurrencies || trend.currencyContext?.missingFxPeriods?.length > 0) && (
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {trend.currencyContext?.mixedProcessingCurrencies && (
+            <div>Attention: la plage contient plusieurs devises de traitement ({trend.currencyContext.processingCurrencies?.join(', ')}). Les comparaisons pluriannuelles doivent être interprétées avec prudence.</div>
+          )}
+          {trend.currencyContext?.missingFxPeriods?.length > 0 && (
+            <div>Taux fiscal manquant sur: {trend.currencyContext.missingFxPeriods.map(p => `${p.year}-${p.month}/${p.periodRef}`).join(', ')}.</div>
+          )}
+        </div>
+      )}
       <form className="flex gap-4 items-end text-sm" action="" method="get">
         <label className="flex flex-col">De
           <select name="from" defaultValue={from} className="border px-2 py-1 mt-1">{years.map(y => <option key={y}>{y}</option>)}</select>
@@ -44,6 +55,7 @@ export default async function TrendPage({ searchParams }) {
         <thead>
           <tr className="bg-gray-100">
             <th className="p-2 border">Année</th>
+            <th className="p-2 border">Devises</th>
             <th className="p-2 border">Brut</th>
             <th className="p-2 border">Net</th>
             <th className="p-2 border">Corr Brut</th>
@@ -63,6 +75,7 @@ export default async function TrendPage({ searchParams }) {
           {trend.years.map(y => (
             <tr key={y.year} className="odd:bg-white even:bg-gray-50">
               <td className="p-2 border">{y.year}</td>
+              <td className="p-2 border">{y.currencySummary?.processingCurrencies?.join(', ') || '-'}</td>
               <td className="p-2 border text-right">{fmt(y.totals.gross)}</td>
               <td className="p-2 border text-right">{fmt(y.totals.net)}</td>
               <td className="p-2 border text-right text-orange-700">{fmt(y.totals.corrGross)}</td>

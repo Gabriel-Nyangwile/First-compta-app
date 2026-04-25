@@ -107,13 +107,15 @@ export default function EditClientPage() {
           </div>
           {linkAccount && (
             <div>
-              <label htmlFor="accountId" className="block text-sm font-medium text-gray-700 mb-1">Numéro de compte</label>
+              <label htmlFor="accountId" className="block text-sm font-medium text-gray-700 mb-1">Compte client 411</label>
               <AccountAutocomplete
                 value={account}
                 onChange={setAccount}
                 maxLength={20}
+                filterPrefix="41"
+                placeholder="Ex. 411100"
               />
-              <p className="mt-1 text-xs text-gray-500">Créer ou sélectionner un compte.</p>
+              <p className="mt-1 text-xs text-gray-500">Optionnel à la fiche client, mais requis pour facturer et comptabiliser les encaissements.</p>
             </div>
           )}
           <div>

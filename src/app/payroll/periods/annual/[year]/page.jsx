@@ -14,7 +14,8 @@ async function fetchYears(){
 }
 
 export default async function AnnualPayrollPage({ params, searchParams }){
-  const year = Number(params.year);
+  const { year: yearParam } = await params;
+  const year = Number(yearParam);
   const [{ ok:okYears, years }, data] = await Promise.all([fetchYears(), fetchAnnual(year)]);
   if(!data.ok) return <div className="p-4">Annual payroll unavailable: {data.error}</div>;
   const months = data.months;
@@ -36,6 +37,16 @@ export default async function AnnualPayrollPage({ params, searchParams }){
       <div className="text-sm text-gray-600">
         Devise de traitement: <span className="font-medium">{processingCurrency}</span> · Devise fiscale: <span className="font-medium">{fiscalCurrency}</span>
       </div>
+      {(data.currencyContext?.mixedProcessingCurrencies || data.currencyContext?.missingFxMonths?.length > 0) && (
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {data.currencyContext?.mixedProcessingCurrencies && (
+            <div>Attention: l'année contient plusieurs devises de traitement ({data.currencyContext.processingCurrencies?.join(', ')}). Les totaux annuels doivent être interprétés avec prudence.</div>
+          )}
+          {data.currencyContext?.missingFxMonths?.length > 0 && (
+            <div>Taux fiscal manquant sur: {data.currencyContext.missingFxMonths.map(m => `${m.month}/${m.periodRef}`).join(', ')}.</div>
+          )}
+        </div>
+      )}
       <div className="flex gap-4 flex-wrap items-center text-sm">
         <a className="text-blue-600 underline" href={`/api/payroll/periods/annual-summary?year=${year}&format=csv`}>Exporter CSV</a>
         <a className="text-blue-600 underline" href={`/api/payroll/periods/annual-summary/pdf?year=${year}`}>Exporter PDF</a>
@@ -46,6 +57,8 @@ export default async function AnnualPayrollPage({ params, searchParams }){
         <thead>
           <tr className="bg-gray-100">
             <th className="p-2 border">Mois</th>
+            <th className="p-2 border">Devise</th>
+            <th className="p-2 border">Taux</th>
             <th className="p-2 border">Brut</th>
             <th className="p-2 border">Corr Brut</th>
             <th className="p-2 border">Net</th>
@@ -71,6 +84,8 @@ export default async function AnnualPayrollPage({ params, searchParams }){
           {months.map(m => (
             <tr key={m.month} className="odd:bg-white even:bg-gray-50">
               <td className="p-2 border">{m.month}</td>
+              <td className="p-2 border">{m.processingCurrency || '-'}</td>
+              <td className="p-2 border text-right">{m.fxRate ?? '-'}</td>
               <td className="p-2 border text-right">{fmt(m.grossTotal)}</td>
               <td className="p-2 border text-right text-orange-700">{fmt(m.grossNegative)}</td>
               <td className="p-2 border text-right">{fmt(m.netTotal)}</td>

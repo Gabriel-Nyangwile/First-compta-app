@@ -8,11 +8,20 @@ import { requireCompanyId } from '@/lib/tenant';
 export async function GET(req, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
-  const currencyContext = await getPayrollCurrencyContext(companyId);
   const { id } = await params;
   if (!id) return new Response(JSON.stringify({ ok:false, error:'Missing period id'}), { status:400 });
   const period = await prisma.payrollPeriod.findUnique({ where:{ id, companyId } });
   if (!period) return new Response(JSON.stringify({ ok:false, error:'Period not found'}), { status:404 });
+  const companyCurrencyContext = await getPayrollCurrencyContext(companyId);
+  const periodFxRate = period.fxRate?.toNumber?.() ?? Number(period.fxRate ?? 0);
+  if (period.processingCurrency !== period.fiscalCurrency && (!periodFxRate || periodFxRate <= 0)) {
+    return new Response(JSON.stringify({ ok:false, error:`Taux de change requis pour convertir ${period.processingCurrency} vers ${period.fiscalCurrency}` }), { status:400 });
+  }
+  const currencyContext = {
+    processingCurrency: period.processingCurrency || companyCurrencyContext.processingCurrency,
+    fiscalCurrency: period.fiscalCurrency || companyCurrencyContext.fiscalCurrency,
+    fxRate: periodFxRate || null,
+  };
   if (period.status !== 'OPEN') return new Response(JSON.stringify({ ok:false, error:'Period must be OPEN for preview'}), { status:409 });
   const employees = await prisma.employee.findMany({ where:{ companyId, status:'ACTIVE' }, include:{ position:{ include:{ bareme:true } } } });
   const results = [];

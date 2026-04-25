@@ -16,7 +16,14 @@ export default async function PeriodInputsPage({ params }) {
   if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
   const period = await prisma.payrollPeriod.findUnique({
     where: { companyId_ref: { companyId, ref } },
-    select: { id: true, ref: true, status: true },
+    select: {
+      id: true,
+      ref: true,
+      status: true,
+      processingCurrency: true,
+      fiscalCurrency: true,
+      fxRate: true,
+    },
   });
   if (!period) return <div className="p-6">Période introuvable.</div>;
   const employeesRaw = await prisma.employee.findMany({
@@ -38,7 +45,17 @@ export default async function PeriodInputsPage({ params }) {
       <h1 className="text-xl font-semibold">Saisies Paie — {period.ref}</h1>
       <div className="text-sm text-gray-600">Statut: {period.status} {readonly && '(lecture seule)'}</div>
       <p className="text-[11px] text-gray-600">Aide validation configuration: <a className="underline" href="https://github.com/Gabriel-Nyangwile/first-compta#188-validation-rules" target="_blank" rel="noopener noreferrer">README 18.8</a> · <a className="underline" href="https://github.com/Gabriel-Nyangwile/first-compta/blob/master/docs/payroll-validation.md" target="_blank" rel="noopener noreferrer">Cheat Sheet</a>.</p>
-      <InputsPanel periodId={period.id} employees={employees} costCenters={costCenters} readonly={readonly} />
+      <InputsPanel
+        periodId={period.id}
+        employees={employees}
+        costCenters={costCenters}
+        readonly={readonly}
+        currencyContext={{
+          processingCurrency: period.processingCurrency,
+          fiscalCurrency: period.fiscalCurrency,
+          fxRate: period.fxRate?.toNumber?.() ?? period.fxRate ?? null,
+        }}
+      />
     </div>
   );
 }

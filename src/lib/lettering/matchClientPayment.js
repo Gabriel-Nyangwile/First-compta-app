@@ -97,7 +97,7 @@ export async function matchClientPayment({ movementId, companyId = null }) {
     }
   }
 
-  const letterRef = existingRef || (await nextSequence(prisma, "LTR", "LTR-"));
+  const letterRef = existingRef || (await nextSequence(prisma, "LTR", "LTR-", companyId));
   const now = new Date();
   const updates = transactions.map((tx) => ({
     id: tx.id,

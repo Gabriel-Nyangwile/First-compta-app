@@ -1,4 +1,4 @@
-import { finalizeBatchToJournal } from "@/lib/journal";
+import { finalizeBatchToJournal } from "./journal.js";
 
 // Comptes OHADA (fixes pour capital)
 const ACCOUNT_4612 = "461200";
@@ -74,8 +74,10 @@ export async function postCapitalPayment(tx, { payment, account, companyId }) {
 
 /**
  * Posting d'appel de fonds (constatation créance / reclassement non appelé -> appelé) :
- * Dr 4612 / Cr 109
- * Dr 1011 / Cr 1012
+ * 1) Régularisation du non appelé vers appelé :
+ *    Dr 1011 / Cr 109
+ * 2) Constatation de l'appel des fonds :
+ *    Dr 4612 / Cr 1012
  */
 export async function postCapitalCall(tx, { call, companyId }) {
   const amt = asNumber(call.amountCalled);
@@ -90,11 +92,11 @@ export async function postCapitalCall(tx, { call, companyId }) {
     await tx.transaction.create({
       data: {
         date,
-        description: `Appel fonds capital ${call.callNumber} (${call.id})`,
+        description: `Régularisation appel fonds capital ${call.callNumber} (${call.id})`,
         amount: amt,
         direction: "DEBIT",
         kind: "CAPITAL_CALL",
-        accountId: acc4612,
+        accountId: acc1011,
         companyId: companyId || null,
       },
     }),
@@ -112,11 +114,11 @@ export async function postCapitalCall(tx, { call, companyId }) {
     await tx.transaction.create({
       data: {
         date,
-        description: `Capital souscrit non appelé (${call.id})`,
+        description: `Apporteurs, apports en numéraire (${call.id})`,
         amount: amt,
         direction: "DEBIT",
         kind: "CAPITAL_CALL",
-        accountId: acc1011,
+        accountId: acc4612,
         companyId: companyId || null,
       },
     }),
@@ -144,15 +146,12 @@ export async function postCapitalCall(tx, { call, companyId }) {
 
 /**
  * Posting de souscription initiale (promesse) :
- * Dr 4612 (part appelée d’emblée)
- * Dr 109 (non appelé)
- * Cr 1012 (contrepartie du 461)
- * Cr 1011 (contrepartie du 109)
- * amountCalled: part appelée immédiatement, amountNotCalled: solde non appelé
+ * Dr 109 / Cr 1011 sur la part non appelée.
+ * Le schéma opérationnel retenu ne comptabilise pas ici de part appelée d’emblée.
  */
 export async function postCapitalSubscription(
   tx,
-  { subscription, amountCalled, amountNotCalled, companyId }
+  { subscription, amountCalled, amountNotCalled, companyId, dateOverride = null }
 ) {
   const called = asNumber(amountCalled);
   const notCalled = asNumber(amountNotCalled);
@@ -161,7 +160,7 @@ export async function postCapitalSubscription(
   const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012, companyId);
   const acc109 = await resolveAccountIdByNumber(tx, ACCOUNT_109, companyId);
   const acc1011 = await resolveAccountIdByNumber(tx, ACCOUNT_1011, companyId);
-  const date = new Date();
+  const date = dateOverride ? new Date(dateOverride) : new Date();
   if (called > 0) {
     txs.push(
       await tx.transaction.create({
@@ -277,13 +276,13 @@ export function buildCapitalSourcePrefix(entity, id) {
  */
 export async function postCapitalRegularization(
   tx,
-  { capitalOperationId, amount, companyId }
+  { capitalOperationId, amount, companyId, dateOverride = null }
 ) {
   const amt = asNumber(amount);
   if (!(amt > 0)) return null;
   const acc1012 = await resolveAccountIdByNumber(tx, ACCOUNT_1012, companyId);
   const acc1013 = await resolveAccountIdByNumber(tx, ACCOUNT_1013, companyId);
-  const date = new Date();
+  const date = dateOverride ? new Date(dateOverride) : new Date();
   const txs = [
     await tx.transaction.create({
       data: {
@@ -309,8 +308,9 @@ export async function postCapitalRegularization(
   }),
 ];
   const je = await finalizeBatchToJournal(tx, {
-    kind: "CAPITAL_REGULARIZATION",
-    reference: capitalOperationId,
+    sourceType: "OTHER",
+    sourceId: capitalJournalSourceId("operation", capitalOperationId, "regularization"),
+    description: `Régularisation finale capital ${capitalOperationId}`,
     date,
     transactions: txs,
   });

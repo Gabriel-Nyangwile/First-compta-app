@@ -27,9 +27,12 @@ function toSafeNumber(value) {
 function buildLinesFromOrderLines(orderLines = []) {
   return orderLines
     .map((line) => {
-      const ordered = toSafeNumber(line.quantityOrdered);
+      const shipped = Math.min(
+        toSafeNumber(line.quantityOrdered),
+        toSafeNumber(line.quantityShipped)
+      );
       const invoiced = toSafeNumber(line.quantityInvoiced);
-      const remaining = ordered - invoiced;
+      const remaining = Math.max(0, shipped - invoiced);
       if (remaining <= 1e-9) return null;
       const quantity = Number(remaining.toFixed(3));
       const unitPrice = Number(toSafeNumber(line.unitPrice).toFixed(4));
@@ -67,6 +70,7 @@ function buildLinesFromWithdrawals(order, withdrawals = [], selectedIds = []) {
   const selectedSet = new Set(selectedIds);
   const aggregated = new Map();
   withdrawals.forEach((withdrawal) => {
+    if (withdrawal.status !== "POSTED") return;
     if (!selectedSet.has(withdrawal.id)) return;
     (withdrawal.lines || []).forEach((line) => {
       if (!line?.salesOrderLineId) return;
@@ -197,6 +201,16 @@ export default function CreateInvoicePage() {
   }, [clientId, issueDate, clients]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const preselectedSalesOrderId = new URLSearchParams(
+      window.location.search
+    ).get("salesOrderId");
+    if (preselectedSalesOrderId) {
+      setSelectedSalesOrderId(preselectedSalesOrderId);
+    }
+  }, []);
 
   // Charger clients et comptes au chargement
   useEffect(() => {
@@ -389,7 +403,9 @@ export default function CreateInvoicePage() {
         if (cancelled) return;
 
         setStockWithdrawals(withdrawalsData);
-        const defaultWithdrawalIds = withdrawalsData.map((item) => item.id);
+        const defaultWithdrawalIds = withdrawalsData
+          .filter((item) => item.status === "POSTED")
+          .map((item) => item.id);
         setSelectedWithdrawalIds(defaultWithdrawalIds);
 
         const computedLines = buildLinesFromWithdrawals(
@@ -399,11 +415,20 @@ export default function CreateInvoicePage() {
         );
         if (computedLines.length) {
           setLines(computedLines);
+          setWithdrawalError("");
         } else {
-          setLines(baseLines);
+          setLines(baseLines.length ? baseLines : [createEmptyLine()]);
           if (!withdrawalsData.length) {
             setWithdrawalError(
-              "Aucune sortie de stock liée à cette commande. Les quantités proviennent du bon de commande."
+              "Aucune sortie de stock liée à cette commande. Créez et confirmez d'abord une expédition client avant la facturation."
+            );
+          } else if (!defaultWithdrawalIds.length) {
+            setWithdrawalError(
+              "Des sorties SW existent, mais aucune n'est encore postée. La facturation n'est possible qu'après validation finale de l'expédition."
+            );
+          } else if (!baseLines.length) {
+            setWithdrawalError(
+              "Aucune quantité expédiée n'est encore disponible pour la facturation. Confirmez d'abord la sortie de stock SW."
             );
           } else {
             setWithdrawalError(
@@ -581,6 +606,10 @@ export default function CreateInvoicePage() {
           setWithdrawalError(
             "Aucune sortie de stock liée à cette commande."
           );
+        } else if (!stockWithdrawals.some((item) => item.status === "POSTED")) {
+          setWithdrawalError(
+            "Les sorties existantes ne sont pas encore postées. La facture ne peut reprendre que des quantités expédiées."
+          );
         } else if (next.length === 0) {
           setWithdrawalError(
             "Aucune sortie de stock sélectionnée. Les quantités proviennent du bon de commande."
@@ -665,10 +694,13 @@ export default function CreateInvoicePage() {
           invoiceLines: payloadLines,
         }),
       });
+      const payload = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.push("/transactions");
+        router.push(`/invoices/${payload.id}`);
       } else {
-        alert("Erreur lors de la création de la facture");
+        setSalesOrderError(
+          payload?.error || "Erreur lors de la création de la facture."
+        );
       }
     } finally {
       setLoading(false);
@@ -775,9 +807,14 @@ export default function CreateInvoicePage() {
               <div className="text-sm text-red-600 mt-1">{salesOrderError}</div>
             )}
             {selectedSalesOrder && !salesOrderError && (
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1 space-y-1">
+                <div>
+                  Étape suivante : vérifier les expéditions SW disponibles, puis créer la facture sur les quantités réellement expédiées.
+                </div>
+                <div>
                 Commande {selectedSalesOrder.number} •{" "}
                 {selectedSalesOrder.lines?.length || 0} lignes originales
+                </div>
               </div>
             )}
           </div>

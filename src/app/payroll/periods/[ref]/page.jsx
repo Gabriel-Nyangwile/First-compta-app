@@ -3,6 +3,8 @@ import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 import LockButton from '../LockButton.jsx';
 import PostButton from '../PostButton.jsx';
+import CloseAndNextButton from '../CloseAndNextButton.jsx';
+import UnlockButton from '../UnlockButton.jsx';
 import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { auditPayrollPeriod } from '@/lib/payroll/audit';
 import AuditPanel from '../AuditPanel.jsx';
@@ -29,8 +31,6 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
-  const currencyContext = await getPayrollCurrencyContext(companyId);
-  const fmt = (value) => formatAmount(value, currencyContext.processingCurrency);
   const rawPeriod = await prisma.payrollPeriod.findUnique({
     where: { companyId_ref: { companyId, ref } },
     include: {
@@ -46,7 +46,12 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
     ? {
         id: rawPeriod.id,
         ref: rawPeriod.ref,
+        month: rawPeriod.month,
+        year: rawPeriod.year,
         status: rawPeriod.status,
+        processingCurrency: rawPeriod.processingCurrency,
+        fiscalCurrency: rawPeriod.fiscalCurrency,
+        fxRate: rawPeriod.fxRate?.toNumber?.() ?? rawPeriod.fxRate ?? null,
         payslips: rawPeriod.payslips.map((ps) => ({
           id: ps.id,
           ref: ps.ref,
@@ -59,6 +64,13 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
       }
     : null;
   if (!period) return <div className="p-6">Periode introuvable.</div>;
+  const companyCurrencyContext = await getPayrollCurrencyContext(companyId);
+  const currencyContext = {
+    processingCurrency: period.processingCurrency || companyCurrencyContext.processingCurrency,
+    fiscalCurrency: period.fiscalCurrency || companyCurrencyContext.fiscalCurrency,
+    fxRate: period.fxRate ?? null,
+  };
+  const fmt = (value) => formatAmount(value, currencyContext.processingCurrency);
   const payrollJe =
     period.status === 'POSTED'
       ? await getCurrentPayrollJournal(prisma, period.id, companyId, { id: true, description: true })
@@ -172,7 +184,15 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
         {period.status === 'POSTED' && isFullySettled && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">SETTLED</span>}
         {period.status === 'POSTED' && isPartiallySettled && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-amber-100 text-amber-800 border-amber-200">PARTIAL_SETTLEMENT</span>}
         {period.status === 'OPEN' && <LockButton periodId={period.id} />}
-        {period.status === 'LOCKED' && <PostButton periodId={period.id} />}
+        {period.status === 'LOCKED' && (
+          <>
+            <PostButton periodId={period.id} />
+            <UnlockButton periodId={period.id} />
+          </>
+        )}
+        {(period.status === 'OPEN' || period.status === 'LOCKED' || period.status === 'POSTED') && (
+          <CloseAndNextButton periodId={period.id} />
+        )}
         {period.status === 'POSTED' && (
           <>
             <ReverseButton periodId={period.id} hasJournal={hasJournal} />

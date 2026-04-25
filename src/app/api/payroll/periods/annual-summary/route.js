@@ -1,23 +1,30 @@
 import { featureFlags } from '@/lib/features';
 import { aggregateAnnualPayroll } from '@/lib/payroll/aggregateAnnual';
-import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function GET(req) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok:false, error:'Payroll disabled'}), { status:403 });
   const companyId = requireCompanyId(req);
-  const currencyContext = await getPayrollCurrencyContext(companyId);
   const url = new URL(req.url);
   const yearParam = url.searchParams.get('year');
   const year = yearParam ? Number(yearParam) : new Date().getFullYear();
   if (!Number.isFinite(year) || year < 2000 || year > 2100) return new Response(JSON.stringify({ ok:false, error:'Invalid year'}), { status:400 });
   const data = await aggregateAnnualPayroll(year, companyId);
+  const currencyContext = {
+    processingCurrency: data.currencySummary.processingCurrency || data.currencySummary.processingCurrencies[0] || 'XOF',
+    fiscalCurrency: data.currencySummary.fiscalCurrency || data.currencySummary.fiscalCurrencies[0] || 'CDF',
+    mixedProcessingCurrencies: data.currencySummary.mixedProcessingCurrencies,
+    mixedFiscalCurrencies: data.currencySummary.mixedFiscalCurrencies,
+    processingCurrencies: data.currencySummary.processingCurrencies,
+    fiscalCurrencies: data.currencySummary.fiscalCurrencies,
+    missingFxMonths: data.currencySummary.missingFxMonths,
+  };
   const format = url.searchParams.get('format');
   if (format === 'csv') {
-    const headers = ['month','periodRef','grossTotal','netTotal','grossNegative','netNegative','correctionRatioGross','correctionRatioNet','cnssEmployeeTotal','iprTaxTotal','cnssEmployerTotal','onemTotal','inppTotal','employerChargesTotal','overtimeTotal','ytdGross','ytdNet','ytdCorrectionsGross','ytdCorrectionsNet','ytdCorrectionRatioGross','ytdCorrectionRatioNet'];
+    const headers = ['month','periodRef','processingCurrency','fiscalCurrency','fxRate','grossTotal','netTotal','grossNegative','netNegative','correctionRatioGross','correctionRatioNet','cnssEmployeeTotal','iprTaxTotal','cnssEmployerTotal','onemTotal','inppTotal','employerChargesTotal','overtimeTotal','ytdGross','ytdNet','ytdCorrectionsGross','ytdCorrectionsNet','ytdCorrectionRatioGross','ytdCorrectionRatioNet'];
     const rows = data.months.map(r => headers.map(h => r[h] == null ? '' : r[h]));
     const csv = [headers.join(','), ...rows.map(row => row.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')].join('\n');
     return new Response(csv, { status:200, headers:{ 'Content-Type':'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="annual_payroll_${year}.csv"` } });
   }
-  return new Response(JSON.stringify({ ok:true, year, currencyContext, months: data.months }), { status:200, headers:{ 'Content-Type':'application/json' } });
+  return new Response(JSON.stringify({ ok:true, year, currencyContext, currencySummary: data.currencySummary, months: data.months }), { status:200, headers:{ 'Content-Type':'application/json' } });
 }
