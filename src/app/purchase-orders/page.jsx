@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { absoluteUrl } from "@/lib/url";
+import { checkPerm, normalizeRole } from "@/lib/authz";
 import PurchaseOrderRowActions from "./PurchaseOrderRowActions";
 import ProtectedLink from "@/components/ProtectedLink";
 
@@ -47,11 +49,23 @@ async function fetchMissingInvoicePos() {
 
 export const dynamic = "force-dynamic";
 
+async function getPagePermissions() {
+  const cookieStore = await cookies();
+  const rawRole = cookieStore.get("user-role")?.value;
+  const role = normalizeRole(rawRole || process.env.DEFAULT_ROLE || "VIEWER");
+  return {
+    role,
+    canCreatePurchaseOrder: checkPerm("createPurchaseOrder", role),
+    canCreateIncomingInvoice: checkPerm("createIncomingInvoice", role),
+  };
+}
+
 export default async function PurchaseOrdersPage(props) {
   const awaitedSearchParams = await props.searchParams;
-  const [pos, missing] = await Promise.all([
+  const [pos, missing, permissions] = await Promise.all([
     fetchPOs(awaitedSearchParams),
     fetchMissingInvoicePos(),
+    getPagePermissions(),
   ]);
   // Compute progress ratio for each PO (total received / total ordered)
   const withProgress = pos.map((po) => {
@@ -75,13 +89,22 @@ export default async function PurchaseOrdersPage(props) {
                 ? "1 bon de commande reçu n’a pas encore de facture fournisseur."
                 : `${missing.length} bons de commande reçus n’ont pas encore de facture fournisseur.`}
             </span>
-            <ProtectedLink
-              action="createIncomingInvoice"
-              href="/incoming-invoices/create"
-              className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-            >
-              Créer une facture maintenant
-            </ProtectedLink>
+            {permissions.canCreateIncomingInvoice ? (
+              <Link
+                href="/incoming-invoices/create"
+                className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Créer une facture maintenant
+              </Link>
+            ) : (
+              <ProtectedLink
+                action="createIncomingInvoice"
+                href="/incoming-invoices/create"
+                className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Créer une facture maintenant
+              </ProtectedLink>
+            )}
           </div>
           <ul className="space-y-1">
             {missing.slice(0, 5).map((po) => (
@@ -106,13 +129,22 @@ export default async function PurchaseOrdersPage(props) {
         </div>
       )}
       <div>
-        <ProtectedLink
-          action="createPurchaseOrder"
-          href="/purchase-orders/create"
-          className="inline-block mb-2 px-3 py-1 bg-green-600 text-white text-xs rounded"
-        >
-          Nouveau bon de commande
-        </ProtectedLink>
+        {permissions.canCreatePurchaseOrder ? (
+          <Link
+            href="/purchase-orders/create"
+            className="inline-block mb-2 px-3 py-1 bg-green-600 text-white text-xs rounded"
+          >
+            Nouveau bon de commande
+          </Link>
+        ) : (
+          <ProtectedLink
+            action="createPurchaseOrder"
+            href="/purchase-orders/create"
+            className="inline-block mb-2 px-3 py-1 bg-green-600 text-white text-xs rounded"
+          >
+            Nouveau bon de commande
+          </ProtectedLink>
+        )}
       </div>
       <form className="flex flex-wrap gap-2 text-xs bg-gray-50 p-3 rounded border">
         <input
@@ -149,6 +181,40 @@ export default async function PurchaseOrdersPage(props) {
           Réinitialiser
         </a>
       </form>
+      {!withProgress.length ? (
+        <div className="rounded border border-dashed border-gray-300 bg-white p-6 space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Aucun bon de commande en cours
+            </h2>
+            <p className="text-sm text-gray-600">
+              Commencez par créer un nouveau bon de commande fournisseur.
+              Après création, il restera en brouillon, puis pourra être
+              approuvé et réceptionné.
+            </p>
+          </div>
+          {permissions.canCreatePurchaseOrder ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/purchase-orders/create"
+                className="inline-flex items-center rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Créer un bon de commande
+              </Link>
+              <Link
+                href="/suppliers"
+                className="text-sm text-blue-600 underline"
+              >
+                Vérifier d’abord les fournisseurs
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-amber-700">
+              Votre rôle actuel ne permet pas de créer un bon de commande.
+            </p>
+          )}
+        </div>
+      ) : (
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
@@ -195,6 +261,7 @@ export default async function PurchaseOrdersPage(props) {
           })}
         </tbody>
       </table>
+      )}
     </div>
   );
 }

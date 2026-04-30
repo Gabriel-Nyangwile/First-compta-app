@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { getClientRole, can } from "@/lib/clientRbac";
 
 /**
@@ -14,8 +15,27 @@ export default function ProtectedLink({
   className = "",
   ...rest
 }) {
-  const role = getClientRole();
-  const allowed = can(action, role);
+  const [hydrated, setHydrated] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const role = getClientRole();
+    setAllowed(can(action, role));
+    setHydrated(true);
+  }, [action]);
+
+  if (!hydrated && mode === "hide") return null;
+  if (!hydrated && mode === "disable") {
+    return (
+      <span
+        aria-disabled="true"
+        className={`${className} opacity-50 cursor-not-allowed`}
+        {...rest}
+      >
+        {children}
+      </span>
+    );
+  }
 
   if (!allowed && mode === "hide") return null;
   if (!allowed && mode === "disable") {

@@ -33,7 +33,7 @@ export default async function GoodsReceiptDetailPage(props) {
           Voir les retours fournisseurs
         </Link>
       </div>
-      <GoodsReceiptDetail receipt={receipt} />
+      <GoodsReceiptDetail receipt={receipt} initiallyExpanded />
     </div>
   );
 }

@@ -70,6 +70,7 @@ export async function getClientLettering({ clientId, companyId }) {
       id: tx.id,
       date: tx.date ? tx.date.toISOString() : null,
       amount,
+      letteredAmount: toNumber(tx.letteredAmount),
       direction: tx.direction,
       kind: tx.kind,
       side,
@@ -110,8 +111,69 @@ export async function getClientLettering({ clientId, companyId }) {
     if (item.side === "PAYMENT") totalPayment += item.amount;
   }
 
+  const invoices = transactions
+    .filter((tx) => tx.invoice)
+    .reduce((map, tx) => {
+      const key = tx.invoice.id;
+      const amount = toNumber(tx.amount);
+      const letteredAmount = toNumber(tx.letteredAmount);
+      const current = map.get(key) || {
+        id: tx.invoice.id,
+        number: tx.invoice.invoiceNumber || tx.invoice.id,
+        dueDate: tx.invoice.dueDate ? tx.invoice.dueDate.toISOString() : null,
+        status: tx.invoice.status,
+        total: toNumber(tx.invoice.totalAmount),
+        paid: toNumber(tx.invoice.paidAmount),
+        outstanding: toNumber(tx.invoice.outstandingAmount),
+        letterStatus: "UNMATCHED",
+        letteredAmount: 0,
+        amount: 0,
+      };
+      current.amount += amount;
+      current.letteredAmount += letteredAmount;
+      current.letterStatus =
+        current.letteredAmount >= current.amount - 0.01
+          ? "MATCHED"
+          : current.letteredAmount > 0
+            ? "PARTIAL"
+            : "UNMATCHED";
+      map.set(key, current);
+      return map;
+    }, new Map());
+
+  const availablePayments = transactions
+    .filter((tx) => {
+      const movementKind = tx.moneyMovement?.kind;
+      const remaining =
+        toNumber(tx.amount) - toNumber(tx.letteredAmount || 0);
+      return (
+        tx.kind === "PAYMENT" &&
+        movementKind === "CLIENT_RECEIPT" &&
+        remaining > 0.009
+      );
+    })
+    .map((tx) => ({
+      id: tx.id,
+      movementId: tx.moneyMovement?.id || null,
+      voucherRef: tx.moneyMovement?.voucherRef || null,
+      amount: toNumber(tx.amount),
+      letteredAmount: toNumber(tx.letteredAmount),
+      remainingAmount: Math.max(
+        0,
+        toNumber(tx.amount) - toNumber(tx.letteredAmount || 0)
+      ),
+      letterStatus: tx.letterStatus || "UNMATCHED",
+      date: tx.date ? tx.date.toISOString() : null,
+    }));
+
   return {
     items,
+    invoices: Array.from(invoices.values()).sort((a, b) => {
+      const dueA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+      const dueB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+      return dueA - dueB;
+    }),
+    availablePayments,
     totals: {
       receivable: totalReceivable,
       payment: totalPayment,
@@ -950,6 +1012,7 @@ export async function getSupplierLettering({ supplierId, companyId }) {
       id: tx.id,
       date: tx.date ? tx.date.toISOString() : null,
       amount,
+      letteredAmount: toNumber(tx.letteredAmount),
       direction: tx.direction,
       kind: tx.kind,
       side,
@@ -993,8 +1056,74 @@ export async function getSupplierLettering({ supplierId, companyId }) {
     if (item.side === "PAYMENT") totalPayment += item.amount;
   }
 
+  const invoices = transactions
+    .filter((tx) => tx.incomingInvoice)
+    .reduce((map, tx) => {
+      const key = tx.incomingInvoice.id;
+      const amount = toNumber(tx.amount);
+      const letteredAmount = toNumber(tx.letteredAmount);
+      const current = map.get(key) || {
+        id: tx.incomingInvoice.id,
+        number:
+          tx.incomingInvoice.entryNumber ||
+          tx.incomingInvoice.supplierInvoiceNumber ||
+          tx.incomingInvoice.id,
+        dueDate: tx.incomingInvoice.dueDate
+          ? tx.incomingInvoice.dueDate.toISOString()
+          : null,
+        status: tx.incomingInvoice.status,
+        total: toNumber(tx.incomingInvoice.totalAmount),
+        paid: toNumber(tx.incomingInvoice.paidAmount),
+        outstanding: toNumber(tx.incomingInvoice.outstandingAmount),
+        letterStatus: "UNMATCHED",
+        letteredAmount: 0,
+        amount: 0,
+      };
+      current.amount += amount;
+      current.letteredAmount += letteredAmount;
+      current.letterStatus =
+        current.letteredAmount >= current.amount - 0.01
+          ? "MATCHED"
+          : current.letteredAmount > 0
+            ? "PARTIAL"
+            : "UNMATCHED";
+      map.set(key, current);
+      return map;
+    }, new Map());
+
+  const availablePayments = transactions
+    .filter((tx) => {
+      const movementKind = tx.moneyMovement?.kind;
+      const remaining =
+        toNumber(tx.amount) - toNumber(tx.letteredAmount || 0);
+      return (
+        tx.kind === "PAYMENT" &&
+        movementKind === "SUPPLIER_PAYMENT" &&
+        remaining > 0.009
+      );
+    })
+    .map((tx) => ({
+      id: tx.id,
+      movementId: tx.moneyMovement?.id || null,
+      voucherRef: tx.moneyMovement?.voucherRef || null,
+      amount: toNumber(tx.amount),
+      letteredAmount: toNumber(tx.letteredAmount),
+      remainingAmount: Math.max(
+        0,
+        toNumber(tx.amount) - toNumber(tx.letteredAmount || 0)
+      ),
+      letterStatus: tx.letterStatus || "UNMATCHED",
+      date: tx.date ? tx.date.toISOString() : null,
+    }));
+
   return {
     items,
+    invoices: Array.from(invoices.values()).sort((a, b) => {
+      const dueA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+      const dueB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+      return dueA - dueB;
+    }),
+    availablePayments,
     totals: {
       payable: totalPayable,
       payment: totalPayment,

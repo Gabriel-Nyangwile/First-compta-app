@@ -81,8 +81,13 @@ function LineRow({ index, products, assetCategories }) {
       <input name={`lines[${index}][orderedQty]`} type="number" step="0.001" placeholder="Qté" className="border px-2 py-1 rounded text-xs" data-qty />
       <input name={`lines[${index}][unitPrice]`} type="number" step="0.0001" placeholder="PU" className="border px-2 py-1 rounded text-xs" data-unit-price />
       <input name={`lines[${index}][vatRate]`} type="number" step="0.01" placeholder="TVA" className="border px-2 py-1 rounded text-xs" />
-      <select name={`lines[${index}][assetCategoryId]`} className="border px-2 py-1 rounded text-xs" data-asset-category>
-        <option value="">Caté immobilisation</option>
+      <select
+        name={`lines[${index}][assetCategoryId]`}
+        className="border px-2 py-1 rounded text-xs"
+        data-asset-category
+        title="Optionnel : à renseigner seulement si cette ligne correspond à une immobilisation"
+      >
+        <option value="">Immobilisation ? (optionnel)</option>
         {assetCategories.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
       </select>
       <button type="button" data-remove className="text-xs text-red-600 mt-1">Supprimer</button>
@@ -120,10 +125,19 @@ function POForm({ suppliers, products, assetCategories }) {
               <button type="button" data-refresh-products className="px-2 py-1 text-xs bg-slate-500 text-white rounded">Rafraîchir</button>
             </div>
           </div>
+          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+            Pour une <span className="font-semibold">marchandise</span>, laissez
+            le champ <span className="font-semibold">Immobilisation ?</span>{" "}
+            vide. Renseignez-le seulement si la ligne achetée doit être suivie
+            comme <span className="font-semibold">immobilisation</span>.
+          </div>
           <div className="space-y-3" data-lines-container>
             <LineRow index={0} products={products} assetCategories={assetCategories} />
           </div>
-          <div className="text-[10px] text-gray-500">Remplir au moins une ligne (quantité & prix requis). Une ligne vide à la fin sera ajoutée automatiquement.</div>
+          <div className="text-[10px] text-gray-500">
+            Remplir au moins une ligne (quantité et prix requis). Une ligne vide
+            à la fin sera ajoutée automatiquement.
+          </div>
         </div>
       </div>
       <label className="text-xs space-y-1 block">
@@ -245,6 +259,10 @@ function ClientEnhancements({ assetCategories }) {
                 + '<input name="lines[0][orderedQty]" type="number" step="0.001" placeholder="Qté" class="border px-2 py-1 rounded text-xs" data-qty />'
                 + '<input name="lines[0][unitPrice]" type="number" step="0.0001" placeholder="PU" class="border px-2 py-1 rounded text-xs" data-unit-price />'
                 + '<input name="lines[0][vatRate]" type="number" step="0.01" placeholder="TVA" class="border px-2 py-1 rounded text-xs" />'
+                + '<select name="lines[0][assetCategoryId]" class="border px-2 py-1 rounded text-xs" data-asset-category title="Optionnel : à renseigner seulement si cette ligne correspond à une immobilisation">'
+                + '<option value="">Immobilisation ? (optionnel)</option>'
+                + ASSET_CATEGORIES.map(c=>'<option value="'+c.id+'">'+c.code+'</option>').join('')
+                + '</select>'
                 + '<button type="button" data-remove class="text-xs text-red-600 mt-1">Supprimer</button>';
               container.appendChild(div);
               template = div;

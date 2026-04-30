@@ -22,9 +22,51 @@ const FLOW_LABELS = {
 };
 
 const DOC_TYPE_LABELS = {
-  CASH: 'Caisse',
-  BANK: 'Banque',
+  PCD: 'Caisse dépense',
+  PCR: 'Caisse recette',
+  OP: 'Ordre de paiement / banque',
 };
+
+function getAuthorizationPageContext(scope, flow) {
+  if (scope === 'CASH' && flow === 'OUT') {
+    return {
+      title: 'Décaissements caisse',
+      description: 'Préparez et suivez les paiements et sorties de caisse.',
+      newHref: '/authorizations/new?docType=PCD',
+      newLabel: 'Nouveau décaissement caisse',
+    };
+  }
+  if (scope === 'CASH' && flow === 'IN') {
+    return {
+      title: 'Encaissements caisse',
+      description: 'Préparez et suivez les recettes et entrées de caisse.',
+      newHref: '/authorizations/new?docType=PCR',
+      newLabel: 'Nouvel encaissement caisse',
+    };
+  }
+  if (scope === 'BANK' && flow === 'OUT') {
+    return {
+      title: 'Décaissements banque',
+      description: 'Préparez et suivez les paiements et sorties bancaires.',
+      newHref: '/authorizations/new?docType=OP&flow=OUT',
+      newLabel: 'Nouveau décaissement banque',
+    };
+  }
+  if (scope === 'BANK' && flow === 'IN') {
+    return {
+      title: 'Encaissements banque',
+      description: 'Préparez et suivez les recettes et entrées bancaires.',
+      newHref: '/authorizations/new?docType=OP&flow=IN',
+      newLabel: 'Nouvel encaissement banque',
+    };
+  }
+  return {
+    title: 'Autorisations de trésorerie',
+    description: 'Suivi des autorisations de caisse et de banque, en entrée comme en sortie.',
+    newHref: '/authorizations/new',
+    newLabel: 'Nouvelle autorisation',
+  };
+}
 
 async function approveAuthorizationFromList(formData) { 'use server';
   const id = formData.get('id');
@@ -40,12 +82,23 @@ export default async function AuthorizationsPage({ searchParams }) {
     return <main className="u-main-container u-padding-content-container">companyId requis.</main>;
   }
   const sp = await searchParams;
+  const deleted = sp?.deleted === '1';
   const status = sp?.status || '';
+  const scope = sp?.scope || '';
+  const flow = sp?.flow || '';
   const party = sp?.party || '';
   const partialOnly = sp?.partial === '1';
   const exceededOnly = sp?.exceeded === '1';
   const companyCurrency = await getCompanyCurrency(companyId);
-  let rows = await listAuthorizations({ companyId, status: status || undefined, party: party || undefined, limit: 200 });
+  const pageContext = getAuthorizationPageContext(scope, flow);
+  let rows = await listAuthorizations({
+    companyId,
+    status: status || undefined,
+    scope: scope || undefined,
+    flow: flow || undefined,
+    party: party || undefined,
+    limit: 200
+  });
   if (partialOnly) rows = rows.filter(r => r.partial);
   if (exceededOnly) rows = rows.filter(r => r.exceededRemaining);
 
@@ -61,10 +114,15 @@ export default async function AuthorizationsPage({ searchParams }) {
   return (
     <main className="u-main-container u-padding-content-container space-y-6">
       <header>
-        <h1 className="text-2xl font-bold">Autorisations de trésorerie</h1>
-        <p className="text-sm text-slate-600">Suivi des autorisations de caisse et de banque, en entrée comme en sortie.</p>
+        <h1 className="text-2xl font-bold">{pageContext.title}</h1>
+        <p className="text-sm text-slate-600">{pageContext.description}</p>
       </header>
       <TreasuryModuleNav currentHref="/authorizations" />
+      {deleted && (
+        <div className="rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          L&apos;autorisation a été supprimée.
+        </div>
+      )}
       <section className="bg-white border rounded p-4 space-y-3">
         <form method="get" className="flex flex-wrap gap-4 items-end text-xs">
           <div className="flex flex-col">
@@ -85,6 +143,8 @@ export default async function AuthorizationsPage({ searchParams }) {
               <option value="SUPPLIER">Fournisseur</option>
             </select>
           </div>
+          <input type="hidden" name="scope" value={scope} />
+          <input type="hidden" name="flow" value={flow} />
           <div className="flex items-center gap-3 mt-4">
             <label className="inline-flex items-center gap-1">
               <input type="checkbox" name="partial" value="1" defaultChecked={partialOnly} /> <span>Autorisations partielles</span>
@@ -96,7 +156,7 @@ export default async function AuthorizationsPage({ searchParams }) {
           <button className="bg-blue-600 text-white rounded px-3 py-1 text-xs" type="submit">Filtrer</button>
           {partialOnly && <span className="text-[10px] bg-amber-100 border border-amber-300 text-amber-700 px-2 py-1 rounded">Autorisations partielles</span>}
           {exceededOnly && <span className="text-[10px] bg-red-100 border border-red-300 text-red-700 px-2 py-1 rounded">Dépassements</span>}
-          <Link href="/authorizations/new" className="ml-auto text-xs px-3 py-1 rounded bg-green-600 text-white">Nouvelle autorisation</Link>
+          <Link href={pageContext.newHref} className="ml-auto text-xs px-3 py-1 rounded bg-green-600 text-white">{pageContext.newLabel}</Link>
         </form>
         <div className="grid md:grid-cols-4 gap-3 text-[11px] mt-2">
           <div className="p-2 border rounded bg-slate-50">

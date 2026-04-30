@@ -104,6 +104,33 @@ export async function cancelAuthorization(id, companyId) {
   });
 }
 
+export async function deleteAuthorization(id, companyId) {
+  const scopedCompanyId = requireCompanyId(companyId);
+  return prisma.$transaction(async (tx) => {
+    const auth = await tx.treasuryAuthorization.findFirst({
+      where: { id, companyId: scopedCompanyId },
+      include: {
+        moneyMovements: { select: { id: true } },
+        bankAdvices: { select: { id: true } },
+      },
+    });
+    if (!auth) throw new Error("Authorization introuvable");
+    if (!["DRAFT", "CANCELLED"].includes(auth.status)) {
+      throw new Error("Suppression autorisée seulement pour DRAFT ou CANCELLED");
+    }
+    if ((auth.moneyMovements?.length || 0) > 0) {
+      throw new Error("Impossible de supprimer une autorisation déjà liée à des mouvements");
+    }
+    if ((auth.bankAdvices?.length || 0) > 0) {
+      throw new Error("Impossible de supprimer une autorisation déjà liée à des avis bancaires");
+    }
+    await tx.treasuryAuthorization.delete({
+      where: { id: auth.id },
+    });
+    return { ok: true, id: auth.id };
+  });
+}
+
 /** Create a movement executing an APPROVED authorization. */
 export async function executeAuthorizationViaMovement({ authorizationId, moneyAccountId, description, companyId }) {
   const scopedCompanyId = requireCompanyId(companyId);
@@ -155,12 +182,13 @@ function deriveKindFromAuthorization(auth) {
   }
 }
 
-export async function listAuthorizations({ companyId, status, docType, flow, party, limit = 50 }) {
+export async function listAuthorizations({ companyId, status, docType, scope, flow, party, limit = 50 }) {
   const scopedCompanyId = requireCompanyId(companyId);
   const normalizedStatus = status === 'AUTHORIZED' ? 'APPROVED' : status;
   const where = { companyId: scopedCompanyId };
   if (normalizedStatus) where.status = normalizedStatus;
   if (docType) where.docType = docType;
+  if (scope) where.scope = scope;
   if (flow) where.flow = flow;
   if (party === 'CLIENT') where.invoiceId = { not: null };
   if (party === 'SUPPLIER') where.incomingInvoiceId = { not: null };

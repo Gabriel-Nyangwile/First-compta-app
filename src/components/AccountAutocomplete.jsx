@@ -22,6 +22,7 @@ export default function AccountAutocomplete({
   const [newLabel, setNewLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   const listToDisplay = useMemo(() => {
     if (input.length < 1) {
@@ -110,6 +111,7 @@ export default function AccountAutocomplete({
     const val = (raw == null ? "" : raw).slice(0, maxLength);
     if (selected) setSelected(null);
     setInput(val);
+    setIsOpen(true);
     setError("");
     setShowCreate(false);
     setNewLabel("");
@@ -122,6 +124,7 @@ export default function AccountAutocomplete({
       setInput(acc.number);
       setSelected(acc);
       setSuggestions([]);
+      setIsOpen(false);
       setShowCreate(false);
       setNewLabel("");
       setError("");
@@ -154,6 +157,7 @@ export default function AccountAutocomplete({
           (a.number || "").localeCompare(b.number || "")
         );
       });
+      setIsOpen(false);
       setShowCreate(false);
       setNewLabel("");
       setError("");
@@ -176,6 +180,8 @@ export default function AccountAutocomplete({
   }, [safeValue, selected]);
 
   const isLoading = loading || prefetching;
+  const shouldShowSuggestions = isOpen && listToDisplay.length > 0;
+  const shouldShowCreate = isOpen && showCreate && !isLoading;
 
   return (
     <div className="relative">
@@ -185,23 +191,33 @@ export default function AccountAutocomplete({
         id="accountNumber"
         value={input == null ? "" : input}
         onChange={handleInput}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => {
+          window.setTimeout(() => {
+            setIsOpen(false);
+            setShowCreate(false);
+          }, 150);
+        }}
         maxLength={maxLength}
         autoComplete="off"
         className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
         placeholder={placeholder}
       />
-      {isLoading && (
+      {isLoading && isOpen && (
         <div className="absolute left-0 top-full bg-white border px-2 py-1 text-xs">
           Recherche...
         </div>
       )}
-      {listToDisplay.length > 0 && (
-        <ul className="absolute left-0 right-0 min-w-full bg-white border border-gray-200 z-10 max-h-56 overflow-auto mt-1 rounded shadow">
+      {shouldShowSuggestions && (
+        <ul className="absolute left-0 right-0 min-w-full bg-white border border-gray-200 z-20 max-h-56 overflow-auto mt-1 rounded shadow">
           {listToDisplay.map((acc) => (
             <li
               key={acc.id}
               className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
-              onClick={() => handleSelect(acc.number)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                handleSelect(acc.number);
+              }}
             >
               <div className="flex flex-col gap-0.5 whitespace-normal break-words leading-tight">
                 <span className="font-mono text-blue-700">{acc.number}</span>
@@ -211,8 +227,8 @@ export default function AccountAutocomplete({
           ))}
         </ul>
       )}
-      {showCreate && !isLoading && (
-        <div className="mt-2 bg-orange-50 border border-orange-200 rounded p-2">
+      {shouldShowCreate && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-orange-50 border border-orange-200 rounded p-2 z-20 shadow">
           <div className="mb-2 text-sm text-orange-700">
             Aucun compte trouvé. Créer le compte{" "}
             <span className="font-mono font-bold">{input}</span> :

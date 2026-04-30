@@ -1,4 +1,4 @@
-import { authorizeAuthorization, cancelAuthorization, executeAuthorizationViaMovement } from '@/lib/serverActions/authorization';
+import { authorizeAuthorization, cancelAuthorization, deleteAuthorization, executeAuthorizationViaMovement } from '@/lib/serverActions/authorization';
 import prisma from '@/lib/prisma';
 import { listMoneyAccountsWithBalance } from '@/lib/serverActions/money';
 import { redirect } from 'next/navigation';
@@ -10,6 +10,7 @@ import { getCompanyIdFromCookies } from '@/lib/tenant';
 async function doApprove(formData) { 'use server'; const id = formData.get('id'); const companyId = getCompanyIdFromCookies(await cookies()); await authorizeAuthorization(id, companyId); redirect(`/authorizations/${id}`); }
 async function doCancel(formData) { 'use server'; const id = formData.get('id'); const companyId = getCompanyIdFromCookies(await cookies()); await cancelAuthorization(id, companyId); redirect(`/authorizations/${id}`); }
 async function doExecute(formData) { 'use server'; const id = formData.get('id'); const moneyAccountId = formData.get('moneyAccountId'); const companyId = getCompanyIdFromCookies(await cookies()); await executeAuthorizationViaMovement({ authorizationId: id, moneyAccountId, companyId }); redirect(`/authorizations/${id}`); }
+async function doDelete(formData) { 'use server'; const id = formData.get('id'); const companyId = getCompanyIdFromCookies(await cookies()); await deleteAuthorization(id, companyId); redirect(`/authorizations?deleted=1`); }
 
 export default async function AuthorizationDetailPage({ params }) {
   const { id } = await params;
@@ -20,12 +21,19 @@ export default async function AuthorizationDetailPage({ params }) {
     where: { id, companyId },
     include: {
       moneyMovements: true,
+      bankAdvices: { select: { id: true, refNumber: true, adviceDate: true } },
       invoice: { select: { id: true, invoiceNumber: true, totalAmount: true, paidAmount: true, outstandingAmount: true } },
       incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, totalAmount: true, paidAmount: true, outstandingAmount: true } }
     }
   });
   if (!auth) return <main className="p-8">Introuvable</main>;
   const accounts = await listMoneyAccountsWithBalance(companyId);
+  const movementCount = auth.moneyMovements?.length || 0;
+  const adviceCount = auth.bankAdvices?.length || 0;
+  const canDelete =
+    ["DRAFT", "CANCELLED"].includes(auth.status) &&
+    movementCount === 0 &&
+    adviceCount === 0;
   return (
     <main className="u-main-container u-padding-content-container space-y-6">
       <div className="flex items-center gap-4">
@@ -86,6 +94,22 @@ export default async function AuthorizationDetailPage({ params }) {
           )}
           {auth.status === 'CANCELLED' && <div className="text-xs text-red-500">Annulée</div>}
           {auth.status === 'EXECUTED' && <div className="text-xs text-green-700">Exécutée</div>}
+          {canDelete && (
+            <form action={doDelete} className="space-y-2">
+              <input type="hidden" name="id" value={auth.id} />
+              <button className="bg-red-700 text-white px-3 py-1 rounded text-xs">Supprimer définitivement</button>
+              <p className="text-[10px] text-slate-500">
+                Autorisé seulement pour un brouillon ou une autorisation annulée, sans mouvement ni avis bancaire lié.
+              </p>
+            </form>
+          )}
+          {!canDelete && ["DRAFT", "CANCELLED"].includes(auth.status) && (
+            <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              Suppression indisponible : {movementCount > 0 ? `${movementCount} mouvement${movementCount > 1 ? 's' : ''} lié${movementCount > 1 ? 's' : ''}` : null}
+              {movementCount > 0 && adviceCount > 0 ? ' et ' : null}
+              {adviceCount > 0 ? `${adviceCount} avis bancaire${adviceCount > 1 ? 's' : ''} lié${adviceCount > 1 ? 's' : ''}` : null}.
+            </p>
+          )}
           <div className="pt-2 border-t space-y-2">
             <Link href="/authorizations" className="inline-block text-xs px-2 py-1 rounded border bg-slate-50 hover:bg-slate-100">Retour liste</Link>
             <Link href="/authorizations/new" className="inline-block text-xs px-2 py-1 rounded border bg-slate-50 hover:bg-slate-100">Nouvelle autorisation</Link>
@@ -110,6 +134,17 @@ export default async function AuthorizationDetailPage({ params }) {
               </li>
             ))}
             {!auth.moneyMovements.length && <li>Aucun</li>}
+          </ul>
+        </div>
+        <div className="bg-white border rounded p-4 space-y-2">
+          <h2 className="font-medium">Avis bancaires liés</h2>
+          <ul className="list-disc ml-4 text-xs space-y-1">
+            {auth.bankAdvices.map((advice) => (
+              <li key={advice.id}>
+                {new Date(advice.adviceDate).toLocaleDateString()} {advice.refNumber ? `– ${advice.refNumber}` : ''}
+              </li>
+            ))}
+            {!auth.bankAdvices.length && <li>Aucun</li>}
           </ul>
         </div>
         <div className="bg-white border rounded p-4 space-y-2">

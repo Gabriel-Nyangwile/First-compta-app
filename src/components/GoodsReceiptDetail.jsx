@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { authorizedFetch } from "@/lib/apiClient";
 
 const STATUS_BADGE = {
@@ -24,8 +25,12 @@ function format(number, digits = 3) {
   return value.toFixed(digits);
 }
 
-export default function GoodsReceiptDetail({ receipt }) {
-  const [expanded, setExpanded] = useState(false);
+export default function GoodsReceiptDetail({
+  receipt,
+  initiallyExpanded = false,
+}) {
+  const router = useRouter();
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const [busyLine, setBusyLine] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -73,6 +78,11 @@ export default function GoodsReceiptDetail({ receipt }) {
 
   const hasReturnableLines = returnableLines.length > 0;
   const canCreateReturn = Boolean(receipt.supplier?.id) && hasReturnableLines;
+  const qcPendingLines = lines.filter((line) => line.qcStatus === "PENDING");
+  const putAwayPendingLines = lines.filter(
+    (line) => line.qcStatus === "ACCEPTED" && line.status !== "PUTAWAY_DONE"
+  );
+  const isReadyForPoReceived = receipt.status === "PUTAWAY_DONE";
 
   const hasReturnSelection = Object.values(returnDraft).some((entry) => {
     const qty = Number(entry?.quantity);
@@ -92,8 +102,9 @@ export default function GoodsReceiptDetail({ receipt }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Erreur action");
       setMessage(
-        "Action enregistrée. Actualise la page pour voir les dernières données."
+        "Action enregistrée. L'écran a été actualisé."
       );
+      router.refresh();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -303,6 +314,54 @@ export default function GoodsReceiptDetail({ receipt }) {
         <div className="p-3 space-y-3">
           {message && <div className="text-xs text-emerald-600">{message}</div>}
           {error && <div className="text-xs text-red-600">{error}</div>}
+          {qcPendingLines.length > 0 && (
+            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-1">
+              <div className="font-semibold">
+                Étape suivante : terminer le contrôle qualité
+              </div>
+              <div>
+                Cliquez sur <span className="font-semibold">Valider QC</span>{" "}
+                ou <span className="font-semibold">Rejeter</span> pour chaque
+                ligne encore en attente.
+              </div>
+            </div>
+          )}
+          {qcPendingLines.length === 0 && putAwayPendingLines.length > 0 && (
+            <div className="rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900 space-y-1">
+              <div className="font-semibold">
+                Contrôle qualité terminé. Étape suivante : ranger les articles.
+              </div>
+              <div>
+                Cliquez maintenant sur{" "}
+                <span className="font-semibold">Ranger</span> pour chaque ligne
+                validée afin de terminer la mise en stock.
+              </div>
+            </div>
+          )}
+          {isReadyForPoReceived && (
+            <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 space-y-2">
+              <div className="font-semibold">
+                Réception terminée. Cette réception peut maintenant contribuer
+                au passage du bon de commande à l&apos;état RECEIVED.
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {receipt.purchaseOrder?.id && (
+                  <Link
+                    href={`/purchase-orders/${receipt.purchaseOrder.id}`}
+                    className="inline-flex rounded bg-emerald-600 px-3 py-1.5 text-white hover:bg-emerald-700"
+                  >
+                    Retourner au bon de commande
+                  </Link>
+                )}
+                <Link
+                  href="/incoming-invoices/create"
+                  className="inline-flex rounded border border-emerald-300 px-3 py-1.5 text-emerald-800 hover:bg-emerald-100"
+                >
+                  Préparer la facturation fournisseur
+                </Link>
+              </div>
+            </div>
+          )}
           <table className="w-full text-[11px] border">
             <thead className="bg-gray-100">
               <tr>

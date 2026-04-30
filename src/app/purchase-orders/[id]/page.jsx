@@ -6,6 +6,176 @@ import ClosePurchaseOrderButton from "./ClosePurchaseOrderButton";
 import GoodsReceiptDetail from "@/components/GoodsReceiptDetail";
 import { absoluteUrl } from "@/lib/url";
 
+const RECEIPT_STATUS_LABELS = {
+  OPEN: "Réception créée",
+  QC_PENDING: "Contrôle qualité à faire",
+  PUTAWAY_PENDING: "Rangement à terminer",
+  PUTAWAY_DONE: "Traitement terminé",
+  CLOSED: "Réception clôturée",
+};
+
+function WorkflowStep({ number, title, description, active, done, children }) {
+  const tone = done
+    ? "border-emerald-200 bg-emerald-50"
+    : active
+      ? "border-blue-200 bg-blue-50"
+      : "border-gray-200 bg-white";
+
+  return (
+    <div className={`rounded border p-3 space-y-2 ${tone}`}>
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white border text-xs font-semibold">
+          {number}
+        </span>
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-gray-900">{title}</div>
+          <div className="text-xs text-gray-700">{description}</div>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function PurchaseOrderWorkflowPanel({ po, remaining, closeEnabled }) {
+  const receipts = po.goodsReceipts || [];
+  const pendingReceipts = receipts.filter((receipt) =>
+    ["OPEN", "QC_PENDING", "PUTAWAY_PENDING"].includes(receipt.status)
+  );
+  const receivedDone = ["RECEIVED", "CLOSED"].includes(po.status);
+  const stagedActive = po.status === "STAGED";
+  const hasRemaining = (remaining?.remainingLines?.length || 0) > 0;
+
+  return (
+    <section className="space-y-3 rounded border border-slate-200 bg-slate-50 p-4">
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold text-slate-900">
+          Parcours guidé du bon de commande
+        </h2>
+        <p className="text-xs text-slate-700">
+          Après approbation, le bon passe à l&apos;étape de réception. Le statut{" "}
+          <span className="font-semibold">STAGED</span> signifie que des
+          réceptions existent, mais que le contrôle qualité ou le rangement
+          n&apos;est pas terminé.
+        </p>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <WorkflowStep
+          number="1"
+          title="Bon approuvé"
+          description="Le fournisseur et les lignes sont validés. Vous pouvez maintenant enregistrer les quantités réellement reçues."
+          active={po.status === "APPROVED"}
+          done={!["DRAFT"].includes(po.status)}
+        >
+          {po.status === "APPROVED" && (
+            <Link
+              href={`#reception-form`}
+              className="inline-flex rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-700"
+            >
+              Commencer une réception
+            </Link>
+          )}
+        </WorkflowStep>
+
+        <WorkflowStep
+          number="2"
+          title="Créer ou compléter les réceptions"
+          description="Saisissez les quantités livrées. Si la livraison est partielle, vous pourrez créer d'autres réceptions plus tard."
+          active={["APPROVED", "PARTIAL"].includes(po.status)}
+          done={receipts.length > 0}
+        >
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/goods-receipts/create?purchaseOrderId=${po.id}`}
+              className="inline-flex rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700"
+            >
+              Créer une réception dédiée
+            </Link>
+            <Link
+              href="/goods-receipts"
+              className="inline-flex rounded border border-indigo-300 px-3 py-1.5 text-xs text-indigo-700 hover:bg-indigo-50"
+            >
+              Voir toutes les réceptions
+            </Link>
+          </div>
+          {hasRemaining && (
+            <div className="text-[11px] text-slate-600">
+              Quantité totale restant à recevoir :{" "}
+              <span className="font-mono">
+                {remaining.summary.totalRemainingQty.toFixed(3)}
+              </span>
+            </div>
+          )}
+        </WorkflowStep>
+
+        <WorkflowStep
+          number="3"
+          title="Terminer le contrôle qualité et le rangement"
+          description="Tant qu'une réception n'est pas complètement traitée, le bon reste en STAGED et ne peut pas passer à l'étape finale."
+          active={stagedActive}
+          done={receivedDone || po.status === "PARTIAL"}
+        >
+          {pendingReceipts.length > 0 ? (
+            <div className="space-y-2">
+              <div className="text-[11px] text-slate-700">
+                Réceptions à traiter maintenant :
+              </div>
+              <div className="flex flex-col gap-2">
+                {pendingReceipts.map((receipt) => (
+                  <Link
+                    key={receipt.id}
+                    href={`/goods-receipts/${receipt.id}`}
+                    className="flex items-center justify-between rounded border border-purple-200 bg-white px-3 py-2 text-xs hover:bg-purple-50"
+                  >
+                    <span className="font-mono text-slate-900">
+                      {receipt.number}
+                    </span>
+                    <span className="text-purple-800">
+                      {RECEIPT_STATUS_LABELS[receipt.status] || receipt.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-600">
+              Aucune réception en attente de QC ou de rangement.
+            </div>
+          )}
+        </WorkflowStep>
+
+        <WorkflowStep
+          number="4"
+          title="Facturer puis clôturer le bon"
+          description="Quand toutes les lignes sont reçues, le bon passe à RECEIVED. Vous pouvez alors saisir la facture fournisseur et clôturer le bon."
+          active={receivedDone}
+          done={po.status === "CLOSED"}
+        >
+          <div className="flex flex-wrap gap-2">
+            {receivedDone && (
+              <Link
+                href="/incoming-invoices/create"
+                className="inline-flex rounded bg-green-600 px-3 py-1.5 text-xs text-white hover:bg-green-700"
+              >
+                Saisir la facture fournisseur
+              </Link>
+            )}
+            {closeEnabled && po.status !== "CLOSED" && (
+              <a
+                href="#close-po"
+                className="inline-flex rounded border border-green-300 px-3 py-1.5 text-xs text-green-700 hover:bg-green-50"
+              >
+                Aller à la clôture
+              </a>
+            )}
+          </div>
+        </WorkflowStep>
+      </div>
+    </section>
+  );
+}
+
 async function fetchPO(id) {
   const url = await absoluteUrl(`/api/purchase-orders/${id}`);
   const res = await fetch(url, { cache: "no-store" });
@@ -51,7 +221,7 @@ export default async function PurchaseOrderDetail(props) {
         {po.status === "DRAFT" && (
           <ApprovePurchaseOrderButton purchaseOrderId={po.id} />
         )}
-        {["APPROVED", "PARTIAL", "RECEIVED"].includes(po.status) && (
+        {["APPROVED", "PARTIAL", "STAGED", "RECEIVED"].includes(po.status) && (
           <Link
             href={`/goods-receipts/create?purchaseOrderId=${po.id}`}
             className="text-xs text-blue-600 underline"
@@ -125,6 +295,13 @@ export default async function PurchaseOrderDetail(props) {
           n'est générée à cette étape.
         </div>
       )}
+
+      <PurchaseOrderWorkflowPanel
+        po={po}
+        remaining={remaining}
+        closeEnabled={closeEnabled}
+      />
+
       <div className="text-sm space-y-1">
         <div>
           <span className="font-medium">Fournisseur:</span>{" "}
@@ -231,13 +408,17 @@ export default async function PurchaseOrderDetail(props) {
         </section>
       )}
 
-      <ClosePurchaseOrderButton
-        purchaseOrderId={po.id}
-        disabled={!closeEnabled}
-      />
+      <div id="close-po">
+        <ClosePurchaseOrderButton
+          purchaseOrderId={po.id}
+          disabled={!closeEnabled}
+        />
+      </div>
 
       {remaining && remaining.remainingLines.length > 0 && (
-        <ReceiveForm poId={po.id} remaining={remaining} />
+        <div id="reception-form">
+          <ReceiveForm poId={po.id} remaining={remaining} />
+        </div>
       )}
 
       <div>

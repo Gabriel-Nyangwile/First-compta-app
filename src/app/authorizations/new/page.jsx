@@ -11,8 +11,20 @@ import { getCompanyCurrency } from '@/lib/companyContext';
 async function create(formData) {
   'use server';
   const docType = formData.get('docType');
-  const flow = docType === 'PCR' ? 'IN' : 'OUT';
-  const scope = docType === 'OP' ? 'BANK' : 'CASH';
+  const requestedFlow = formData.get('flow');
+  const requestedScope = formData.get('scope');
+  const flow =
+    docType === 'PCR'
+      ? 'IN'
+      : docType === 'OP'
+        ? (requestedFlow === 'IN' ? 'IN' : 'OUT')
+        : 'OUT';
+  const scope =
+    docType === 'OP'
+      ? 'BANK'
+      : requestedScope === 'BANK'
+        ? 'BANK'
+        : 'CASH';
   const amount = formData.get('amount');
   const companyId = getCompanyIdFromCookies(await cookies());
   const companyCurrency = await getCompanyCurrency(companyId);
@@ -21,12 +33,25 @@ async function create(formData) {
   const invoiceId = formData.get('invoiceId') || null;
   const incomingInvoiceId = formData.get('incomingInvoiceId') || null;
   await createAuthorization({ companyId, docType, flow, scope, amount, currency, purpose, invoiceId, incomingInvoiceId });
-  redirect('/authorizations');
+  redirect(`/authorizations?scope=${scope}&flow=${flow}`);
 }
 
-export default async function NewAuthorizationPage() {
+export default async function NewAuthorizationPage({ searchParams }) {
   const companyId = getCompanyIdFromCookies(await cookies());
   const companyCurrency = await getCompanyCurrency(companyId);
+  const sp = await searchParams;
+  const docType = sp?.docType || 'PCD';
+  const requestedFlow = sp?.flow === 'IN' ? 'IN' : 'OUT';
+  const resolvedScope = docType === 'OP' ? 'BANK' : 'CASH';
+  const resolvedFlow = docType === 'PCR' ? 'IN' : docType === 'OP' ? requestedFlow : 'OUT';
+  const pageTitle =
+    docType === 'PCR'
+      ? 'Nouvel encaissement caisse'
+      : docType === 'OP' && resolvedFlow === 'IN'
+        ? 'Nouvel encaissement banque'
+        : docType === 'OP'
+          ? 'Nouveau décaissement banque'
+          : 'Nouveau décaissement caisse';
   // Suggestions d'objet basées sur le type choisi (fallback simple côté client via datalist)
   const purposeSuggestions = [
     'Paiement facture fournisseur',
@@ -40,15 +65,27 @@ export default async function NewAuthorizationPage() {
   ];
   return (
     <main className="u-main-container u-padding-content-container space-y-6">
-      <h1 className="text-2xl font-bold">Nouvelle Autorisation</h1>
+      <h1 className="text-2xl font-bold">{pageTitle}</h1>
       <form action={create} className="space-y-4 max-w-lg bg-white border rounded p-4 text-sm" data-enhanced>
+        <input type="hidden" name="scope" value={resolvedScope} />
+        <input type="hidden" name="flow" value={resolvedFlow} />
         <div className="flex flex-col gap-1">
           <label className="font-medium">Type</label>
-          <select name="docType" required className="border rounded px-2 py-1">
+          <select name="docType" defaultValue={docType} required className="border rounded px-2 py-1">
             <option value="PCD">PCD (Caisse Dépense)</option>
             <option value="PCR">PCR (Caisse Recette)</option>
-            <option value="OP">OP (Ordre Paiement Banque)</option>
+            <option value="OP">OP (Banque)</option>
           </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="font-medium">Périmètre</label>
+            <div className="border rounded px-2 py-1 bg-slate-50">{resolvedScope === 'BANK' ? 'Banque' : 'Caisse'}</div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-medium">Sens</label>
+            <div className="border rounded px-2 py-1 bg-slate-50">{resolvedFlow === 'IN' ? 'Encaissement / Entrée' : 'Paiement / Sortie'}</div>
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-medium">Montant</label>

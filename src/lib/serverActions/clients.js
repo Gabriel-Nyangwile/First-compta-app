@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { matchClientPayment } from "@/lib/lettering/matchClientPayment";
+import { matchPartyInvoice } from "@/lib/lettering/matchPartyInvoice";
 
 export async function matchClientPaymentAction({ movementId, companyId }) {
   if (!movementId) throw new Error("movementId requis");
@@ -21,4 +22,9 @@ export async function matchClientPaymentAction({ movementId, companyId }) {
 
   const result = await matchClientPayment({ movementId, companyId });
   return result;
+}
+
+export async function matchClientInvoiceAction({ invoiceId, companyId }) {
+  if (!invoiceId) throw new Error("invoiceId requis");
+  return matchPartyInvoice({ party: "client", invoiceId, companyId });
 }
