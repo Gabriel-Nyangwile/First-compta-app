@@ -11,6 +11,7 @@
     "db:reset:soft": "node --env-file=.env.local scripts/reset-data.js --soft --force",
     "dev:diagnostic": "node --env-file=.env.local scripts/dev-diagnostic.js",
     "studio": "prisma studio",
+    "postinstall": "prisma generate",
     "build": "next build",
     "start": "next start",
     "test": "npm run test:inventory-flow && npm run test:ledger-lettering && npm run test:payroll-bonus",
