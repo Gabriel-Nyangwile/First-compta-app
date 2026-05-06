@@ -14,6 +14,18 @@ const schemesFile = path.join(dataDir, 'rdc-contribution-schemes.json');
 
 function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
 
+async function resolveCompanyId() {
+  const fromEnv = (
+    process.env.DEFAULT_COMPANY_ID ||
+    process.env.COMPANY_ID ||
+    ''
+  ).trim();
+  if (fromEnv) return fromEnv;
+  // Fall back to the first company in the database (created by seed-minimal)
+  const company = await prisma.company.findFirst({ orderBy: { createdAt: 'asc' } });
+  return company?.id ?? null;
+}
+
 function toContributionBaseKind(s) {
   const k = String(s || '').toUpperCase();
   if (k === 'BRUT') return 'BRUT';
@@ -22,17 +34,18 @@ function toContributionBaseKind(s) {
   return 'BRUT';
 }
 
-async function upsertPayrollAccountMapping(accountsJson) {
+async function upsertPayrollAccountMapping(accountsJson, companyId) {
   const entries = accountsJson.accounts || {};
   for (const [code, obj] of Object.entries(entries)) {
     await prisma.payrollAccountMapping.upsert({
-      where: { code },
+      where: { companyId_code: { companyId, code } },
       update: {
         accountNumber: obj.number,
         label: obj.label,
         active: true,
       },
       create: {
+        companyId,
         code,
         accountNumber: obj.number,
         label: obj.label,
@@ -43,7 +56,7 @@ async function upsertPayrollAccountMapping(accountsJson) {
   }
 }
 
-async function upsertTaxRuleFromParams(paramsJson) {
+async function upsertTaxRuleFromParams(paramsJson, companyId) {
   const ipr = paramsJson?.PARAMETRES_PAIE_GLOBAL?.FISCAL?.IPR;
   if (!ipr) {
     console.warn('No IPR section found in unified payroll params');
@@ -99,19 +112,19 @@ async function upsertTaxRuleFromParams(paramsJson) {
   const code = taxJson.code || 'IPR_RDC_2025';
   const label = taxJson.label || 'IPR RDC (barème annuel en CDF)';
   await prisma.taxRule.upsert({
-    where: { code },
+    where: { companyId_code: { companyId, code } },
     update: { label, brackets, roundingMode: 'BANKERS', active: true, meta },
-    create: { code, label, brackets, roundingMode: 'BANKERS', active: true, meta },
+    create: { companyId, code, label, brackets, roundingMode: 'BANKERS', active: true, meta },
   });
   console.log(`↑ TaxRule ${code} upserted (${brackets.length} tranches)`);
 }
 
-async function upsertContributionSchemes(schemesJson) {
+async function upsertContributionSchemes(schemesJson, companyId) {
   const list = schemesJson.schemes || [];
   for (const s of list) {
     const code = s.code;
     await prisma.contributionScheme.upsert({
-      where: { code },
+      where: { companyId_code: { companyId, code } },
       update: {
         label: s.label,
         employeeRate: s.employeeRate,
@@ -122,6 +135,7 @@ async function upsertContributionSchemes(schemesJson) {
         meta: s,
       },
       create: {
+        companyId,
         code,
         label: s.label,
         employeeRate: s.employeeRate,
@@ -145,9 +159,15 @@ async function main() {
   const payrollParams = readJson(payrollParamsFile);
   const schemes = readJson(schemesFile);
 
-  await upsertPayrollAccountMapping(accounts);
-  await upsertTaxRuleFromParams(payrollParams);
-  await upsertContributionSchemes(schemes);
+  const companyId = await resolveCompanyId();
+  if (!companyId) {
+    console.error('Error: no company found in DEFAULT_COMPANY_ID/COMPANY_ID env vars or database. Run seed-minimal.js first.');
+    process.exit(2);
+  }
+
+  await upsertPayrollAccountMapping(accounts, companyId);
+  await upsertTaxRuleFromParams(payrollParams, companyId);
+  await upsertContributionSchemes(schemes, companyId);
 }
 
 main()
