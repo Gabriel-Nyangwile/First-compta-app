@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { toPlain } from '@/lib/json';
+import { getRequestRole } from '@/lib/requestAuth';
 import { nextSequence } from '@/lib/sequence';
 import { requireCompanyId } from '@/lib/tenant';
 
@@ -39,6 +41,10 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("manageEmployees", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const data = await request.json();
     if (!data?.firstName || !data?.lastName) {
       return NextResponse.json({ error: 'firstName et lastName sont requis' }, { status: 400 });

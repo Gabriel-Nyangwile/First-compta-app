@@ -172,6 +172,7 @@ export default function MissionAdvanceRefundForm({ accounts }) {
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
                 {account.label}
+                {account.ledgerAccountNumber && !account.label.includes(account.ledgerAccountNumber) ? ` (${account.ledgerAccountNumber})` : ""}
               </option>
             ))}
           </select>

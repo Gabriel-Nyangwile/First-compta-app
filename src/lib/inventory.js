@@ -2,6 +2,13 @@ import prisma from "./prisma.js";
 
 async function ensureInventory(txOrClient, productId, companyId = null) {
   const client = txOrClient || prisma;
+  if (companyId) {
+    const product = await client.product.findFirst({
+      where: { id: productId, companyId },
+      select: { id: true },
+    });
+    if (!product) throw new Error("Produit introuvable.");
+  }
   const inv = await client.productInventory.upsert({
     where: { productId },
     update: {},
@@ -146,5 +153,5 @@ export async function applyAdjustMovement(
       companyId,
     });
   }
-  return applyOutMovement(tx, { productId, qty: Math.abs(qty) });
+  return applyOutMovement(tx, { productId, qty: Math.abs(qty), companyId });
 }

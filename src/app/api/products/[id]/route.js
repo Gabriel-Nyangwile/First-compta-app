@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
 import { requireCompanyId } from "@/lib/tenant";
+import { getRequestRole } from "@/lib/requestAuth";
 import {
   STOCK_NATURES,
   validateProductLedgerAccounts,
@@ -46,8 +48,8 @@ export async function GET(_req, { params }) {
       );
     }
 
-    const inventory = await prisma.productInventory.findUnique({
-      where: { productId_companyId: { productId: id, companyId } },
+    const inventory = await prisma.productInventory.findFirst({
+      where: { productId: id, companyId },
     });
 
     const movements = await prisma.stockMovement.findMany({
@@ -95,6 +97,10 @@ export async function GET(_req, { params }) {
 
 export async function PATCH(_req, { params }) {
   const companyId = requireCompanyId(_req);
+  const role = await getRequestRole(_req, { companyId });
+  if (!checkPerm("manageProducts", role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const p = await params; // Next 15 async params support
   const { id } = p;
   try {
@@ -180,6 +186,7 @@ export async function PATCH(_req, { params }) {
           stockNature: nextStockNature,
           inventoryAccountId: nextInventoryAccountId,
           stockVariationAccountId: nextVariationAccountId,
+          companyId,
         });
       } catch (validationError) {
         return NextResponse.json(
@@ -220,6 +227,10 @@ export async function PATCH(_req, { params }) {
 
 export async function DELETE(_req, { params }) {
   const companyId = requireCompanyId(_req);
+  const role = await getRequestRole(_req, { companyId });
+  if (!checkPerm("manageProducts", role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const p = await params;
   const { id } = p;
   try {

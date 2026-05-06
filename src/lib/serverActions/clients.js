@@ -24,7 +24,13 @@ export async function matchClientPaymentAction({ movementId, companyId }) {
   return result;
 }
 
-export async function matchClientInvoiceAction({ invoiceId, companyId }) {
+export async function matchClientInvoiceAction({ invoiceId, clientId, companyId }) {
   if (!invoiceId) throw new Error("invoiceId requis");
-  return matchPartyInvoice({ party: "client", invoiceId, companyId });
+  if (!clientId) throw new Error("clientId requis");
+  return matchPartyInvoice({
+    party: "client",
+    invoiceId,
+    expectedPartyId: clientId,
+    companyId,
+  });
 }

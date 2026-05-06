@@ -30,6 +30,15 @@ export async function PUT(req, { params }) {
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
     const body = await req.json();
+    if (body.categoryId) {
+      const category = await prisma.assetCategory.findFirst({
+        where: { id: body.categoryId, companyId },
+        select: { id: true },
+      });
+      if (!category) {
+        return NextResponse.json({ ok: false, error: 'Categorie introuvable' }, { status: 404 });
+      }
+    }
     const updated = await prisma.asset.update({
       where: { id, companyId },
       data: {

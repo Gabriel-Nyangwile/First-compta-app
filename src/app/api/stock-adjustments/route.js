@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { applyAdjustMovement } from '@/lib/inventory';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 // POST /api/stock-adjustments { productId, qty, unitCost? }
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("manageInventory", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await request.json();
     const productId = body.productId;
     const qty = Number(body.qty);
@@ -40,7 +46,9 @@ export async function POST(request) {
       });
       return mv.id;
     });
-    const full = await prisma.stockMovement.findUnique({ where: { id: movementId } });
+    const full = await prisma.stockMovement.findFirst({
+      where: { id: movementId, companyId },
+    });
     return NextResponse.json(full, { status: 201 });
   } catch (e) {
     if (e.message?.includes('unitCost requis') || e.message?.includes('Stock insuffisant')) {

@@ -1,17 +1,30 @@
 'use client';
 import React from 'react';
+import AccountAutocomplete from '@/components/AccountAutocomplete';
 
-export default function InvoiceLinker() {
-  const [mode, setMode] = React.useState('NONE'); // NONE | CLIENT | SUPPLIER
+const OTHER_ACCOUNT_MODES = new Set(['OTHER_ASSET', 'OTHER_PASSIVE']);
+const OTHER_ACCOUNT_PREFIXES = {
+  OTHER_ASSET: ['2', '3', '4'],
+  OTHER_PASSIVE: ['1', '4'],
+};
+const OTHER_ACCOUNT_HELP = {
+  OTHER_ASSET: 'Comptes actifs ou débiteurs : immobilisations, stocks, autres débiteurs (ex. 471100).',
+  OTHER_PASSIVE: 'Comptes passifs ou créditeurs : ressources, dettes, autres créditeurs (ex. 471200).',
+};
+
+export default function InvoiceLinker({ flow = null }) {
+  const [mode, setMode] = React.useState('NONE'); // NONE | CLIENT | SUPPLIER | OTHER_ASSET | OTHER_PASSIVE
   const [query, setQuery] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [results, setResults] = React.useState([]); // {id, number, remaining, total}
   const [selected, setSelected] = React.useState(null);
+  const [selectedAccount, setSelectedAccount] = React.useState(null);
   const [touched, setTouched] = React.useState(false); // user interacted
   const [error, setError] = React.useState('');
+  const isOtherAccountMode = OTHER_ACCOUNT_MODES.has(mode);
 
   React.useEffect(() => {
-    if (!query || mode==='NONE') { setResults([]); return; }
+    if (!query || mode==='NONE' || isOtherAccountMode) { setResults([]); return; }
     let active = true;
     const t = setTimeout(async () => {
       try {
@@ -37,28 +50,70 @@ export default function InvoiceLinker() {
       }
     }, 350);
     return () => { active = false; clearTimeout(t); };
-  }, [query, mode]);
+  }, [query, mode, isOtherAccountMode]);
 
-  const hiddenInputs = selected ? (
-    mode === 'CLIENT'
+  let hiddenInputs = null;
+  if (selected) {
+    hiddenInputs = mode === 'CLIENT'
       ? <input type="hidden" name="invoiceId" value={selected.id} />
-      : <input type="hidden" name="incomingInvoiceId" value={selected.id} />
-  ) : null;
+      : <input type="hidden" name="incomingInvoiceId" value={selected.id} />;
+  } else if (isOtherAccountMode && selectedAccount?.id) {
+    hiddenInputs = (
+      <>
+        <input type="hidden" name="beneficiaryType" value="OTHER" />
+        <input type="hidden" name="beneficiaryAccountNature" value={mode} />
+        <input type="hidden" name="beneficiaryAccountId" value={selectedAccount.id} />
+      </>
+    );
+  }
 
-  const requireSelection = touched && mode !== 'NONE' && !selected;
+  const requireSelection =
+    touched &&
+    mode !== 'NONE' &&
+    ((isOtherAccountMode && !selectedAccount) || (!isOtherAccountMode && !selected));
 
   return (
     <div className="border rounded p-3 space-y-2 bg-slate-50">
       <div className="flex items-center gap-2 text-xs">
-        <span className="font-medium">Lier facture</span>
-        <select value={mode} onChange={e=>{ setMode(e.target.value); setSelected(null); setQuery(''); setTouched(true); }} className="border rounded px-2 py-1">
+        <span className="font-medium">Lier à</span>
+        <select
+          value={mode}
+          onChange={e=>{
+            setMode(e.target.value);
+            setSelected(null);
+            setSelectedAccount(null);
+            setQuery('');
+            setTouched(true);
+          }}
+          className="border rounded px-2 py-1"
+        >
           <option value="NONE">(Aucune)</option>
           <option value="CLIENT">Facture client</option>
           <option value="SUPPLIER">Facture fournisseur</option>
+          <option value="OTHER_ASSET">Autre actif</option>
+          <option value="OTHER_PASSIVE">Autre passif</option>
         </select>
-        {mode !== 'NONE' && <span className="text-[10px] text-slate-500">Doit être une facture non soldée.</span>}
+        {mode !== 'NONE' && !isOtherAccountMode && <span className="text-[10px] text-slate-500">Doit être une facture non soldée.</span>}
+        {isOtherAccountMode && <span className="text-[10px] text-slate-500">{flow === 'IN' ? 'Encaissement' : flow === 'OUT' ? 'Décaissement' : 'Mouvement'} sur compte générique.</span>}
       </div>
-      {mode !== 'NONE' && (
+      {isOtherAccountMode && (
+        <div className="space-y-2">
+          <AccountAutocomplete
+            value={selectedAccount}
+            onChange={setSelectedAccount}
+            filterPrefixes={OTHER_ACCOUNT_PREFIXES[mode]}
+            placeholder={mode === 'OTHER_ASSET' ? 'Compte actif ou débiteur' : 'Compte passif ou créditeur'}
+          />
+          <p className="text-[11px] text-slate-500 leading-snug">{OTHER_ACCOUNT_HELP[mode]}</p>
+          {selectedAccount && (
+            <div className="text-[11px] text-green-700">
+              Compte sélectionné : <strong>{selectedAccount.number}</strong> - {selectedAccount.label}
+            </div>
+          )}
+          {requireSelection && <div className="text-[11px] text-red-600">Sélectionnez un compte ou remettre "(Aucune)".</div>}
+        </div>
+      )}
+      {mode !== 'NONE' && !isOtherAccountMode && (
         <div className="space-y-2">
           <input
             value={query}

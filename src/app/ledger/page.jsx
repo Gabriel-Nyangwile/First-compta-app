@@ -65,7 +65,7 @@ export default async function LedgerPage(props) {
             <label className="flex flex-col text-sm"><span className="mb-1 font-medium">Date fin</span><input className="rounded border border-neutral-300 px-2 py-1" type="date" name="dateTo" defaultValue={filters.dateTo} /></label>
             <label className="flex flex-col text-sm"><span className="mb-1 font-medium">Lettrage</span><select className="rounded border border-neutral-300 px-2 py-1" name="letterStatus" defaultValue={filters.letterStatus}><option value="">Tous</option>{Object.keys(TransactionLetterStatus).map((option) => (<option key={option} value={option}>{option}</option>))}</select></label>
             <label className="flex flex-col text-sm"><span className="mb-1 font-medium">Sens</span><select className="rounded border border-neutral-300 px-2 py-1" name="direction" defaultValue={filters.direction}><option value="">Débit + Crédit</option>{Object.keys(TransactionDirection).map((option) => (<option key={option} value={option}>{option}</option>))}</select></label>
-            <label className="flex flex-col text-sm md:col-span-2"><span className="mb-1 font-medium">Recherche compte</span><input className="rounded border border-neutral-300 px-2 py-1" type="text" name="q" placeholder="Numéro ou libellé" defaultValue={filters.q} /></label>
+            <label className="flex flex-col text-sm md:col-span-2"><span className="mb-1 font-medium">Recherche</span><input className="rounded border border-neutral-300 px-2 py-1" type="text" name="q" placeholder="Compte, libellé, journal, pièce" defaultValue={filters.q} /></label>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex flex-col text-sm"><span className="mb-1 font-medium">Comptes à zéro</span><select className="rounded border border-neutral-300 px-2 py-1" name="includeZero" defaultValue={filters.includeZero ? "true" : "false"}><option value="true">Inclure</option><option value="false">Exclure</option></select></label>
@@ -173,12 +173,12 @@ export default async function LedgerPage(props) {
             </select>
           </label>
           <label className="flex flex-col text-sm md:col-span-2">
-            <span className="mb-1 font-medium">Recherche compte</span>
+            <span className="mb-1 font-medium">Recherche</span>
             <input
               className="rounded border border-neutral-300 px-2 py-1"
               type="text"
               name="q"
-              placeholder="Numéro ou libellé"
+              placeholder="Compte, libellé, journal, pièce"
               defaultValue={filters.q}
             />
           </label>

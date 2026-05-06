@@ -1,7 +1,9 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { checkPerm } from '@/lib/authz';
 import { finalizeBatchToJournal } from '@/lib/journal';
 import { nextSequence } from '@/lib/sequence';
+import { getRequestRole } from '@/lib/requestAuth';
 import { getSystemAccounts } from '@/lib/systemAccounts';
 import { requireCompanyId } from '@/lib/tenant';
 
@@ -10,6 +12,7 @@ import { requireCompanyId } from '@/lib/tenant';
 export async function POST(req) {
   try {
     const companyId = requireCompanyId(req);
+    const role = await getRequestRole(req, { companyId });
     const body = await req.json();
     const { moneyAccountId, date, amount, mode, reference, note, links } = body;
     if (!moneyAccountId || !amount || !mode || !Array.isArray(links) || links.length === 0) {
@@ -18,6 +21,14 @@ export async function POST(req) {
     const totalVentile = links.reduce((sum, l) => sum + Number(l.amount || 0), 0);
     if (Number(amount) !== totalVentile) {
       return NextResponse.json({ error: 'La somme ventilée ne correspond pas au montant du paiement' }, { status: 400 });
+    }
+    const hasCustomerReceipts = links.some((l) => !!l.invoiceId);
+    const hasSupplierPayments = links.some((l) => !!l.incomingInvoiceId);
+    if (hasCustomerReceipts && !checkPerm("createCollection", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (hasSupplierPayments && !checkPerm("createPayment", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const result = await prisma.$transaction(async (tx) => {
       // Création du paiement
@@ -32,16 +43,13 @@ export async function POST(req) {
         },
       });
       // Récupérer le compte banque/caisse (MoneyAccount)
-      const moneyAccount = await tx.moneyAccount.findUnique({
-        where: { id: moneyAccountId },
+      const moneyAccount = await tx.moneyAccount.findFirst({
+        where: { id: moneyAccountId, companyId },
         include: { ledgerAccount: true },
       });
-      if (moneyAccount && moneyAccount.companyId !== companyId) {
-        throw new Error('Compte banque/caisse hors société');
-      }
       if (!moneyAccount || !moneyAccount.ledgerAccountId) throw new Error('Compte banque/caisse introuvable ou non paramétré');
       // Comptes système
-      const { vatAccount, vatDeductibleAccount } = await getSystemAccounts();
+      const { vatAccount, vatDeductibleAccount } = await getSystemAccounts(companyId);
       // Transactions à journaliser
       const transactions = [];
       // Création des liens PaymentInvoiceLink et MAJ factures

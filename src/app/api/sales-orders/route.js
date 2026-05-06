@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
+import { getRequestRole } from "@/lib/requestAuth";
 import { requireCompanyId } from "@/lib/tenant";
 import {
   computeSalesOrderTotals,
@@ -150,6 +152,10 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("createSalesOrder", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await request.json();
     const {
       clientId,

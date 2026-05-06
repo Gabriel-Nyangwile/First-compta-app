@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
 import { postCapitalPayment } from "@/lib/capitalPosting";
+import { getRequestRole } from "@/lib/requestAuth";
 import { requireCompanyId } from "@/lib/tenant";
 
 export async function POST(req, { params }) {
   const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
+  if (!checkPerm("approveTreasury", role) && !checkPerm("createPayment", role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "call id requis" }, { status: 400 });
   try {

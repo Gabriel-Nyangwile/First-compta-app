@@ -9,6 +9,7 @@ export default function AccountAutocomplete({
   onChange,
   maxLength = 20,
   filterPrefix,
+  filterPrefixes,
   placeholder = "Numéro de compte",
 }) {
   const safeValue = value && typeof value === "object" ? value : null;
@@ -23,6 +24,20 @@ export default function AccountAutocomplete({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const prefixes = useMemo(
+    () =>
+      Array.isArray(filterPrefixes) && filterPrefixes.length
+        ? filterPrefixes.filter(Boolean)
+        : filterPrefix
+          ? [filterPrefix]
+          : [],
+    [filterPrefix, filterPrefixes]
+  );
+
+  function matchesPrefix(account) {
+    if (!prefixes.length) return true;
+    return prefixes.some((prefix) => account.number && account.number.startsWith(prefix));
+  }
 
   const listToDisplay = useMemo(() => {
     if (input.length < 1) {
@@ -36,21 +51,33 @@ export default function AccountAutocomplete({
   useEffect(() => {
     let active = true;
     async function preload() {
-      const query = filterPrefix || DEFAULT_PREFETCH_QUERY;
+      const query = prefixes[0] || DEFAULT_PREFETCH_QUERY;
       if (!query) return;
       setPrefetching(true);
       try {
         const res = await fetch(
-          `/api/account/search?query=${encodeURIComponent(query)}`
+          filterPrefix || prefixes.length
+            ? `/api/accounts?prefix=${encodeURIComponent(query)}`
+            : `/api/account/search?query=${encodeURIComponent(query)}&limit=80`
         );
         if (!res.ok) throw new Error();
         const data = await res.json();
         let list = Array.isArray(data) ? data : [];
-        if (filterPrefix) {
-          list = list.filter(
-            (a) => a.number && a.number.startsWith(filterPrefix)
+        if (prefixes.length > 1) {
+          const rest = await Promise.all(
+            prefixes.slice(1).map(async (prefix) => {
+              const response = await fetch(
+                `/api/accounts?prefix=${encodeURIComponent(prefix)}`
+              );
+              if (!response.ok) return [];
+              const payload = await response.json();
+              return Array.isArray(payload) ? payload : [];
+            })
           );
+          list = [...list, ...rest.flat()];
         }
+        list = list.filter(matchesPrefix);
+        list = Array.from(new Map(list.map((account) => [account.id, account])).values());
         if (!active) return;
         setDefaultSuggestions(list);
       } catch {
@@ -63,7 +90,7 @@ export default function AccountAutocomplete({
     return () => {
       active = false;
     };
-  }, [filterPrefix]);
+  }, [prefixes]);
 
   useEffect(() => {
     if (input.length < 1) {
@@ -73,16 +100,12 @@ export default function AccountAutocomplete({
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/account/search?query=${encodeURIComponent(input)}`)
+    fetch(`/api/account/search?query=${encodeURIComponent(input)}&limit=80`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
         let list = Array.isArray(data) ? data : [];
-        if (filterPrefix) {
-          list = list.filter(
-            (a) => a.number && a.number.startsWith(filterPrefix)
-          );
-        }
+        list = list.filter(matchesPrefix);
         if (!list.length && defaultSuggestions.length) {
           const fallback = defaultSuggestions.filter(
             (acc) => acc.number && acc.number.startsWith(input)
@@ -104,7 +127,7 @@ export default function AccountAutocomplete({
     return () => {
       cancelled = true;
     };
-  }, [input, filterPrefix, defaultSuggestions]);
+  }, [input, prefixes, defaultSuggestions]);
 
   function handleInput(event) {
     const raw = event.target.value;

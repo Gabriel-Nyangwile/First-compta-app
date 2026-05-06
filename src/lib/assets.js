@@ -1,6 +1,7 @@
 import prisma from './prisma.js';
 import { finalizeBatchToJournal } from './journal.js';
 import { nextSequence } from './sequence.js';
+import { assertAccountingPeriodOpen } from './fiscalYearLock.js';
 
 function toNumber(x) {
   return x?.toNumber?.() ?? Number(x ?? 0) ?? 0;
@@ -8,6 +9,10 @@ function toNumber(x) {
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+function accountingDateForMonth(year, month) {
+  return new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
 }
 
 async function resolveAccountId({ accountId, accountNumber, label, companyId }, client = prisma) {
@@ -83,6 +88,16 @@ async function isPeriodLocked(client, year, month, companyId = null) {
 
 export async function createAsset(data) {
   const companyId = data.companyId || null;
+  const category = await prisma.assetCategory.findFirst({
+    where: { id: data.categoryId, ...(companyId ? { companyId } : {}) },
+    select: { id: true },
+  });
+  if (!category) throw new Error('Asset category not found');
+  await assertAccountingPeriodOpen(prisma, {
+    companyId,
+    date: data.acquisitionDate,
+    context: 'Creation immobilisation',
+  });
   const ref = await nextSequence(prisma, 'ASSET', 'AS-', companyId);
   const asset = await prisma.asset.create({
     data: {
@@ -109,6 +124,11 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
     include: { category: true },
   });
   if (!asset) throw new Error('Asset not found');
+  await assertAccountingPeriodOpen(client, {
+    companyId: asset.companyId,
+    date: accountingDateForMonth(year, month),
+    context: 'Generation dotation amortissement',
+  });
   if (asset.status === 'DISPOSED') throw new Error('Asset disposed');
   if (await isPeriodLocked(client, year, month, asset.companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
   const existing = await client.depreciationLine.findUnique({
@@ -123,7 +143,7 @@ export async function generateDepreciationLine(assetId, year, month, client = pr
   });
   const cumulative = round2(toNumber(cumuPrev._sum.amount) + amount);
   return client.depreciationLine.create({
-    data: { assetId, year, month, amount, cumulative, status: 'PLANNED' },
+    data: { companyId: asset.companyId, assetId, year, month, amount, cumulative, status: 'PLANNED' },
   });
 }
 
@@ -135,16 +155,21 @@ export async function postDepreciation(assetId, year, month, companyId = null) {
     });
     if (!asset) throw new Error('Asset not found');
     if (await isPeriodLocked(tx, year, month, asset.companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
+    const postingDate = accountingDateForMonth(year, month);
+    await assertAccountingPeriodOpen(tx, {
+      companyId: asset.companyId,
+      date: postingDate,
+      context: 'Comptabilisation dotation amortissement',
+    });
     if (asset.status === 'DISPOSED') throw new Error('Asset disposed');
     const line = await generateDepreciationLine(assetId, year, month, tx, companyId);
     if (line.status === 'POSTED') return { alreadyPosted: true, line };
     const accounts = await resolveCategoryAccounts(asset.category, tx);
     const desc = `Dotation amortissement ${asset.ref} ${month}/${year}`;
-    const today = new Date();
     const debit = await tx.transaction.create({
       data: {
         companyId: asset.companyId,
-        date: today,
+        date: postingDate,
         description: desc,
         amount: toNumber(line.amount),
         direction: 'DEBIT',
@@ -155,7 +180,7 @@ export async function postDepreciation(assetId, year, month, companyId = null) {
     const credit = await tx.transaction.create({
       data: {
         companyId: asset.companyId,
-        date: today,
+        date: postingDate,
         description: desc,
         amount: toNumber(line.amount),
         direction: 'CREDIT',
@@ -166,13 +191,13 @@ export async function postDepreciation(assetId, year, month, companyId = null) {
     const journal = await finalizeBatchToJournal(tx, {
       sourceType: 'ASSET',
       sourceId: asset.id,
-      date: today,
+      date: postingDate,
       description: desc,
       transactions: [debit, credit],
     });
     const posted = await tx.depreciationLine.update({
       where: { id: line.id, ...(asset.companyId ? { companyId: asset.companyId } : {}) },
-      data: { status: 'POSTED', journalEntryId: journal.id, postedAt: today },
+      data: { status: 'POSTED', journalEntryId: journal.id, postedAt: postingDate },
     });
     return { journal, line: posted };
   });
@@ -197,6 +222,11 @@ export async function disposeAsset(assetId, { date, proceed, proceedAccountNumbe
     const netBook = round2(cost - cumu);
     const proceedAmount = round2(toNumber(proceed || 0));
     const today = date ? new Date(date) : new Date();
+    await assertAccountingPeriodOpen(tx, {
+      companyId: asset.companyId,
+      date: today,
+      context: 'Cession immobilisation',
+    });
     const txns = [];
     const desc = `Cession immobilisation ${asset.ref}`;
     if (proceedAmount > 0) {
@@ -291,6 +321,12 @@ export async function postDepreciationBatch(year, month, companyId = null) {
   if (!year || !month) throw new Error('year/month requis');
   return prisma.$transaction(async (tx) => {
     if (await isPeriodLocked(tx, year, month, companyId)) throw new Error(`Periode ${month}/${year} verrouillee`);
+    const postingDate = accountingDateForMonth(year, month);
+    await assertAccountingPeriodOpen(tx, {
+      companyId,
+      date: postingDate,
+      context: 'Comptabilisation dotations amortissement',
+    });
     const already = await tx.depreciationLine.count({ where: { year, month, status: 'POSTED', companyId } });
     if (already > 0) throw new Error(`Dotations ${month}/${year} deja postees`);
     const assets = await tx.asset.findMany({
@@ -302,13 +338,12 @@ export async function postDepreciationBatch(year, month, companyId = null) {
     // Ensure lines exist and collect amounts
     const lines = [];
     for (const asset of assets) {
-      const line = await generateDepreciationLine(asset.id, year, month, tx);
+      const line = await generateDepreciationLine(asset.id, year, month, tx, companyId);
       lines.push({ line, asset });
     }
 
     const expenseMap = new Map(); // accountId -> amount
     const reserveMap = new Map();
-    const today = new Date();
     const lineIds = [];
     for (const { line, asset } of lines) {
       const amt = toNumber(line.amount);
@@ -323,7 +358,7 @@ export async function postDepreciationBatch(year, month, companyId = null) {
       txns.push(await tx.transaction.create({
         data: {
           companyId,
-          date: today,
+          date: postingDate,
           description: `Dotations amort. ${month}/${year}`,
           amount: round2(amt),
           direction: 'DEBIT',
@@ -336,7 +371,7 @@ export async function postDepreciationBatch(year, month, companyId = null) {
       txns.push(await tx.transaction.create({
         data: {
           companyId,
-          date: today,
+          date: postingDate,
           description: `Dotations amort. ${month}/${year}`,
           amount: round2(amt),
           direction: 'CREDIT',
@@ -350,13 +385,13 @@ export async function postDepreciationBatch(year, month, companyId = null) {
     const journal = await finalizeBatchToJournal(tx, {
       sourceType: 'ASSET',
       sourceId: `${year}-${month}`,
-      date: today,
+      date: postingDate,
       description: `Dotations amort. ${month}/${year}`,
       transactions: txns,
     });
     await tx.depreciationLine.updateMany({
       where: { id: { in: lineIds }, companyId },
-      data: { status: 'POSTED', journalEntryId: journal.id, postedAt: today },
+      data: { status: 'POSTED', journalEntryId: journal.id, postedAt: postingDate },
     });
     await tx.depreciationPeriodLock.upsert({
       where: { year_month: { companyId, year, month } },

@@ -1,26 +1,32 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
 import {
   STOCK_NATURES,
   validateProductLedgerAccounts,
 } from "@/lib/productLedger";
+import { getRequestRole } from "@/lib/requestAuth";
 import { requireCompanyId } from "@/lib/tenant";
 
 // GET /api/products?q=term&active=1
 export async function GET(request) {
   const companyId = requireCompanyId(request);
-  const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q")?.trim();
-  const active = searchParams.get("active");
-  const where = q
-    ? {
-        companyId,
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get("q")?.trim();
+    const active = searchParams.get("active");
+    const stockNature = searchParams.get("stockNature")?.trim();
+    const where = q
+      ? {
+          companyId,
         OR: [
           { sku: { contains: q, mode: "insensitive" } },
           { name: { contains: q, mode: "insensitive" } },
         ],
-      }
-    : { companyId };
+        }
+      : { companyId };
+    if (stockNature && STOCK_NATURES.has(stockNature)) {
+      where.stockNature = stockNature;
+    }
   try {
     let products = await prisma.product.findMany({
       where,
@@ -51,6 +57,10 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("manageProducts", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await request.json();
     const sku = String(body.sku || "").trim();
     const name = String(body.name || "").trim();

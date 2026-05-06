@@ -11,6 +11,7 @@ import { sanitizePlain } from '@/lib/sanitizePlain';
 import { formatAmount } from '@/lib/utils';
 import PayButton from '../PayButton.jsx';
 import { cookies } from 'next/headers';
+import { isPayrollPostedLikeStatus } from '@/lib/payroll/status';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 import { listPayrollSettlements } from '@/lib/payroll/settlement';
 
@@ -84,8 +85,9 @@ export default async function PayslipDetailPage({ params }) {
     return acc;
   }, {});
   const groupOrder = ['BASE', 'PRIME', 'RETENUE', 'COTISATION_SALARIALE', 'IMPOT', 'COTISATION_PATRONALE', 'AJUSTEMENT'];
-  const badge = ps.locked ? (ps.period?.status === 'POSTED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-blue-100 text-blue-800 border border-blue-200') : 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-  const badgeText = ps.locked ? (ps.period?.status === 'POSTED' ? 'POSTED' : 'LOCKED') : 'EDITABLE';
+  const isPostedLike = isPayrollPostedLikeStatus(ps.period?.status);
+  const badge = ps.locked ? (isPostedLike ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-blue-100 text-blue-800 border border-blue-200') : 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+  const badgeText = ps.locked ? (ps.period?.status || (isPostedLike ? 'POSTED' : 'LOCKED')) : 'EDITABLE';
   return (
     <div className="p-6 space-y-4">
       <BackButtonLayoutHeader />
@@ -138,7 +140,7 @@ export default async function PayslipDetailPage({ params }) {
         <div className="mt-2">Net estimé ({currencyContext.processingCurrency}, sans allocations): {formatProcessingAmount(netEstAmount)}</div>
         <div>Net + allocations ({currencyContext.processingCurrency}): {formatProcessingAmount(netPlusAllocAmount)}</div>
       </div>
-      <div className="text-sm">Statut: {ps.locked ? 'LOCKED' : 'EDITABLE'}</div>
+      <div className="text-sm">Statut: {ps.locked ? (ps.period?.status || 'LOCKED') : 'EDITABLE'}</div>
       <a className="inline-block text-blue-600 underline" href={`/api/payroll/payslips/${ps.id}/pdf`}>Télécharger PDF</a>
       <div className="space-y-3">
         {groupOrder.map(key => grouped[key] && (

@@ -1,17 +1,15 @@
 import GoodsReceiptForm from '@/components/GoodsReceiptForm';
-import { absoluteUrl } from '@/lib/url';
+import { internalApiFetch } from '@/lib/url';
 
 async function fetchApprovedPurchaseOrders() {
-  const url = await absoluteUrl('/api/purchase-orders?status=APPROVED');
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await internalApiFetch('/api/purchase-orders?status=APPROVED', { cache: 'no-store' });
   if (!res.ok) return [];
   return res.json();
 }
 
 async function fetchPurchaseOrderDetail(id) {
   if (!id) return null;
-  const url = await absoluteUrl(`/api/purchase-orders/${id}`);
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await internalApiFetch(`/api/purchase-orders/${id}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
 }

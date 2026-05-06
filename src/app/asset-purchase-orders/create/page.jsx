@@ -1,12 +1,11 @@
-import { absoluteUrl } from '@/lib/url';
+import { internalApiFetch } from '@/lib/url';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import CreateForm from './createForm';
 
 async function fetchSuppliers() {
   try {
-    const url = await absoluteUrl('/api/suppliers');
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch('/api/suppliers', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -18,8 +17,7 @@ async function fetchSuppliers() {
 
 async function fetchCategories() {
   try {
-    const url = await absoluteUrl('/api/asset-categories');
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch('/api/asset-categories', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data?.categories)) return data.categories;

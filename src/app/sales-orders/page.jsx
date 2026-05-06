@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { absoluteUrl } from "@/lib/url";
+import { internalApiFetch } from "@/lib/url";
 import SalesOrderStatusCell from "@/components/salesOrders/SalesOrderStatusCell";
 
 function formatDate(value) {
@@ -39,8 +39,7 @@ async function fetchSalesOrders(rawSearchParams) {
   }
 
   const path = `/api/sales-orders${qs.toString() ? `?${qs.toString()}` : ""}`;
-  const url = await absoluteUrl(path);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(path, { cache: "no-store" });
   if (!res.ok) return [];
   try {
     const data = await res.json();

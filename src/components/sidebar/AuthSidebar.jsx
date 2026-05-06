@@ -17,11 +17,14 @@ const PRIVATE_PREFIXES = [
   "/suppliers",
   "/purchase-orders",
   "/goods-receipts",
+  "/production",
   "/treasury",
   "/authorizations",
   "/bank-advices",
   "/products",
   "/payroll",
+  "/closing",
+  "/opening",
 ];
 
 const GROUPS = [
@@ -42,6 +45,10 @@ const GROUPS = [
     items: [
       { href: "/journal", label: "Journal général" },
       { href: "/journal/od", label: "Journal OD" },
+      { href: "/journal/manual-od", label: "OD manuelles" },
+      { href: "/journal/manual-od/pending", label: "OD à valider" },
+      { href: "/closing", label: "Clôture annuelle" },
+      { href: "/opening", label: "Ouverture d'exercice" },
       { href: "/transactions", label: "Transactions" },
       { href: "/ledger", label: "Grand Livre" },
       {
@@ -64,7 +71,6 @@ const GROUPS = [
     label: "Ventes",
     items: [
       { href: "/clients", label: "Clients" },
-      { href: "/clients/lettering", label: "Lettrage clients" },
       { href: "/sales-orders", label: "Commandes clients" },
       { href: "/stock-withdrawals?type=SALE", label: "Expéditions clients" },
       { href: "/invoices/create", label: "Créer facture", badge: "sales" },
@@ -87,8 +93,6 @@ const GROUPS = [
         label: "Factures fournisseurs",
         badge: "purch",
       },
-  // Lien lettrage fournisseurs (clé unique)
-  { href: "/suppliers/lettering", label: "Lettrage fournisseurs" },
       { href: "/purchase-orders", label: "Bons de commande" },
       { href: "/goods-receipts", label: "Réceptions" },
       { href: "/return-orders", label: "Retours fournisseurs" },
@@ -96,6 +100,28 @@ const GROUPS = [
   { href: "/stock-alerts", label: "Stock en alerte" },
       { href: "/inventory", label: "Inventaires" },
       { href: "/inventory/adjustments", label: "Ajustements stock" },
+    ],
+  },
+  {
+    key: "prod",
+    label: "Production",
+    items: [
+      { href: "/production", label: "Vue générale production" },
+      { href: "/production/orders", label: "Ordres de fabrication" },
+      { href: "/production/boms", label: "Nomenclatures" },
+      { href: "/production/orders?status=COMPLETED", label: "Déclarations de production" },
+      { href: "/production/orders?status=IN_PROGRESS", label: "Consommations matières" },
+      { href: "/products?stockNature=FINISHED_GOODS", label: "Produits finis" },
+    ],
+  },
+  {
+    key: "lett",
+    label: "Lettrage",
+    items: [
+      { href: "/suppliers/lettering", label: "Fournisseurs" },
+      { href: "/clients/lettering", label: "Clients" },
+      { href: "/ledger?q=471200&letterStatus=UNMATCHED", label: "Autres créanciers" },
+      { href: "/ledger?q=471100&letterStatus=UNMATCHED", label: "Autres débiteurs" },
     ],
   },
   {
@@ -245,6 +271,24 @@ const ICONS = {
       <path d="M8 15h.01" />
       <path d="M12 15h.01" />
       <path d="M16 15h.01" />
+    </svg>
+  ),
+  lett: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="opacity-80"
+    >
+      <path d="M8 7h8" />
+      <path d="M8 12h8" />
+      <path d="M8 17h5" />
+      <path d="M5 4h14v16H5z" />
     </svg>
   ),
 };
@@ -470,7 +514,10 @@ export default function AuthSidebar() {
   }
 
   function renderLink(it, insidePopover) {
-    const active = !it.external && pathname.startsWith(it.href.split("?")[0]);
+    const normalizedHref = it.href.split(/[?#]/)[0];
+    const opensNewTab =
+      it.newTab === true || /^https?:\/\//i.test(it.href);
+    const active = !it.external && pathname.startsWith(normalizedHref);
     let badgeCount = 0;
     let badgeColor;
     if (it.badge === "sales") {
@@ -495,8 +542,8 @@ export default function AuthSidebar() {
         <li key={it.href}>
           <a
             href={it.href}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={opensNewTab ? "_blank" : undefined}
+            rel={opensNewTab ? "noopener noreferrer" : undefined}
             className={cls}
           >
             {content}

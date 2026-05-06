@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 async function resolveParams(maybeCtx) {
@@ -13,6 +15,10 @@ async function resolveParams(maybeCtx) {
 // POST /api/goods-receipts/[id]/close
 export async function POST(request, rawContext) {
   const companyId = requireCompanyId(request);
+  const role = await getRequestRole(request, { companyId });
+  if (!checkPerm("receivePurchaseOrder", role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const params = await resolveParams(rawContext);
   const id = params?.id;
   try {

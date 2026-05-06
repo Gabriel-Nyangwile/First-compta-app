@@ -30,10 +30,20 @@ export async function POST(req) {
     const supplier = await prisma.supplier.findUnique({ where: { id: supplierId, companyId }, select: { id: true } });
     if (!supplier) return NextResponse.json({ error: 'Fournisseur introuvable' }, { status: 404 });
 
+    const categoryIds = [...new Set(lines.map((line) => line.assetCategoryId).filter(Boolean))];
+    const categories = categoryIds.length
+      ? await prisma.assetCategory.findMany({
+          where: { id: { in: categoryIds }, companyId },
+          select: { id: true },
+        })
+      : [];
+    const categorySet = new Set(categories.map((category) => category.id));
+
     const norm = lines.map((l, idx) => {
       const qty = Number(l.quantity ?? 1);
       const price = Number(l.unitPrice);
       if (!l.assetCategoryId) throw new Error(`Categorie manquante ligne ${idx + 1}`);
+      if (!categorySet.has(l.assetCategoryId)) throw new Error(`Categorie introuvable ligne ${idx + 1}`);
       if (!(qty > 0)) throw new Error(`Quantite invalide ligne ${idx + 1}`);
       if (isNaN(price) || price < 0) throw new Error(`PU invalide ligne ${idx + 1}`);
       const vat = l.vatRate != null && l.vatRate !== '' ? Number(l.vatRate) : null;

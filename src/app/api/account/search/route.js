@@ -8,10 +8,13 @@ export async function GET(req) {
   const companyId = requireCompanyId(req);
   const { searchParams } = new URL(req.url);
   const query = searchParams.get('query') || '';
+  const limit = Math.min(
+    100,
+    Math.max(10, Number.parseInt(searchParams.get('limit') || '50', 10) || 50)
+  );
   if (!query || query.length < 1) {
     return NextResponse.json([]);
   }
-  // Limiter à 10 résultats max
   const accounts = await prisma.account.findMany({
     where: {
       companyId,
@@ -20,7 +23,7 @@ export async function GET(req) {
       },
     },
     orderBy: { number: 'asc' },
-    take: 10,
+    take: limit,
     select: {
       id: true,
       number: true,

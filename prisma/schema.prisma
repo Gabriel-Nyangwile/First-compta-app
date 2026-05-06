@@ -201,6 +201,12 @@ model Company {
   capitalCalls                  CapitalCall[]
   capitalPayments               CapitalPayment[]
   missionAdvanceRegularizations MissionAdvanceRegularization[]
+  fiscalYearClosings            FiscalYearClosing[]
+  billOfMaterials               BillOfMaterial[]
+  billOfMaterialLines           BillOfMaterialLine[]
+  manufacturingOrders           ManufacturingOrder[]
+  manufacturingOrderComponents  ManufacturingOrderComponent[]
+  manufacturingOutputs          ManufacturingOutput[]
 }
 
 model User {
@@ -229,6 +235,7 @@ model User {
   returnOrders                  ReturnOrder[]
   requestedStockWithdrawals     StockWithdrawal[]        @relation("StockWithdrawalRequestedBy")
   inventoryCounts               InventoryCount[]         @relation("InventoryCountCreatedBy")
+  manufacturingOrdersCreated    ManufacturingOrder[]     @relation("ManufacturingOrderCreatedBy")
 }
 
 model CompanyMembership {
@@ -307,6 +314,7 @@ model Account {
   assetCategoriesLossAccount    AssetCategory[]                @relation("AssetCategoryLossAccount")
   capitalPayments               CapitalPayment[]               @relation("CapitalPaymentAccount")
   missionAdvanceRegularizations MissionAdvanceRegularization[]
+  manufacturingOrdersWip        ManufacturingOrder[]           @relation("ManufacturingOrderWipAccount")
 
   @@unique([companyId, number])
 }
@@ -411,6 +419,7 @@ enum TransactionKind {
   CAPITAL_CALL // Appel de fonds (461/109/1011/1012)
   CAPITAL_PAYMENT // Paiement appel (52/57 vs 461)
   CAPITAL_REGULARIZATION // Dr 1012 / Cr 1013
+  PRODUCTION_WIP // Production en cours
 }
 
 enum TransactionLetterStatus {
@@ -441,6 +450,7 @@ enum JournalSourceType {
   GOODS_RECEIPT
   PAYROLL
   ASSET
+  MANUFACTURING_ORDER
 }
 
 model JournalEntry {
@@ -471,12 +481,40 @@ model JournalEntry {
   assetDisposals                AssetDisposal[]
   capitalPayments               CapitalPayment[]               @relation("CapitalPaymentJournal")
   missionAdvanceRegularizations MissionAdvanceRegularization[]
+  fiscalYearClosings            FiscalYearClosing[]
 
   @@unique([companyId, number])
   @@index([sourceType, sourceId])
   @@index([date])
   @@index([preparedByUserId])
   @@index([validatedByUserId])
+}
+
+enum FiscalYearClosingStatus {
+  CLOSED
+  REOPENED
+}
+
+model FiscalYearClosing {
+  id                    String                  @id @default(uuid())
+  companyId             String
+  company               Company                 @relation(fields: [companyId], references: [id])
+  year                  Int
+  startDate             DateTime
+  endDate               DateTime
+  openingDate           DateTime
+  openingJournalEntryId String?
+  openingJournalEntry   JournalEntry?           @relation(fields: [openingJournalEntryId], references: [id])
+  status                FiscalYearClosingStatus @default(CLOSED)
+  closedAt              DateTime                @default(now())
+  reopenedAt            DateTime?
+  note                  String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@unique([companyId, year])
+  @@index([companyId, status])
+  @@index([openingJournalEntryId])
 }
 
 // =============================
@@ -639,6 +677,12 @@ enum StockMovementStage {
 enum ProductStockNature {
   PURCHASED
   PRODUCED
+  RAW_MATERIALS
+  CONSUMABLE_SUPPLIES
+  WORK_IN_PROGRESS
+  SERVICE_IN_PROGRESS
+  FINISHED_GOODS
+  INTERMEDIATE_RESIDUAL_PRODUCTS
 }
 
 enum StockWithdrawalType {
@@ -666,6 +710,27 @@ enum InventoryCountLineStatus {
   PENDING
   COUNTED
   POSTED
+}
+
+enum BillOfMaterialStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ManufacturingOrderStatus {
+  DRAFT
+  RELEASED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum ManufacturingComponentStatus {
+  PLANNED
+  CONSUMED
+  ADJUSTED
 }
 
 enum SalesOrderStatus {
@@ -980,6 +1045,11 @@ model Product {
   stockWithdrawalLines    StockWithdrawalLine[]
   salesOrderLines         SalesOrderLine[]
   inventoryCountLines     InventoryCountLine[]  @relation("InventoryCountProduct")
+  billOfMaterials         BillOfMaterial[]      @relation("BillOfMaterialFinishedProduct")
+  billOfMaterialLines     BillOfMaterialLine[]  @relation("BillOfMaterialComponentProduct")
+  manufacturingOrders     ManufacturingOrder[]  @relation("ManufacturingOrderProduct")
+  manufacturingComponents ManufacturingOrderComponent[] @relation("ManufacturingComponentProduct")
+  manufacturingOutputs    ManufacturingOutput[] @relation("ManufacturingOutputProduct")
 
   @@unique([companyId, sku])
   @@index([name])
@@ -1024,6 +1094,10 @@ model StockMovement {
   returnOrderLine       ReturnOrderLine?     @relation(fields: [returnOrderLineId], references: [id])
   stockWithdrawalLineId String?
   stockWithdrawalLine   StockWithdrawalLine? @relation(fields: [stockWithdrawalLineId], references: [id])
+  manufacturingOrderComponentId String?
+  manufacturingOrderComponent   ManufacturingOrderComponent? @relation(fields: [manufacturingOrderComponentId], references: [id])
+  manufacturingOutputId         String?
+  manufacturingOutput           ManufacturingOutput? @relation(fields: [manufacturingOutputId], references: [id])
   inventoryCountLineId  String?              @unique
   inventoryCountLine    InventoryCountLine?  @relation("InventoryCountMovement", fields: [inventoryCountLineId], references: [id])
   // Futur: inventoryAdjustmentId
@@ -1035,7 +1109,127 @@ model StockMovement {
   @@index([stage])
   @@index([returnOrderLineId])
   @@index([stockWithdrawalLineId])
+  @@index([manufacturingOrderComponentId])
+  @@index([manufacturingOutputId])
   @@index([inventoryCountLineId])
+}
+
+model BillOfMaterial {
+  id        String               @id @default(uuid())
+  companyId String
+  company   Company              @relation(fields: [companyId], references: [id])
+  code      String
+  label     String
+  productId String
+  product   Product              @relation("BillOfMaterialFinishedProduct", fields: [productId], references: [id])
+  status    BillOfMaterialStatus @default(DRAFT)
+  version   Int                  @default(1)
+  notes     String?
+  lines     BillOfMaterialLine[]
+  manufacturingOrders ManufacturingOrder[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@unique([companyId, code])
+  @@unique([companyId, productId, version])
+  @@index([productId])
+  @@index([status])
+}
+
+model BillOfMaterialLine {
+  id                  String         @id @default(uuid())
+  companyId           String
+  company             Company        @relation(fields: [companyId], references: [id])
+  billOfMaterialId    String
+  billOfMaterial      BillOfMaterial @relation(fields: [billOfMaterialId], references: [id], onDelete: Cascade)
+  componentProductId  String
+  componentProduct    Product        @relation("BillOfMaterialComponentProduct", fields: [componentProductId], references: [id])
+  quantity            Decimal        @db.Decimal(14, 3)
+  lossRate            Decimal        @default(0) @db.Decimal(6, 4)
+  notes               String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([billOfMaterialId])
+  @@index([componentProductId])
+}
+
+model ManufacturingOrder {
+  id               String                   @id @default(uuid())
+  companyId        String
+  company          Company                  @relation(fields: [companyId], references: [id])
+  number           String
+  status           ManufacturingOrderStatus @default(DRAFT)
+  billOfMaterialId String?
+  billOfMaterial   BillOfMaterial?          @relation(fields: [billOfMaterialId], references: [id])
+  productId        String
+  product          Product                  @relation("ManufacturingOrderProduct", fields: [productId], references: [id])
+  plannedQty       Decimal                  @db.Decimal(14, 3)
+  producedQty      Decimal                  @default(0) @db.Decimal(14, 3)
+  scrapQty         Decimal                  @default(0) @db.Decimal(14, 3)
+  storageLocationId String?
+  wipAccountId     String
+  wipAccount       Account                  @relation("ManufacturingOrderWipAccount", fields: [wipAccountId], references: [id])
+  plannedDate      DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  closedAt         DateTime?
+  notes            String?
+  createdById      String?
+  createdBy        User?                    @relation("ManufacturingOrderCreatedBy", fields: [createdById], references: [id])
+  components       ManufacturingOrderComponent[]
+  outputs          ManufacturingOutput[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@unique([companyId, number])
+  @@index([status])
+  @@index([billOfMaterialId])
+  @@index([productId])
+  @@index([wipAccountId])
+  @@index([createdById])
+}
+
+model ManufacturingOrderComponent {
+  id                    String                       @id @default(uuid())
+  companyId             String
+  company               Company                      @relation(fields: [companyId], references: [id])
+  manufacturingOrderId  String
+  manufacturingOrder    ManufacturingOrder           @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product                      @relation("ManufacturingComponentProduct", fields: [productId], references: [id])
+  plannedQty            Decimal                      @db.Decimal(14, 3)
+  consumedQty           Decimal                      @default(0) @db.Decimal(14, 3)
+  varianceQty           Decimal                      @default(0) @db.Decimal(14, 3)
+  status                ManufacturingComponentStatus @default(PLANNED)
+  stockMovements        StockMovement[]
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+
+  @@index([manufacturingOrderId])
+  @@index([productId])
+  @@index([status])
+}
+
+model ManufacturingOutput {
+  id                    String             @id @default(uuid())
+  companyId             String
+  company               Company            @relation(fields: [companyId], references: [id])
+  manufacturingOrderId  String
+  manufacturingOrder    ManufacturingOrder @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product            @relation("ManufacturingOutputProduct", fields: [productId], references: [id])
+  quantity              Decimal            @db.Decimal(14, 3)
+  unitCost              Decimal            @db.Decimal(14, 4)
+  declaredAt            DateTime           @default(now())
+  notes                 String?
+  stockMovements        StockMovement[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([manufacturingOrderId])
+  @@index([productId])
+  @@index([declaredAt])
 }
 
 model StockWithdrawal {
@@ -1613,6 +1807,7 @@ enum PayrollPeriodStatus {
   OPEN
   LOCKED
   POSTED
+  SETTLED
 }
 
 enum PayslipLineKind {

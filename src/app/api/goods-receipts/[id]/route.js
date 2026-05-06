@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
 import { moveStagedToAvailable, removeStaged } from "@/lib/inventory";
 import { finalizeBatchToJournal } from "@/lib/journal";
+import { getRequestRole } from "@/lib/requestAuth";
 import { requireCompanyId } from "@/lib/tenant";
 import {
   refreshGoodsReceiptStatus,
@@ -169,6 +171,10 @@ export async function GET(_request, rawContext) {
 
 export async function PUT(request, rawContext) {
   const companyId = requireCompanyId(request);
+  const role = await getRequestRole(request, { companyId });
+  if (!checkPerm("receivePurchaseOrder", role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const params = await resolveParams(rawContext);
   const id = params?.id;
   if (!id) {

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
+import { getRequestRole } from "@/lib/requestAuth";
 import { nextSequence } from "@/lib/sequence";
 import { requireCompanyId } from "@/lib/tenant";
 
@@ -30,6 +32,10 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const companyId = requireCompanyId(req);
+    const role = await getRequestRole(req, { companyId });
+    if (!checkPerm("createCompany", role) && !checkPerm("approveTreasury", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await req.json();
     const { type, form, nominalTarget, premiumTarget, resolutionDate, decisionRef, note } = body;
     if (!type || !form) {

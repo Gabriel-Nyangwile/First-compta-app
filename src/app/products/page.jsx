@@ -1,10 +1,11 @@
-import { absoluteUrl } from '@/lib/url';
+import { internalApiFetch } from '@/lib/url';
 import ProductsClient from '@/components/products/ProductsClient';
 
-async function fetchProducts() {
+async function fetchProducts(searchParams) {
   try {
-    const url = await absoluteUrl('/api/products');
-    const res = await fetch(url, { cache: 'no-store' });
+    const qs = new URLSearchParams();
+    if (searchParams?.stockNature) qs.set('stockNature', searchParams.stockNature);
+    const res = await internalApiFetch(`/api/products${qs.toString() ? `?${qs}` : ''}`, { cache: 'no-store' });
     if (!res.ok) return [];
     return res.json();
   } catch { return []; }
@@ -12,8 +13,7 @@ async function fetchProducts() {
 
 async function fetchInventory(productId) {
   try {
-    const url = await absoluteUrl(`/api/inventory/${productId}`);
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch(`/api/inventory/${productId}`, { cache: 'no-store' });
     if (!res.ok) return null;
     return res.json();
   } catch { return null; }
@@ -21,8 +21,9 @@ async function fetchInventory(productId) {
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProductsPage() {
-  const products = await fetchProducts();
+export default async function ProductsPage(props) {
+  const searchParams = await props.searchParams;
+  const products = await fetchProducts(searchParams);
   const inventories = await Promise.all(products.map(p => fetchInventory(p.id)));
   const enriched = products.map((p,i) => ({
     ...p,

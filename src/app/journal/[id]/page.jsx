@@ -2,6 +2,8 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { getCompanyIdFromCookies } from "@/lib/tenant";
+import ManualOdValidateButton from "@/components/journal/ManualOdValidateButton";
+import JournalEntryReverseButton from "@/components/journal/JournalEntryReverseButton";
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -72,8 +74,9 @@ export default async function JournalEntryDetail({ params }) {
   }
 
   let effectiveLines = entry.lines;
+  let draftLines = [];
   if (entry.status === "DRAFT" && (!entry.lines || entry.lines.length === 0)) {
-    const draftLines = Array.isArray(entry.draftPayload?.lines)
+    draftLines = Array.isArray(entry.draftPayload?.lines)
       ? entry.draftPayload.lines
       : [];
     const accountIds = [...new Set(draftLines.map((line) => line.accountId).filter(Boolean))];
@@ -126,6 +129,21 @@ export default async function JournalEntryDetail({ params }) {
   });
 
   const balanced = Math.abs(debit - credit) < 0.001;
+  const isManualOd =
+    entry.sourceType === "MANUAL" &&
+    typeof entry.sourceId === "string" &&
+    entry.sourceId.startsWith("manual-od:");
+  const reversalEntry =
+    isManualOd && entry.status === "POSTED"
+      ? await prisma.journalEntry.findFirst({
+          where: {
+            companyId,
+            sourceType: "MANUAL",
+            sourceId: `manual-od-reversal:${entry.id}`,
+          },
+          select: { id: true, number: true },
+        })
+      : null;
 
   return (
     <div className="px-6 py-8 space-y-6">
@@ -141,8 +159,7 @@ export default async function JournalEntryDetail({ params }) {
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          {entry.sourceType === "MANUAL" &&
-          entry.sourceId?.startsWith("manual-od:") ? (
+          {isManualOd && !reversalEntry ? (
             <Link
               className="text-blue-600 hover:underline"
               href={`/journal/manual-od/${entry.id}`}
@@ -164,6 +181,32 @@ export default async function JournalEntryDetail({ params }) {
           >
             ← Retour journal
           </Link>
+          {entry.status === "DRAFT" &&
+          isManualOd ? (
+            <ManualOdValidateButton
+              entryId={entry.id}
+              date={new Date(entry.date).toISOString().slice(0, 10)}
+              description={entry.description || ""}
+              supportRef={entry.supportRef || ""}
+              lines={draftLines}
+              balanced={balanced}
+              compact
+            />
+          ) : null}
+          {entry.status === "POSTED" && isManualOd && !reversalEntry ? (
+            <JournalEntryReverseButton
+              entryId={entry.id}
+              entryNumber={entry.number}
+            />
+          ) : null}
+          {reversalEntry ? (
+            <Link
+              className="rounded border border-red-200 bg-red-50 px-3 py-2 text-red-700 hover:bg-red-100"
+              href={`/journal/${reversalEntry.id}`}
+            >
+              Annulée par {reversalEntry.number}
+            </Link>
+          ) : null}
         </div>
       </div>
 

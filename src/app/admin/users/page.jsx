@@ -38,7 +38,6 @@ export default function AdminUsersPage() {
       if (q) params.set('q', q);
       const res = await fetch(`/api/admin/users?${params.toString()}`, {
         cache: "no-store",
-        headers: { "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN" },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur chargement utilisateurs");
@@ -60,7 +59,7 @@ export default function AdminUsersPage() {
     if (!confirm("Supprimer cet utilisateur ?")) return;
     setError(""); setSuccess("");
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: { "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN" } });
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Suppression échouée");
       setSuccess("Utilisateur supprimé");
@@ -77,7 +76,6 @@ export default function AdminUsersPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN",
         },
         body: JSON.stringify({ role: u.role, isActive: u.isActive, canCreateCompany: u.canCreateCompany, password: u.password || undefined }),
       });
@@ -101,7 +99,6 @@ export default function AdminUsersPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN",
         },
         body: JSON.stringify(form),
       });

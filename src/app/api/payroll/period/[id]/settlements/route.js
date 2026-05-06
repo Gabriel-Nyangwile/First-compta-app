@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { featureFlags } from '@/lib/features';
+import { isPayrollPostedLikeStatus } from '@/lib/payroll/status';
 import { requireCompanyId } from '@/lib/tenant';
 import { listPayrollSettlements } from '@/lib/payroll/settlement';
 
@@ -15,7 +16,9 @@ export async function GET(req, { params }) {
   if (!id) return NextResponse.json({ error: 'Missing period id' }, { status: 400 });
   const period = await prisma.payrollPeriod.findUnique({ where: { id, companyId } });
   if (!period) return NextResponse.json({ error: 'Period not found' }, { status: 404 });
-  if (period.status !== 'POSTED') return NextResponse.json({ error: `Period must be POSTED (status=${period.status})` }, { status: 409 });
+  if (!isPayrollPostedLikeStatus(period.status)) {
+    return NextResponse.json({ error: `Period must be POSTED or SETTLED (status=${period.status})` }, { status: 409 });
+  }
 
   const url = new URL(req.url);
   const employeeFilter = url.searchParams.get('employeeId');

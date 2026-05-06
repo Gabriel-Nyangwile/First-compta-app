@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { nextSequence } from '@/lib/sequence';
 import { requireCompanyId } from '@/lib/tenant';
+import { assertAccountingPeriodOpen } from '@/lib/fiscalYearLock';
 
 // Helper: group orphan transactions using same heuristic as rebuild script
 async function loadOrphanGroups(companyId) {
@@ -90,6 +91,12 @@ export async function POST(request) {
     const diff = group.diff; // debit - credit
     const adjustmentNeeded = diff !== 0;
     const result = await prisma.$transaction(async(tx) => {
+      await assertAccountingPeriodOpen(tx, {
+        companyId,
+        date,
+        context: 'Regroupement OD',
+      });
+
       const je = await tx.journalEntry.create({
         data: {
           number,

@@ -1,5 +1,7 @@
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { featureFlags } from '@/lib/features';
+import { getRequestRole } from '@/lib/requestAuth';
 import { validateContributionScheme, formatValidationError } from '@/lib/payrollValidation';
 import { requireCompanyId } from '@/lib/tenant';
 
@@ -14,6 +16,10 @@ export async function POST(req) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok: false, error: 'Payroll disabled' }), { status: 403 });
   try {
     const companyId = requireCompanyId(req);
+    const role = await getRequestRole(req, { companyId });
+    if (!checkPerm("managePayroll", role)) {
+      return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403 });
+    }
     const body = await req.json();
     const v = validateContributionScheme(body||{});
     if (!v.ok) return new Response(JSON.stringify(formatValidationError(v.errors)), { status: 400 });

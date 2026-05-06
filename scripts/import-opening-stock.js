@@ -92,6 +92,14 @@ async function main() {
   });
 
   if (!rows.length) throw new Error("Aucune ligne detectee");
+  const duplicateSkus = rows
+    .map((row) => row.sku)
+    .filter((sku, idx, list) => list.indexOf(sku) !== idx);
+  if (duplicateSkus.length) {
+    throw new Error(
+      `SKUs dupliques dans le fichier: ${[...new Set(duplicateSkus)].join(", ")}`
+    );
+  }
 
   const existingSkus = await prisma.product.findMany({
     where: { companyId, sku: { in: rows.map((row) => row.sku) } },
@@ -102,6 +110,45 @@ async function main() {
   }
 
   const date = new Date(openingDate);
+  const rowsMissingProductData = rows
+    .filter(
+      (row) =>
+        row.qty !== 0 &&
+        (!row.name ||
+          !row.inventoryAccountNumber ||
+          !row.stockVariationAccountNumber)
+    )
+    .map((row) => row.sku);
+  if (rowsMissingProductData.length) {
+    throw new Error(
+      `Donnees produit incompletes pour SKUs=${rowsMissingProductData.join(", ")}`
+    );
+  }
+  const requiredAccountNumbers = [
+    ...new Set(
+      rows.flatMap((row) => [
+        row.inventoryAccountNumber,
+        row.stockVariationAccountNumber,
+      ])
+    ),
+  ].filter(Boolean);
+  const existingAccounts = requiredAccountNumbers.length
+    ? await prisma.account.findMany({
+        where: { companyId, number: { in: requiredAccountNumbers } },
+        select: { number: true },
+      })
+    : [];
+  const existingAccountNumbers = new Set(
+    existingAccounts.map((account) => account.number)
+  );
+  const missingAccountNumbers = requiredAccountNumbers.filter(
+    (number) => !existingAccountNumbers.has(number)
+  );
+  if (missingAccountNumbers.length) {
+    throw new Error(
+      `Comptes introuvables: ${missingAccountNumbers.join(", ")}`
+    );
+  }
 
   if (dryRun) {
     // Mode dry-run : analyser sans modifier la base
@@ -191,6 +238,7 @@ async function main() {
         productId: product.id,
         qty: line.qty,
         unitCost: line.unitCost,
+        companyId,
       });
       await tx.stockMovement.create({
         data: {

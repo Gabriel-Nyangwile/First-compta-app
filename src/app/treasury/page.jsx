@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { listMoneyAccountsWithBalance, getMoneyAccountLedger, getMissionAdvanceOverview } from '@/lib/serverActions/money';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 import { getCompanyCurrency } from '@/lib/companyContext';
+import { listTreasuryLedgerAccountsWithBalance } from '@/lib/treasuryAccounts';
 import Amount from '@/components/Amount.jsx';
 import { formatAmount } from '@/lib/utils';
 import TreasuryModuleNav from '@/components/treasury/TreasuryModuleNav.jsx';
@@ -36,8 +37,9 @@ export default async function TreasuryPage(props) {
   const summaryUrl = `${protocol}://${host}/api/treasury/summary`;
 
   // Récupère les comptes et le résumé trésorerie
-  const [accountsRaw, treasurySummaryRes, missionAdvanceOverview, companyCurrency] = await Promise.all([
+  const [accountsRaw, treasuryLedgerAccountsRaw, treasurySummaryRes, missionAdvanceOverview, companyCurrency] = await Promise.all([
     listMoneyAccountsWithBalance(companyId),
+    listTreasuryLedgerAccountsWithBalance(companyId, { includeUnused: true }),
     fetch(summaryUrl, { cache: "no-store", headers: { 'x-company-id': companyId } }).then(r => r.ok ? r.json() : {}),
     getMissionAdvanceOverview({ companyId }),
     getCompanyCurrency(companyId),
@@ -55,6 +57,50 @@ export default async function TreasuryPage(props) {
     isActive: a.isActive,
     movements: a.movements || []
   }));
+  const treasuryAccounts = treasuryLedgerAccountsRaw.map(a => ({
+    id: a.id,
+    type: a.moneyAccountType || a.type,
+    label: a.moneyAccountLabel || a.label,
+    code: null,
+    ledgerAccountId: a.id,
+    ledgerAccountNumber: a.number,
+    openingBalance: a.openingBalance,
+    debit: a.debit,
+    credit: a.credit,
+    unpostedBalance: a.unpostedBalance,
+    computedBalance: a.computedBalance,
+    currency: a.currency || companyCurrency,
+    isActive: a.isActive,
+    moneyAccountId: a.moneyAccountId,
+    ledgerOnly: !a.moneyAccountId,
+  }));
+  const unlinkedMoneyAccounts = accounts
+    .filter(a => !a.ledgerAccountId)
+    .map(a => ({
+      ...a,
+      moneyAccountId: a.id,
+      ledgerOnly: false,
+    }));
+  const hasTreasuryActivity = (account) =>
+    account.moneyAccountId ||
+    Math.abs(Number(account.openingBalance || 0)) > 0.009 ||
+    Math.abs(Number(account.debit || 0)) > 0.009 ||
+    Math.abs(Number(account.credit || 0)) > 0.009 ||
+    Math.abs(Number(account.unpostedBalance || 0)) > 0.009 ||
+    Math.abs(Number(account.computedBalance || 0)) > 0.009;
+  const displayedTreasuryAccounts = [
+    ...treasuryAccounts.filter(hasTreasuryActivity),
+    ...unlinkedMoneyAccounts,
+  ];
+  const operationAccounts = [
+    ...treasuryAccounts.map(a => ({
+      ...a,
+      id: a.moneyAccountId || `ledger:${a.ledgerAccountId}`,
+      sourceLedgerAccountId: a.ledgerAccountId,
+      label: `${a.ledgerAccountNumber} - ${a.label}`,
+    })),
+    ...unlinkedMoneyAccounts,
+  ];
 
   // Récupère les mouvements récents (7 jours)
   const recentMovements = [];
@@ -168,7 +214,7 @@ export default async function TreasuryPage(props) {
             </tr>
           </thead>
           <tbody>
-            {accounts.map(a => (
+            {displayedTreasuryAccounts.map(a => (
               <tr key={a.id} className="bg-slate-50 hover:bg-slate-100">
                 <td className="px-2 py-1 font-medium">{a.label}</td>
                 <td className="px-2 py-1">{a.type}</td>
@@ -176,7 +222,13 @@ export default async function TreasuryPage(props) {
                 <td className="px-2 py-1 tabular-nums"><Amount value={a.computedBalance} currency={a.currency} /></td>
                 <td className="px-2 py-1">{a.currency}</td>
                 <td className="px-2 py-1">{a.isActive ? 'Actif' : 'Inactif'}</td>
-                <td className="px-2 py-1"><Link className="text-blue-600 underline" href={{ pathname: '/treasury', query: { account: a.id } }} prefetch={false}>Consulter</Link></td>
+                <td className="px-2 py-1">
+                  {a.moneyAccountId ? (
+                    <Link className="text-blue-600 underline" href={{ pathname: '/treasury', query: { account: a.moneyAccountId } }} prefetch={false}>Consulter</Link>
+                  ) : (
+                    <Link className="text-blue-600 underline" href={`/ledger/${a.ledgerAccountId}`} prefetch={false}>Grand livre</Link>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -192,10 +244,10 @@ export default async function TreasuryPage(props) {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           <div id="movements">
-            <NewMoneyMovementForm accounts={accounts} defaultCurrency={companyCurrency} />
+            <NewMoneyMovementForm accounts={operationAccounts} defaultCurrency={companyCurrency} />
           </div>
           <div id="transfers">
-            <TransferForm accounts={accounts} />
+            <TransferForm accounts={operationAccounts} />
           </div>
           <div id="accounts">
             <NewMoneyAccountForm defaultCurrency={companyCurrency} />
@@ -208,7 +260,7 @@ export default async function TreasuryPage(props) {
       </section>
 
       <section id="mission-advance-refunds">
-        <MissionAdvanceRefundForm accounts={accounts} />
+        <MissionAdvanceRefundForm accounts={operationAccounts} />
       </section>
 
       <section id="mission-advances-open">

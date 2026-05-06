@@ -40,6 +40,7 @@ Le module sert à :
 | **OPEN** | période ouverte, saisies et recalculs autorisés |
 | **LOCKED** | période verrouillée, bulletins figés avant comptabilisation |
 | **POSTED** | période comptabilisée |
+| **SETTLED** | période comptabilisée et passifs paie entièrement réglés |
 | **Présence** | données de jours travaillés, jours ouvrés et heures supplémentaires |
 | **Variables** | éléments ponctuels : bonus, indemnités, retenues |
 | **Taux fiscal de la période** | taux de conversion entre devise de traitement et devise fiscale |
@@ -149,6 +150,7 @@ Ouvrir **Périodes de paie** ou **Gestion paie**.
 | **OPEN** | saisir, modifier, recalculer, générer |
 | **LOCKED** | consulter, poster ou déverrouiller si autorisé |
 | **POSTED** | consulter, exporter, régler et lettrer |
+| **SETTLED** | consulter, exporter et archiver, plus aucun règlement restant |
 
 ### Parcours conseillé
 
@@ -363,6 +365,7 @@ Les comptes exacts dépendent du mapping paie de la société.
 ### Où aller
 
 Dans le détail d'une période `POSTED`, utiliser l'action **Régler net**.
+Quand tous les passifs de paie sont couverts, la période passe automatiquement en `SETTLED`.
 
 ### Effet métier
 
@@ -474,8 +477,8 @@ Ces indicateurs servent au contrôle RH et à la revue de direction.
 | génération impossible | taux fiscal manquant ou données paie incomplètes | saisir le taux, vérifier salariés et variables |
 | clôture impossible : aucun bulletin | bulletins non générés | cliquer sur **Générer bulletins** |
 | clôture impossible : net total <= 0 | paramètres ou données salariés incohérents | revoir salaires, retenues, variables |
-| période en lecture seule | période `LOCKED` ou `POSTED` | déverrouiller si possible ou consulter seulement |
-| audit indisponible | période `POSTED` sans journal lié | réparer le statut ou régénérer selon procédure technique |
+| période en lecture seule | période `LOCKED`, `POSTED` ou `SETTLED` | déverrouiller si possible ou consulter seulement |
+| audit indisponible | période `POSTED` ou `SETTLED` sans journal lié | réparer le statut ou régénérer selon procédure technique |
 | organisme non réglable | flux de paiement non prêt ou passif nul | vérifier le résumé de période |
 
 ## 22. Check-list avant génération
@@ -509,7 +512,7 @@ Avant **Clôturer et ouvrir suivante** :
 
 Après clôture :
 
-1. période courante en `POSTED`
+1. période courante en `POSTED` ou `SETTLED`
 2. période suivante créée en `OPEN`
 3. journal de paie présent
 4. passifs paie visibles

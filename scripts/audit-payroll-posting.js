@@ -4,15 +4,21 @@ import { auditPayrollPeriod } from '../src/lib/payroll/audit.js';
 
 /**
  * Options:
- *  --ref=PP-000000   Audit cette période précise (doit être POSTED)
- *  --all             Audit toutes les périodes POSTED
+ *  --ref=PP-000000   Audit cette période précise (doit être POSTED ou SETTLED)
+ *  --all             Audit toutes les périodes POSTED / SETTLED
  *
- * Par défaut : dernière période POSTED.
+ * Par défaut : dernière période POSTED / SETTLED.
  */
+
+function isPostedLike(status) {
+  return status === 'POSTED' || status === 'SETTLED';
+}
 
 async function auditOne(period) {
   if (!period) return { ok: false, error: 'Period not found' };
-  if (period.status !== 'POSTED') return { ok: false, error: `Period ${period.ref} not POSTED (status=${period.status})` };
+  if (!isPostedLike(period.status)) {
+    return { ok: false, error: `Period ${period.ref} not POSTED/SETTLED (status=${period.status})` };
+  }
   const res = await auditPayrollPeriod(period.id, prisma);
   const mismatches = res.rows?.filter(r => Math.abs(r.delta) > 0.01)?.length || 0;
   const balanced = Math.abs((res.debitTotal || 0) - (res.creditTotal || 0)) <= 0.01;
@@ -26,8 +32,11 @@ async function main() {
   const companyId = process.env.DEFAULT_COMPANY_ID || null;
 
   if (runAll) {
-    const periods = await prisma.payrollPeriod.findMany({ where: { status: 'POSTED', ...(companyId ? { companyId } : {}) }, orderBy: [{ year: 'desc' }, { month: 'desc' }] });
-    if (!periods.length) { console.log('[audit] No POSTED period found'); await prisma.$disconnect(); return; }
+    const periods = await prisma.payrollPeriod.findMany({
+      where: { status: { in: ['POSTED', 'SETTLED'] }, ...(companyId ? { companyId } : {}) },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    });
+    if (!periods.length) { console.log('[audit] No POSTED/SETTLED period found'); await prisma.$disconnect(); return; }
     let failures = 0;
     for (const p of periods) {
       const res = await auditOne(p);
@@ -41,8 +50,11 @@ async function main() {
 
   const period = argRef
     ? await prisma.payrollPeriod.findFirst({ where: { ref: argRef, ...(companyId ? { companyId } : {}) } })
-    : await prisma.payrollPeriod.findFirst({ where: { status: 'POSTED', ...(companyId ? { companyId } : {}) }, orderBy: { postedAt: 'desc' } });
-  if (!period) { console.log('[audit] No POSTED period found'); await prisma.$disconnect(); return; }
+    : await prisma.payrollPeriod.findFirst({
+        where: { status: { in: ['POSTED', 'SETTLED'] }, ...(companyId ? { companyId } : {}) },
+        orderBy: [{ postedAt: 'desc' }, { year: 'desc' }, { month: 'desc' }],
+      });
+  if (!period) { console.log('[audit] No POSTED/SETTLED period found'); await prisma.$disconnect(); return; }
 
   const res = await auditOne(period);
   if (!res.ok) {

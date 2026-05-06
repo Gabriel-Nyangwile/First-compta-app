@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { nextSequence } from "@/lib/sequence";
 import { requireCompanyId } from "@/lib/tenant";
 import { checkPerm } from "@/lib/authz";
 import { getRequestActor } from "@/lib/requestAuth";
+import { createManualJournalEntry } from "@/lib/manualJournal";
 
 function parseAmount(value) {
   const amount = Number(value);
@@ -106,69 +106,25 @@ export async function POST(request) {
       return NextResponse.json({ error: "date invalide" }, { status: 400 });
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const number = await nextSequence(tx, "JRN", "JRN-", companyId);
-      const journalEntry = await tx.journalEntry.create({
-        data: {
-          companyId,
-          number,
-          date: entryDate,
-          sourceType: "MANUAL",
-          sourceId: `manual-od:${number}`,
-          supportRef: String(supportRef || "").trim() || null,
-          draftPayload: isDraft ? { lines: normalized } : null,
-          preparedByUserId: actor.userId || null,
-          preparedAt: new Date(),
-          validatedByUserId: isDraft ? null : actor.userId || null,
-          validatedAt: isDraft ? null : new Date(),
-          description: String(description || "").trim() || "Opération diverse manuelle",
-          status: isDraft ? "DRAFT" : "POSTED",
-        },
-      });
-
-      const transactions = [];
-      if (!isDraft) {
-        for (const line of normalized) {
-          const amount = line.debit > 0 ? line.debit : line.credit;
-          const direction = line.debit > 0 ? "DEBIT" : "CREDIT";
-          const transaction = await tx.transaction.create({
-            data: {
-              companyId,
-              date: entryDate,
-              nature: "manual",
-              description:
-                line.description ||
-                String(description || "").trim() ||
-                `OD manuelle ${number}`,
-              amount,
-              direction,
-              kind: "ADJUSTMENT",
-              accountId: line.accountId,
-              journalEntryId: journalEntry.id,
-            },
-          });
-          transactions.push(transaction);
-        }
-      }
-
-      return {
-        id: journalEntry.id,
-        number: journalEntry.number,
-        date: journalEntry.date,
-        status: journalEntry.status,
-        supportRef: journalEntry.supportRef,
-        description: journalEntry.description,
-        lineCount: isDraft ? normalized.length : transactions.length,
-        totalDebit,
-        totalCredit,
-      };
+    const created = await createManualJournalEntry({
+      companyId,
+      actorUserId: actor.userId,
+      entryDate,
+      description,
+      supportRef,
+      isDraft,
+      normalized,
+      totalDebit,
+      totalCredit,
     });
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
+    const message = error.message || "Erreur création OD manuelle";
+    const status = message.includes("cloture") ? 400 : 500;
     return NextResponse.json(
-      { error: error.message || "Erreur création OD manuelle" },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }

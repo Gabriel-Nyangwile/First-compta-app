@@ -25,7 +25,7 @@ export default function TransferForm({ accounts }) {
       if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur lors de l’enregistrement du transfert');
       setOkMsg('Transfert interne enregistré');
   setAmount(''); setDescription(''); setVoucherRef('');
-      window.location.href = `/treasury?account=${toId}`;
+      window.location.href = `/treasury?account=${data.transfer?.in?.moneyAccountId || toId}`;
     } catch(err) {
       setError(err.message);
     } finally { setLoading(false); }
@@ -37,12 +37,12 @@ export default function TransferForm({ accounts }) {
       <div className="grid md:grid-cols-3 gap-3 text-sm">
         <label className="flex flex-col">De
           <select value={fromId} onChange={e=>setFromId(e.target.value)} className="mt-1 border rounded px-2 py-1">
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.label}{a.ledgerAccountNumber && !a.label.includes(a.ledgerAccountNumber) ? ` (${a.ledgerAccountNumber})` : ''}</option>)}
           </select>
         </label>
         <label className="flex flex-col">Vers
           <select value={toId} onChange={e=>setToId(e.target.value)} className="mt-1 border rounded px-2 py-1">
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.label}{a.ledgerAccountNumber && !a.label.includes(a.ledgerAccountNumber) ? ` (${a.ledgerAccountNumber})` : ''}</option>)}
           </select>
         </label>
         <label className="flex flex-col">Montant

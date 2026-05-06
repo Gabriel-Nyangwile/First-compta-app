@@ -50,19 +50,17 @@ Le paiement doit d'abord exister. Ensuite seulement, le lettrage permet d'indiqu
 
 Ces champs sont visibles dans le grand livre, les exports et certains écrans de contrôle.
 
-## 5. Pourquoi le lettrage semble parfois ne pas s'exécuter
+## 5. Pourquoi le lettrage peut encore sembler incomplet
 
-Le problème actuel principal est fonctionnel :
+Le flux client/fournisseur privilégie désormais le lettrage **depuis la facture**.
 
-> Sur les flux clients et fournisseurs, l'action de lettrage disponible sur le paiement marque surtout les écritures du **mouvement de trésorerie**. Elle ne rapproche pas encore de manière complète la **facture d'origine** avec le **paiement** lorsque ces écritures sont dans des groupes séparés.
+Le bouton **Lettrer la facture** associe explicitement :
 
-Conséquence utilisateur :
+- la ligne de dette ou de créance issue de la facture
+- le ou les paiements encore disponibles pour ce même tiers
+- une référence commune `LTR-...`
 
-- le bouton peut répondre **Lettrage effectué**
-- une référence `LTR-...` peut être créée
-- mais la facture ou la dette peut rester affichée comme non lettrée dans certains tableaux
-
-Ce n'est donc pas seulement un problème de compréhension utilisateur. Il y a une limite d'implémentation à corriger pour obtenir un vrai lettrage facture-paiement.
+L'ancien bouton présent sur certaines lignes de paiement reste affiché pour compatibilité et diagnostic, mais le parcours recommandé pour un lettrage métier complet est de partir de la facture à solder.
 
 ## 6. Lettrage fournisseur - utilisation actuelle
 
@@ -84,23 +82,21 @@ Deux accès existent :
 | **Facture** | facture fournisseur concernée si disponible |
 | **Paiement** | mouvement de trésorerie concerné |
 | **Compte** | compte comptable de la ligne |
-| **Lettrer** | action disponible sur les lignes de paiement |
+| **Lettrer la facture** | impute les paiements disponibles sur la facture sélectionnée |
+| **Ancien mode** | action conservée pour compatibilité sur certaines lignes de paiement |
 
 ### Parcours utilisateur
 
 1. ouvrir le fournisseur
-2. repérer un paiement fournisseur
-3. cliquer sur **Lettrer**
-4. vérifier le message de réussite
-5. contrôler le statut de lettrage
+2. repérer la facture fournisseur à solder
+3. cliquer sur **Lettrer la facture**
+4. vérifier le message de réussite et la référence `LTR-...`
+5. contrôler le statut `MATCHED` ou `PARTIAL`
 6. vérifier le grand livre fournisseur
 
-### Limite actuelle
+### Résultat attendu
 
-Le lettrage fournisseur actuel ne garantit pas encore que la facture fournisseur d'origine soit elle-même marquée comme totalement rapprochée. Pour un vrai lettrage métier, il faudra que l'action associe explicitement :
-
-- la ligne dette fournisseur issue de la facture
-- la ligne paiement fournisseur issue de la trésorerie
+Le lettrage fournisseur relie maintenant la dette issue de la facture et les paiements fournisseur disponibles sous une même référence de lettrage. Si le paiement couvre tout le montant, la facture passe en `MATCHED`. Sinon elle reste en `PARTIAL` avec un reliquat visible.
 
 ## 7. Lettrage client - utilisation actuelle
 
@@ -120,25 +116,20 @@ Deux accès existent :
 | **Delta** | reste à encaisser ou écart |
 | **Facture** | facture client concernée |
 | **Paiement** | mouvement d'encaissement |
-| **Lettrer** | action disponible sur les encaissements |
+| **Lettrer la facture** | impute les encaissements disponibles sur la facture sélectionnée |
+| **Ancien mode** | action conservée pour compatibilité sur certaines lignes d'encaissement |
 
 ### Parcours utilisateur
 
 1. ouvrir le client
-2. repérer l'encaissement
-3. cliquer sur **Lettrer**
+2. repérer la facture client à solder
+3. cliquer sur **Lettrer la facture**
 4. vérifier la référence `LTR-...`
 5. contrôler le grand livre client
 
-### Limite actuelle
+### Résultat attendu
 
-Comme pour les fournisseurs, l'action actuelle est encore trop centrée sur le mouvement de trésorerie. Le vrai objectif métier doit être :
-
-- facture client `411`
-- encaissement client
-- même référence de lettrage
-- statut `MATCHED` si le montant est totalement couvert
-- statut `PARTIAL` si le règlement est partiel
+Le lettrage client relie maintenant la créance `411` et les encaissements disponibles du même client. Le statut devient `MATCHED` si le montant est totalement couvert, ou `PARTIAL` si l'encaissement reste insuffisant.
 
 ## 8. Lettrage paie
 
@@ -237,9 +228,9 @@ Après lettrage, vérifier :
 
 | Situation | Interprétation |
 | --- | --- |
-| `UNMATCHED` avec paiement existant | le paiement n'est pas encore rapproché ou le lettrage actuel n'a pas relié la bonne dette |
+| `UNMATCHED` avec paiement existant | le paiement n'a pas encore été imputé à une facture ou concerne un autre tiers |
 | `PARTIAL` | paiement partiel ou différence de montant |
-| `MATCHED` mais facture encore ouverte | incohérence entre statut facture et statut lettrage |
+| `MATCHED` mais facture encore ouverte | incohérence à auditer entre statut facture et statut lettrage |
 | message `Lettrage impossible` | mouvement non compatible ou non équilibré |
 | message `NO_TRANSACTIONS` | le mouvement n'a pas les lignes attendues |
 | message `NOT_BALANCED` | les lignes à lettrer ne sont pas équilibrées |
@@ -255,13 +246,15 @@ Un lettrage correct doit répondre à trois conditions :
 
 Si l'une de ces trois conditions manque, le lettrage peut échouer ou rester partiel.
 
-## 15. Point d'amélioration à prévoir
+## 15. Point d'attention
 
-Pour rendre le lettrage pleinement opérationnel dans tous les modules, il faut faire évoluer l'implémentation client/fournisseur pour que l'utilisateur puisse choisir explicitement :
+Le lettrage facture-paiement client/fournisseur est désormais opérationnel sur le parcours standard.
 
-- la facture ou dette à lettrer
-- le paiement ou encaissement à rapprocher
-- le montant à affecter en cas de règlement partiel
+Les évolutions restantes relèvent surtout du confort utilisateur :
+
+- sélection manuelle d'un sous-ensemble de paiements
+- affectation manuelle d'un montant sur un paiement précis
+- traitement dédié des avances et acomptes
 
 La cible fonctionnelle est :
 
@@ -278,8 +271,10 @@ La cible fonctionnelle est :
 | --- | --- |
 | Lettrage fournisseur UI | [src/components/suppliers/lettering/LetteringPanel.jsx](../src/components/suppliers/lettering/LetteringPanel.jsx) |
 | Lettrage client UI | [src/components/clients/lettering/ClientLetteringPanel.jsx](../src/components/clients/lettering/ClientLetteringPanel.jsx) |
+| Match facture tiers | [src/lib/lettering/matchPartyInvoice.js](../src/lib/lettering/matchPartyInvoice.js) |
 | Match fournisseur actuel | [src/lib/lettering/matchSupplierPayment.js](../src/lib/lettering/matchSupplierPayment.js) |
 | Match client actuel | [src/lib/lettering/matchClientPayment.js](../src/lib/lettering/matchClientPayment.js) |
+| Test de non-régression | [scripts/test-lettering-flow.js](../scripts/test-lettering-flow.js) |
 | Lettrage paie | [src/lib/payroll/lettering.js](../src/lib/payroll/lettering.js) |
 | Grand livre | [src/app/ledger/page.jsx](../src/app/ledger/page.jsx) |
 | Détail compte grand livre | [src/app/ledger/[accountId]/page.jsx](../src/app/ledger/[accountId]/page.jsx) |

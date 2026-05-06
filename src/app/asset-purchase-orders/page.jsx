@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import { absoluteUrl } from '@/lib/url';
+import { internalApiFetch } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
 
 async function fetchList() {
   try {
-    const url = await absoluteUrl('/api/asset-purchase-orders');
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch('/api/asset-purchase-orders', { cache: 'no-store' });
     if (res.ok) return res.json();
   } catch {}
   return [];

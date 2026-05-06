@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { absoluteUrl } from '@/lib/url';
+import { internalApiFetch } from '@/lib/url';
 
 async function fetchReceipts() {
-  const url = await absoluteUrl('/api/goods-receipts');
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await internalApiFetch('/api/goods-receipts', { cache: 'no-store' });
   if (!res.ok) return [];
   return res.json();
 }

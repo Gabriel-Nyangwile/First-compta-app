@@ -39,10 +39,13 @@ const routePerms = [
   { pattern: /^\/api\/treasury/, action: 'createPayment' },
 
   // Comptabilité / journal
+  { pattern: /^\/api\/closing/, action: 'manageClosing' },
+  { pattern: /^\/api\/opening/, action: 'manageOpening' },
   { pattern: /^\/api\/transactions/, action: 'postJournalEntry' },
   { pattern: /^\/api\/journal-entries/, action: 'postJournalEntry' },
 
   // Stock & produits
+  { pattern: /^\/api\/production/, action: 'manageProduction' },
   { pattern: /^\/api\/stock-adjustments/, action: 'manageInventory' },
   { pattern: /^\/api\/stock-movements/, action: 'manageInventory' },
   { pattern: /^\/api\/stock-withdrawals/, action: 'manageInventory' },
@@ -109,8 +112,6 @@ export async function middleware(req) {
     req.cookies.get('company_id')?.value;
 
   const action = matchAction(pathname, method);
-  // Bypass with admin token if provided
-  if (hasAdminToken(req)) return NextResponse.next();
 
   if (action) {
     const role = await getUserRole(req);
@@ -130,6 +131,7 @@ export async function middleware(req) {
 
   // Legacy token guard for a few mutation endpoints (kept for compat)
   if (legacyNeedsToken(pathname, method)) {
+    if (hasAdminToken(req)) return NextResponse.next();
     return new NextResponse(
       JSON.stringify({ error: 'Unauthorized' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }

@@ -1,8 +1,22 @@
-# Guide d'Ouverture des Comptes
+# Guide de reprise d'ouverture des comptes
 
 ## Vue d'ensemble
 
-Ce guide explique comment effectuer l'ouverture des comptes (reprise détaillée) pour une nouvelle société dans le système comptable. L'ouverture des comptes consiste à saisir les soldes initiaux au 1er janvier 2026.
+Ce guide explique comment effectuer une reprise d'ouverture pour une nouvelle société dans le système comptable, ou pour une société dont l'historique antérieur n'est pas encore tenu dans l'application.
+
+Si l'exercice complet a déjà été tenu dans l'application, utiliser plutôt la procédure de clôture annuelle et réouverture : [annual-closing.md](./annual-closing.md).
+
+### Accès utilisateur
+
+Dans l'application, ouvrir :
+
+```text
+Comptabilité > Ouverture d'exercice
+```
+
+L'écran permet de télécharger les modèles Excel, importer les fichiers, lancer une prévisualisation, lire le rapport d'erreurs puis valider l'import définitif.
+
+Les commandes `npm run opening:*` restent disponibles comme procédure technique de secours.
 
 ### Ce que fait l'ouverture des comptes
 
@@ -22,8 +36,10 @@ Ce guide explique comment effectuer l'ouverture des comptes (reprise détaillée
 
 - **Date d'ouverture** : Fixée au 01/01/2026
 - **Ordre d'import** : Respecter la séquence pour éviter les conflits
-- **Dry-run** : Tester toujours avec `--dry-run` avant l'import réel
+- **Prévisualisation** : Tester toujours chaque fichier avant l'import réel
 - **Idempotence** : Les imports sont protégés contre les duplicatas
+- **Smoke E2E** : `npm run test:opening` valide le kit complet sur une société temporaire
+- **Droits** : Accès réservé aux rôles `SUPERADMIN`, `FINANCE_MANAGER` et `ACCOUNTANT`
 
 ## 1. Préparation des données
 
@@ -66,7 +82,18 @@ Cette commande crée 5 fichiers dans `scripts/templates/` :
 - Liste des fournisseurs avec soldes créditeurs
 - Informations de contact et comptes 401xxx
 
-## 2. Tests préalables (Dry-run)
+## 2. Tests préalables
+
+### Depuis l'application
+
+Pour chaque fichier :
+
+1. sélectionner le fichier Excel
+2. cliquer sur **Prévisualiser**
+3. corriger les erreurs affichées si nécessaire
+4. cliquer sur **Importer** seulement lorsque le rapport est valide
+
+### Depuis le terminal
 
 Avant tout import réel, testez avec le mode dry-run :
 
@@ -138,17 +165,20 @@ npm run opening:assets -- --file scripts/templates/opening-assets-simulation.xls
 Après tous les imports, vérifiez l'intégrité :
 
 ```bash
+# Smoke complet des imports d'ouverture
+npm run test:opening
+
 # Balance générale équilibrée
-npm run audit:ledger-balance
+npm run ledger:balance
 
 # Valorisation stock cohérente
 npm run test:inventory-flow
 
 # Lettrage des comptes valide
-npm run audit:ledger-lettering
+npm run test:ledger-lettering
 
 # Intégrité journal confirmée
-npm run test:journal-integrity
+node --env-file=.env.local scripts/test-journal-integrity.js
 
 # Mouvements monétaires cohérents
 npm run test:money-movement
@@ -216,7 +246,9 @@ npm run audit:invoice-balances
 
 ---
 
-## Historique des développements
+## Avancement technique
+
+La phase 5 est exploitable pour un parcours contrôlé. Le chantier restant porte surtout sur l'homogénéisation fine des rapports d'erreurs et la revue métier de la procédure d'ouverture.
 
 ### S5-01 ✅ : Enrichissement du support
 - Simulation d'actifs avec 12 scénarios (6 nominaux + 6 cas limites)
@@ -243,9 +275,9 @@ npm run audit:invoice-balances
 - Protection contre ré-imports accidentels
 
 ### S5-05 ✅ : Test d'ouverture complète
-- Import séquentiel réussi sur société "Entreprise par defaut"
-- Tous les audits d'intégrité passés ✅
-- Société prête pour exploitation comptable
+- `npm run test:opening` couvre les 5 imports (`balance`, `stock`, `AR`, `AP`, `assets`) en dry-run puis import réel sur une société temporaire.
+- Le test vérifie les journaux, transactions, tiers ouverts, inventaire, immobilisation et ligne d'amortissement d'ouverture.
+- Le test nettoie uniquement la société temporaire créée pour le smoke.
 
 ### S5-06 ✅ : Documentation utilisateur
 - Guide complet et pédagogique

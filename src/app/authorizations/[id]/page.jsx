@@ -1,6 +1,7 @@
 import { authorizeAuthorization, cancelAuthorization, deleteAuthorization, executeAuthorizationViaMovement } from '@/lib/serverActions/authorization';
 import prisma from '@/lib/prisma';
 import { listMoneyAccountsWithBalance } from '@/lib/serverActions/money';
+import { listTreasuryLedgerAccountsWithBalance } from '@/lib/treasuryAccounts';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatAmount, buildInvoiceLink, buildIncomingInvoiceLink } from '@/lib/utils';
@@ -27,7 +28,35 @@ export default async function AuthorizationDetailPage({ params }) {
     }
   });
   if (!auth) return <main className="p-8">Introuvable</main>;
-  const accounts = await listMoneyAccountsWithBalance(companyId);
+  const beneficiaryAccount = auth.beneficiaryAccountId
+    ? await prisma.account.findFirst({
+        where: { id: auth.beneficiaryAccountId, companyId },
+        select: { id: true, number: true, label: true },
+      })
+    : null;
+  const [moneyAccounts, treasuryAccountsRaw] = await Promise.all([
+    listMoneyAccountsWithBalance(companyId),
+    listTreasuryLedgerAccountsWithBalance(companyId, { includeUnused: true }),
+  ]);
+  const linkedMoneyAccountIds = new Set(
+    treasuryAccountsRaw.map((account) => account.moneyAccountId).filter(Boolean)
+  );
+  const accounts = [
+    ...treasuryAccountsRaw.map((account) => ({
+      id: account.moneyAccountId || `ledger:${account.id}`,
+      label: `${account.number} - ${account.moneyAccountLabel || account.label}`,
+      computedBalance: account.computedBalance,
+    })),
+    ...moneyAccounts
+      .filter((account) => !linkedMoneyAccountIds.has(account.id))
+      .map((account) => ({
+        id: account.id,
+        label: account.ledgerAccount?.number
+          ? `${account.ledgerAccount.number} - ${account.label}`
+          : account.label,
+        computedBalance: account.computedBalance?.toString?.() || account.computedBalance,
+      })),
+  ];
   const movementCount = auth.moneyMovements?.length || 0;
   const adviceCount = auth.bankAdvices?.length || 0;
   const canDelete =
@@ -49,6 +78,7 @@ export default async function AuthorizationDetailPage({ params }) {
           <div>Montant: {formatAmount(auth.amount.toString(), auth.currency)}</div>
           <div>Devise: {auth.currency}</div>
           <div>Objet: {auth.purpose || '—'}</div>
+          <div>Compte autre: {beneficiaryAccount ? `${beneficiaryAccount.number} - ${beneficiaryAccount.label}` : '—'}</div>
           <div>Invoice: {auth.invoice ? (
             <Link href={buildInvoiceLink(auth.invoice.id, auth.id)} className="text-blue-600 underline">
               {auth.invoice.invoiceNumber}

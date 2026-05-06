@@ -57,6 +57,7 @@ function allocateAcrossAmounts(transactions, targetLetteredAmount) {
 export async function matchPartyInvoice({
   party,
   invoiceId,
+  expectedPartyId = null,
   companyId = null,
 }) {
   if (!["client", "supplier"].includes(party)) {
@@ -84,6 +85,9 @@ export async function matchPartyInvoice({
   const partyId = isSupplier ? invoiceEntity.supplierId : invoiceEntity.clientId;
   if (!partyId) {
     throw new Error("Tiers lié à la facture introuvable");
+  }
+  if (expectedPartyId && partyId !== expectedPartyId) {
+    throw new Error("La facture ne correspond pas au tiers demandé");
   }
 
   const invoiceTransactions = await prisma.transaction.findMany({

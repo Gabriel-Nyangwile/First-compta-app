@@ -3,15 +3,18 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import AccountAutocomplete from "../AccountAutocomplete";
 import { authorizedFetch } from "@/lib/apiClient";
+import {
+  STOCK_NATURE_OPTIONS,
+  STOCK_NATURE_LABELS,
+  getStockNatureConfig,
+  formatPrefixes,
+  accountMatchesPrefixes,
+} from "@/lib/productStockNatures";
 
-const STOCK_NATURE_LABELS = {
-  PURCHASED: "Marchandises achetées (603)",
-  PRODUCED: "Production vendue (701)",
-};
+const visibleStockNatureOptions = STOCK_NATURE_OPTIONS;
 
-const INVENTORY_PREFIX = "31";
-
-const variationPrefix = (nature) => (nature === "PRODUCED" ? "701" : "603");
+const inventoryPrefixes = (nature) => getStockNatureConfig(nature).inventoryPrefixes;
+const variationPrefixes = (nature) => getStockNatureConfig(nature).variationPrefixes;
 
 const emptyCreateForm = {
   sku: "",
@@ -156,8 +159,14 @@ export default function ProductsClient({ initialProducts }) {
     setForm((prev) => {
       const next = { ...prev, stockNature: value };
       if (
+        prev.inventoryAccount &&
+        !accountMatchesPrefixes(prev.inventoryAccount, inventoryPrefixes(value))
+      ) {
+        next.inventoryAccount = null;
+      }
+      if (
         prev.stockVariationAccount &&
-        !prev.stockVariationAccount.number?.startsWith(variationPrefix(value))
+        !accountMatchesPrefixes(prev.stockVariationAccount, variationPrefixes(value))
       ) {
         next.stockVariationAccount = null;
       }
@@ -169,8 +178,14 @@ export default function ProductsClient({ initialProducts }) {
     setConfigForm((prev) => {
       const next = { ...prev, stockNature: value };
       if (
+        prev.inventoryAccount &&
+        !accountMatchesPrefixes(prev.inventoryAccount, inventoryPrefixes(value))
+      ) {
+        next.inventoryAccount = null;
+      }
+      if (
         prev.stockVariationAccount &&
-        !prev.stockVariationAccount.number?.startsWith(variationPrefix(value))
+        !accountMatchesPrefixes(prev.stockVariationAccount, variationPrefixes(value))
       ) {
         next.stockVariationAccount = null;
       }
@@ -186,7 +201,10 @@ export default function ProductsClient({ initialProducts }) {
       return;
     }
     if (!form.inventoryAccount || !form.stockVariationAccount) {
-      setError("Sélectionnez les comptes 31x et 603/701.");
+      const config = getStockNatureConfig(form.stockNature);
+      setError(
+        `Sélectionnez un compte de stock ${formatPrefixes(config.inventoryPrefixes)} et un compte de variation ${formatPrefixes(config.variationPrefixes)}.`
+      );
       return;
     }
     setLoading(true);
@@ -363,8 +381,8 @@ export default function ProductsClient({ initialProducts }) {
               <th className="p-2">SKU</th>
               <th className="p-2">Nom</th>
               <th className="p-2">Nature</th>
-              <th className="p-2">Compte stock (31x)</th>
-              <th className="p-2">Compte variation (603/701)</th>
+              <th className="p-2">Compte stock</th>
+              <th className="p-2">Compte variation</th>
               <th className="p-2 text-right">Stock</th>
               <th className="p-2 text-right">Coût moyen</th>
               <th className="p-2">Actif</th>
@@ -463,7 +481,7 @@ export default function ProductsClient({ initialProducts }) {
       </div>
       <div className="mt-6 text-xs text-slate-500 space-y-1">
         <p>
-          Configurez les comptes 31x et 603/701 pour que les mises en stock
+          Configurez la nature de stock et ses comptes de stock/variation pour que les mises en stock
           génèrent automatiquement les écritures de variation.
         </p>
         <p>
@@ -544,28 +562,31 @@ export default function ProductsClient({ initialProducts }) {
                     onChange={(e) => handleCreateNatureChange(e.target.value)}
                     className="border px-2 py-1 rounded text-xs w-full"
                   >
-                    <option value="PURCHASED">
-                      Marchandises achetées (603)
-                    </option>
-                    <option value="PRODUCED">Production vendue (701)</option>
+                    {visibleStockNatureOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} ({formatPrefixes(option.inventoryPrefixes)})
+                      </option>
+                    ))}
                   </select>
                 </label>
               </div>
               <div className="space-y-3">
                 <label className="text-xs space-y-1 block">
-                  <span className="font-medium">Compte stock 31x *</span>
+                  <span className="font-medium">
+                    Compte stock {formatPrefixes(inventoryPrefixes(form.stockNature))} *
+                  </span>
                   <AccountAutocomplete
                     key={`create-inventory-${form.inventoryAccount?.id || ""}`}
                     value={form.inventoryAccount}
                     onChange={(acc) =>
                       setForm((f) => ({ ...f, inventoryAccount: acc }))
                     }
-                    filterPrefix={INVENTORY_PREFIX}
+                    filterPrefixes={inventoryPrefixes(form.stockNature)}
                   />
                 </label>
                 <label className="text-xs space-y-1 block">
                   <span className="font-medium">
-                    Compte variation {variationPrefix(form.stockNature)} *
+                    Compte variation {formatPrefixes(variationPrefixes(form.stockNature))} *
                   </span>
                   <AccountAutocomplete
                     key={`create-variation-${
@@ -575,7 +596,7 @@ export default function ProductsClient({ initialProducts }) {
                     onChange={(acc) =>
                       setForm((f) => ({ ...f, stockVariationAccount: acc }))
                     }
-                    filterPrefix={variationPrefix(form.stockNature)}
+                    filterPrefixes={variationPrefixes(form.stockNature)}
                   />
                 </label>
               </div>
@@ -623,33 +644,36 @@ export default function ProductsClient({ initialProducts }) {
                     onChange={(e) => handleConfigNatureChange(e.target.value)}
                     className="border px-2 py-1 rounded text-xs w-full"
                   >
-                    <option value="PURCHASED">
-                      Marchandises achetées (603)
-                    </option>
-                    <option value="PRODUCED">Production vendue (701)</option>
+                    {visibleStockNatureOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} ({formatPrefixes(option.inventoryPrefixes)})
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <div className="text-xs text-slate-500">
                   <span>
-                    Compte 603 pour les marchandises, 701 pour la production.
+                    La nature pilote les préfixes de stock et de variation proposés.
                   </span>
                 </div>
               </div>
               <div className="space-y-3">
                 <label className="text-xs space-y-1 block">
-                  <span className="font-medium">Compte stock 31x *</span>
+                  <span className="font-medium">
+                    Compte stock {formatPrefixes(inventoryPrefixes(configForm.stockNature))} *
+                  </span>
                   <AccountAutocomplete
                     key={`config-inventory-${configProduct.id}`}
                     value={configForm.inventoryAccount}
                     onChange={(acc) =>
                       setConfigForm((f) => ({ ...f, inventoryAccount: acc }))
                     }
-                    filterPrefix={INVENTORY_PREFIX}
+                    filterPrefixes={inventoryPrefixes(configForm.stockNature)}
                   />
                 </label>
                 <label className="text-xs space-y-1 block">
                   <span className="font-medium">
-                    Compte variation {variationPrefix(configForm.stockNature)} *
+                    Compte variation {formatPrefixes(variationPrefixes(configForm.stockNature))} *
                   </span>
                   <AccountAutocomplete
                     key={`config-variation-${configProduct.id}`}
@@ -660,7 +684,7 @@ export default function ProductsClient({ initialProducts }) {
                         stockVariationAccount: acc,
                       }))
                     }
-                    filterPrefix={variationPrefix(configForm.stockNature)}
+                    filterPrefixes={variationPrefixes(configForm.stockNature)}
                   />
                 </label>
               </div>

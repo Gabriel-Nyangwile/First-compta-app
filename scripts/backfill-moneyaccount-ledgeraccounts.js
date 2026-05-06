@@ -8,8 +8,22 @@
  */
 import prisma from '../src/lib/prisma.js';
 
+const args = process.argv.slice(2);
+const companyArgIndex = args.indexOf('--companyId');
+const companyId =
+  companyArgIndex >= 0
+    ? args[companyArgIndex + 1]
+    : (process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || '').trim() || null;
+
+if (!companyId) {
+  throw new Error('companyId requis (--companyId ou DEFAULT_COMPANY_ID).');
+}
+
 async function nextNumber(prefix) {
-  const existing = await prisma.account.findMany({ where: { number: { startsWith: prefix } }, select: { number: true } });
+  const existing = await prisma.account.findMany({
+    where: { companyId, number: { startsWith: prefix } },
+    select: { number: true },
+  });
   let maxTail = 0;
   for (const acc of existing) {
     if (acc.number.length === 6 && acc.number.startsWith(prefix)) {
@@ -23,7 +37,10 @@ async function nextNumber(prefix) {
 }
 
 async function run() {
-  const moneyAccounts = await prisma.moneyAccount.findMany({ include: { ledgerAccount: true } });
+  const moneyAccounts = await prisma.moneyAccount.findMany({
+    where: { companyId },
+    include: { ledgerAccount: true },
+  });
   let created = 0;
   for (const ma of moneyAccounts) {
     if (ma.ledgerAccountId) continue; // already has one
@@ -41,12 +58,12 @@ async function run() {
     } else {
       label = 'Banque ' + (ma.label || number.substring(3));
     }
-    const acc = await prisma.account.create({ data: { number, label } });
+    const acc = await prisma.account.create({ data: { number, label, companyId } });
     await prisma.moneyAccount.update({ where: { id: ma.id }, data: { ledgerAccountId: acc.id } });
     created++;
     console.log(`Provisioned ledger account ${number} for moneyAccount ${ma.id}`);
   }
-  console.log(`Backfill terminé. Nouveaux comptes créés: ${created}`);
+  console.log(`Backfill terminé pour companyId=${companyId}. Nouveaux comptes créés: ${created}`);
 }
 
 run().then(()=>process.exit(0)).catch(e=>{ console.error(e); process.exit(1); });

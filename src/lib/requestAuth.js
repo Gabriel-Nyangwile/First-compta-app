@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { normalizeRole } from "@/lib/authz";
+import { getUserRole, normalizeRole } from "@/lib/authz";
 import { getCompanyIdFromRequest } from "@/lib/tenant";
 
 function readCookieHeader(cookieHeader, name) {
@@ -93,5 +93,5 @@ export async function getRequestActor(req, options = {}) {
 export async function getRequestRole(req, options = {}) {
   const actor = await getRequestActor(req, options);
   if (actor.role) return actor.role;
-  return null;
+  return getUserRole(req);
 }

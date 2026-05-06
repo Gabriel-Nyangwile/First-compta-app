@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { absoluteUrl } from "@/lib/url";
+import { internalApiFetch } from "@/lib/url";
 import { checkPerm, normalizeRole } from "@/lib/authz";
 import PurchaseOrderRowActions from "./PurchaseOrderRowActions";
 import ProtectedLink from "@/components/ProtectedLink";
@@ -33,15 +33,13 @@ async function fetchPOs(rawSearchParams) {
   const path = `/api/purchase-orders${
     qs.toString() ? "?" + qs.toString() : ""
   }`;
-  const url = await absoluteUrl(path);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(path, { cache: "no-store" });
   if (!res.ok) return [];
   return res.json();
 }
 
 async function fetchMissingInvoicePos() {
-  const url = await absoluteUrl("/api/purchase-orders/missing-invoices");
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch("/api/purchase-orders/missing-invoices", { cache: "no-store" });
   if (!res.ok) return [];
   const data = await res.json();
   return Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];

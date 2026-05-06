@@ -455,3 +455,19 @@ La proposition concrète est donc :
 - bâtir l'UX sur un **parcours guidé par étapes**
 
 Ce module peut ensuite être étendu sans remettre en cause le socle.
+
+## 17. Statut d'implémentation
+
+Phase 1 introduite dans l'application :
+
+- modèles Prisma `BillOfMaterial`, `BillOfMaterialLine`, `ManufacturingOrder`, `ManufacturingOrderComponent`, `ManufacturingOutput`
+- séquences `BOM-` et `MO-`
+- routes `/api/production/boms` et `/api/production/orders`
+- écran `/production`
+- écrans nomenclatures et ordres de fabrication
+- consommation composants avec mouvements stock `OUT`
+- déclaration produit fini avec mouvement stock `IN`
+- écritures simples via compte de production en cours
+- smoke `npm run test:production-flow`
+
+Les enrichissements des phases 2 et 3 restent à traiter séparément.

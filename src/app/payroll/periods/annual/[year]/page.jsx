@@ -1,14 +1,15 @@
 import React from 'react';
 import AnnualCharts from '@/components/payroll/AnnualCharts';
+import { internalApiFetch } from '@/lib/url';
 import { formatAmount } from '@/lib/utils';
 
 async function fetchAnnual(year){
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/payroll/periods/annual-summary?year=${year}`, { cache:'no-store' });
+  const res = await internalApiFetch(`/api/payroll/periods/annual-summary?year=${year}`, { cache:'no-store' });
   if(!res.ok) return { ok:false, error:'Fetch failed'};
   return res.json();
 }
 async function fetchYears(){
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/payroll/periods/years`, { cache:'no-store' });
+  const res = await internalApiFetch('/api/payroll/periods/years', { cache:'no-store' });
   if(!res.ok) return { ok:false, years:[] };
   return res.json();
 }

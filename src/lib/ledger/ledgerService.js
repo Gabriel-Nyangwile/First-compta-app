@@ -21,6 +21,22 @@ export async function getLedgerData(companyId, rawFilters = {}) {
         OR: [
           { number: { contains: q } },
           { label: { contains: q, mode: "insensitive" } },
+          {
+            transactions: {
+              some: {
+                OR: [
+                  { description: { contains: q, mode: "insensitive" } },
+                  { letterRef: { contains: q, mode: "insensitive" } },
+                  { journalEntry: { number: { contains: q, mode: "insensitive" } } },
+                  { journalEntry: { sourceId: { contains: q, mode: "insensitive" } } },
+                  { journalEntry: { supportRef: { contains: q, mode: "insensitive" } } },
+                  { invoice: { invoiceNumber: { contains: q, mode: "insensitive" } } },
+                  { incomingInvoice: { entryNumber: { contains: q, mode: "insensitive" } } },
+                  { moneyMovement: { voucherRef: { contains: q, mode: "insensitive" } } },
+                ],
+              },
+            },
+          },
         ],
       }
     : { companyId };

@@ -8,6 +8,13 @@ import { getPaymentDays } from '@/lib/validation/client';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
 
+async function requireServerActionCompanyId(explicitCompanyId = null) {
+  const resolvedCompanyId = explicitCompanyId || getCompanyIdFromCookies(await cookies());
+  if (!resolvedCompanyId) {
+    throw new Error('companyId requis');
+  }
+  return resolvedCompanyId;
+}
 
 // getPaymentDays maintenant centralisé dans lib/validation/client.js
 
@@ -20,7 +27,7 @@ import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 // Méthode pour créer une facture
 export async function createInvoice(formData) {
-  const companyId = getCompanyIdFromCookies(await cookies());
+  const companyId = await requireServerActionCompanyId();
   const invoiceNumber = formData.get('invoiceNumber');
   const totalAmount = parseFloat(formData.get('totalAmount'));
   const clientId = formData.get('clientId');
@@ -78,7 +85,7 @@ export async function createInvoice(formData) {
 
 // Méthode pour récupérer les clients et les factures
 export async function fetchClientsAndInvoices(filters = {}) {
-  const companyId = filters.companyId || getCompanyIdFromCookies(await cookies());
+  const companyId = await requireServerActionCompanyId(filters.companyId);
 
   const {
     query,
@@ -205,7 +212,7 @@ export async function fetchClientsAndInvoices(filters = {}) {
 
 // Nouvelle méthode pour mettre à jour le statut d'une facture
 export async function updateInvoiceStatus(formData) {
-  const companyId = getCompanyIdFromCookies(await cookies());
+  const companyId = await requireServerActionCompanyId();
   const invoiceId = formData.get('invoiceId');
   const newStatus = formData.get('newStatus');//'PAID', 'PENDING', 'PARTIAL' (OVERDUE is derived only)
 
@@ -245,8 +252,9 @@ export async function updateInvoiceStatus(formData) {
 // Nouvelle méthode pour récupérer une facture par son ID, avec le statut calculé
 export async function fetchInvoiceById(id, companyId = null){
   try {
+    const scopedCompanyId = await requireServerActionCompanyId(companyId);
     const invoice = await prisma.invoice.findFirst({
-      where: { id: id, ...(companyId ? { companyId } : {}) },
+      where: { id: id, companyId: scopedCompanyId },
       include: { 
         client: {
           select: {// Inclure uniquement les champs nécessaires

@@ -1,21 +1,22 @@
 import prisma from "@/lib/prisma";
+import {
+  STOCK_NATURES,
+  getStockNatureConfig,
+  formatPrefixes,
+  accountMatchesPrefixes,
+} from "@/lib/productStockNatures";
 
-export const STOCK_NATURES = new Set(["PURCHASED", "PRODUCED"]);
-export const INVENTORY_ACCOUNT_PREFIX = "31";
-
-export const VARIATION_ACCOUNT_PREFIX = {
-  PURCHASED: "603",
-  PRODUCED: "701",
-};
+export { STOCK_NATURES, getStockNatureConfig, formatPrefixes };
 
 export async function validateProductLedgerAccounts(
   client,
   { stockNature, inventoryAccountId, stockVariationAccountId, companyId }
 ) {
   const prismaClient = client || prisma;
+  const natureConfig = getStockNatureConfig(stockNature);
   if (!inventoryAccountId || !stockVariationAccountId) {
     throw new Error(
-      "Compte de stock (31x) et compte de variation (603/701) requis."
+      "Compte de stock et compte de variation requis."
     );
   }
 
@@ -31,19 +32,19 @@ export async function validateProductLedgerAccounts(
   if (!inventory) {
     throw new Error("Compte de stock introuvable.");
   }
-  if (!inventory.number?.startsWith(INVENTORY_ACCOUNT_PREFIX)) {
-    throw new Error("Le compte de stock doit commencer par 31.");
+  if (!accountMatchesPrefixes(inventory, natureConfig.inventoryPrefixes)) {
+    throw new Error(
+      `Le compte de stock doit commencer par ${formatPrefixes(natureConfig.inventoryPrefixes)}.`
+    );
   }
 
   const variation = accounts.find((a) => a.id === stockVariationAccountId);
   if (!variation) {
     throw new Error("Compte de variation introuvable.");
   }
-  const expectedPrefix =
-    VARIATION_ACCOUNT_PREFIX[stockNature] || VARIATION_ACCOUNT_PREFIX.PURCHASED;
-  if (!variation.number?.startsWith(expectedPrefix)) {
+  if (!accountMatchesPrefixes(variation, natureConfig.variationPrefixes)) {
     throw new Error(
-      `Le compte de variation doit commencer par ${expectedPrefix}.`
+      `Le compte de variation doit commencer par ${formatPrefixes(natureConfig.variationPrefixes)}.`
     );
   }
 

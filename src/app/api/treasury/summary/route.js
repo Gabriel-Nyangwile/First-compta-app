@@ -1,6 +1,10 @@
 import prisma from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/tenant";
 import { getMissionAdvanceOverview } from "@/lib/serverActions/money";
+import {
+  listTreasuryLedgerAccountsWithBalance,
+  summarizeRecentTreasuryTransactions,
+} from "@/lib/treasuryAccounts";
 
 function toNumber(value) {
   return value?.toNumber?.() ?? Number(value ?? 0);
@@ -16,15 +20,8 @@ function isFullyMatched(transactions = []) {
 export async function GET(req) {
   const companyId = requireCompanyId(req);
 
-  const [accounts, supplierPayments, missionAdvanceOverview] = await Promise.all([
-    prisma.moneyAccount.findMany({
-      where: { companyId },
-      select: {
-        id: true,
-        type: true,
-        openingBalance: true,
-      },
-    }),
+  const [treasuryAccounts, supplierPayments, missionAdvanceOverview] = await Promise.all([
+    listTreasuryLedgerAccountsWithBalance(companyId),
     prisma.moneyMovement.findMany({
       where: {
         companyId,
@@ -45,56 +42,23 @@ export async function GET(req) {
     getMissionAdvanceOverview({ companyId }),
   ]);
 
-  const accountIds = accounts.map((account) => account.id);
-  const openingBalances = new Map(
-    accounts.map((account) => [account.id, toNumber(account.openingBalance)])
+  const balanceList = treasuryAccounts.map((account) =>
+    toNumber(account.computedBalance)
   );
-  const movements = await prisma.moneyMovement.findMany({
-    where: { moneyAccountId: { in: accountIds }, companyId },
-    select: {
-      amount: true,
-      direction: true,
-      createdAt: true,
-      moneyAccountId: true,
-    },
-  });
-
-  const balances = new Map(
-    accounts.map((account) => [account.id, toNumber(account.openingBalance)])
-  );
-  for (const movement of movements) {
-    const signedAmount =
-      movement.direction === "IN"
-        ? toNumber(movement.amount)
-        : -toNumber(movement.amount);
-    balances.set(
-      movement.moneyAccountId,
-      (balances.get(movement.moneyAccountId) || 0) + signedAmount
-    );
-  }
-
-  const balanceList = [...balances.values()];
   const balance = balanceList.reduce((sum, value) => sum + value, 0);
   const max = balanceList.length ? Math.max(...balanceList) : 0;
   const min = balanceList.length ? Math.min(...balanceList) : 0;
 
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const recentMovements = movements.filter((movement) => movement.createdAt >= sevenDaysAgo);
-  const recentCount = recentMovements.length;
-  const recentNet = recentMovements.reduce((sum, movement) => {
-    const signedAmount =
-      movement.direction === "IN"
-        ? toNumber(movement.amount)
-        : -toNumber(movement.amount);
-    return sum + signedAmount;
-  }, 0);
+  const recent = await summarizeRecentTreasuryTransactions(companyId, sevenDaysAgo);
 
-  const negativeCashAccounts = accounts
+  const negativeCashAccounts = treasuryAccounts
     .filter((account) => account.type === "CASH")
     .map((account) => ({
       id: account.id,
-      balance: balances.get(account.id) || 0,
+      number: account.number,
+      balance: toNumber(account.computedBalance),
     }))
     .filter((account) => account.balance < -0.009);
 
@@ -108,13 +72,13 @@ export async function GET(req) {
 
   return Response.json({
     balance,
-    accounts: accountIds.length,
+    accounts: treasuryAccounts.length,
     max,
     min,
-    recentCount,
-    recentNet,
-    openingBalanceTotal: [...openingBalances.values()].reduce(
-      (sum, value) => sum + value,
+    recentCount: recent.count,
+    recentNet: recent.net,
+    openingBalanceTotal: treasuryAccounts.reduce(
+      (sum, account) => sum + toNumber(account.openingBalance),
       0
     ),
     negativeCashAccountsCount: negativeCashAccounts.length,

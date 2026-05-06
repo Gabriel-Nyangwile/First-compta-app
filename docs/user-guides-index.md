@@ -7,10 +7,13 @@ Ce document centralise les principaux guides utilisateurs disponibles dans le pr
 | Module | Guide |
 | --- | --- |
 | Ventes | [Guide opératoire - Ventes](./sales-user-guide.md) |
+| Achats | [Guide opératoire - Achats](./purchase-user-guide.md) |
 | Trésorerie | [Guide opératoire - Trésorerie](./treasury-user-guide.md) |
 | Capital | [Manuel illustré - Opérations en capital](./capital-operations-user-guide.md) |
+| Production | [Guide opératoire - Production](./production-user-guide.md) |
 | Personnel / Paie | [Guide opératoire - Gestion du personnel et paie](./personnel-payroll-user-guide.md) |
 | Lettrage transversal | [Guide opératoire - Lettrage transversal](./lettering-user-guide.md) |
+| Exploitation technique | [Guide d'exploitation technique](./technical-operations-guide.md) |
 
 ## Ordre conseillé pour les utilisateurs
 

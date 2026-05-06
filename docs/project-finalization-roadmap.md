@@ -41,17 +41,17 @@ Obtenir un vrai lettrage métier :
 - facture client ↔ encaissement client
 - passif paie ↔ règlement paie
 
-### Travaux à faire
+### Travaux réalisés / à surveiller
 
 | ID | Action | Résultat attendu |
 | --- | --- | --- |
 | R1-01 | Auditer le modèle actuel `Transaction.letterRef`, `letterStatus`, `letteredAmount` | règles actuelles documentées |
-| R1-02 | Corriger le lettrage fournisseur pour rattacher facture et paiement | facture et paiement partagent `LTR-...` |
-| R1-03 | Corriger le lettrage client pour rattacher facture et encaissement | créance et encaissement partagent `LTR-...` |
-| R1-04 | Gérer les paiements partiels | statut `PARTIAL` fiable |
-| R1-05 | Gérer plusieurs paiements pour une facture | passage à `MATCHED` quand le solde est couvert |
-| R1-06 | Afficher clairement le reste à lettrer | lecture utilisateur simple |
-| R1-07 | Tester fournisseurs, clients et paie | zéro écart audit |
+| R1-02 | Corriger le lettrage fournisseur pour rattacher facture et paiement | fait: facture et paiement partagent `LTR-...` |
+| R1-03 | Corriger le lettrage client pour rattacher facture et encaissement | fait: créance et encaissement partagent `LTR-...` |
+| R1-04 | Gérer les paiements partiels | fait: statut `PARTIAL` fiable sur reliquat |
+| R1-05 | Gérer plusieurs paiements pour une facture | fait: passage à `MATCHED` quand le solde est couvert |
+| R1-06 | Afficher clairement le reste à lettrer | fait côté panneaux client/fournisseur |
+| R1-07 | Tester fournisseurs, clients et paie | en cours: script `test:lettering-flow` ajouté côté client/fournisseur |
 
 ### Critères de sortie
 
@@ -59,6 +59,7 @@ Obtenir un vrai lettrage métier :
 - une facture de `100` payée `60` devient `PARTIAL`, reste `40`
 - une facture de `100` payée `60 + 40` devient `MATCHED`
 - un paiement sans facture reste identifiable comme non affecté
+- `npm run test:lettering-flow` passe
 - `npm run test:ledger-lettering` passe
 - audit manuel du grand livre cohérent
 
@@ -176,12 +177,12 @@ Rendre les contrôles techniques et métier reproductibles.
 
 | ID | Action | Résultat attendu |
 | --- | --- | --- |
-| R6-01 | Cataloguer tous les scripts | inventaire complet |
-| R6-02 | Classer critique / utile / legacy | tri validé |
-| R6-03 | Harmoniser les options CLI | usage cohérent |
-| R6-04 | Définir packs d'audit par domaine | séquences prêtes |
-| R6-05 | Nettoyer scripts obsolètes | dette réduite |
-| R6-06 | Rédiger guide exploitation technique | opérable sans dev |
+| R6-01 | Cataloguer tous les scripts | fait: inventaire complet dans `docs/scripts-inventory.md` |
+| R6-02 | Classer critique / utile / legacy | fait: classification par famille et criticité |
+| R6-03 | Harmoniser les options CLI | fait: conventions documentées dans `docs/technical-operations-guide.md` |
+| R6-04 | Définir packs d'audit par domaine | fait: runner `scripts/run-audit-pack.js` et commandes `audit:pack:*` |
+| R6-05 | Nettoyer scripts obsolètes | en cours: scripts legacy isolés, suppression différée après revue d'usage |
+| R6-06 | Rédiger guide exploitation technique | fait: guide exploitation ajouté |
 
 ### Packs d'audit recommandés
 
@@ -192,6 +193,19 @@ Rendre les contrôles techniques et métier reproductibles.
 | Trésorerie | mouvements, fournisseurs, avances |
 | Stock | inventaire, CUMP, sorties |
 | Multi-société | isolation runtime, onboarding |
+
+### Commandes disponibles
+
+| Domaine | Commande |
+| --- | --- |
+| Liste des packs | `npm run ops:packs` |
+| Contrôle rapide | `npm run audit:pack:quick` |
+| Comptabilité | `npm run audit:pack:accounting` |
+| Paie | `npm run audit:pack:payroll` |
+| Trésorerie | `npm run audit:pack:treasury` |
+| Stock | `npm run audit:pack:stock` |
+| Multi-société | `npm run audit:pack:multi-company` |
+| Ouverture / clôture | `npm run audit:pack:opening` |
 
 ## 9. Phase 7 - CI et documentation finale
 
@@ -240,10 +254,10 @@ Mettre à jour ce tableau à chaque session.
 
 | Phase | Statut | Dernier résultat | Prochaine action |
 | --- | --- | --- | --- |
-| Phase 1 - Lettrage | À faire | guide pédagogique créé, limite fonctionnelle identifiée | implémenter lettrage facture-paiement |
-| Phase 2 - Multi-société | À faire | plusieurs routes déjà scopées | audit exhaustif Prisma/API |
-| Phase 3 - RBAC | À faire | documentation existante | cartographie actions/rôles |
-| Phase 4 - Paie | En cours avancé | build OK, guide créé, cycle de clôture testé | tests `OPEN -> POSTED -> SETTLED` |
-| Phase 5 - Ouverture | À faire | docs et scripts existants partiels | tester imports complets |
-| Phase 6 - Exploitation | À faire | nombreux scripts disponibles | inventaire et packs d'audit |
+| Phase 1 - Lettrage | En cours avancé | lettrage facture-paiement implémenté et testé côté client/fournisseur | consolider audits finaux et couverture paie |
+| Phase 2 - Multi-société | Clôture technique OK | routes critiques, server actions et scripts sensibles scopés société | tests croisés deux sociétés |
+| Phase 3 - RBAC | Clôture technique OK | mutations critiques protégées côté serveur, build OK | revue UI fine des boutons interdits |
+| Phase 4 - Paie | En cours renforcé | statut persistant `SETTLED`, build OK, guide mis à jour | exécuter smokes période totalement réglée |
+| Phase 5 - Ouverture | Clôture technique OK | écran `/opening`, écran `/closing`, imports API, à-nouveaux N+1, verrouillage exercice et smokes `test:opening`/`test:closing` OK | revue métier finale des modèles d'import |
+| Phase 6 - Exploitation | En cours avancé | inventaire scripts, classification, runner de packs et guide exploitation ajoutés | revue des scripts legacy avant suppression |
 | Phase 7 - CI/docs | À faire | build local OK | définir CI minimale |

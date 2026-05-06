@@ -1,11 +1,17 @@
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { getPayrollCurrencyContext } from '@/lib/payroll/context';
+import { getRequestRole } from '@/lib/requestAuth';
 import { nextSequence } from '@/lib/sequence';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("managePayroll", role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
     const body = await request.json();
     const month = Number(body?.month);
     const year = Number(body?.year);

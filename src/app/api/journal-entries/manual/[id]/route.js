@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/tenant";
 import { checkPerm } from "@/lib/authz";
 import { getRequestActor } from "@/lib/requestAuth";
+import { assertAccountingPeriodOpen } from "@/lib/fiscalYearLock";
 
 function parseAmount(value) {
   const amount = Number(value);
@@ -20,6 +21,12 @@ function isEditableManualOd(entry) {
 }
 
 async function createPostedTransactions(tx, entry, companyId, lines, description, entryDate) {
+  await assertAccountingPeriodOpen(tx, {
+    companyId,
+    date: entryDate,
+    context: "OD manuelle",
+  });
+
   await tx.transaction.deleteMany({
     where: { journalEntryId: entry.id, companyId },
   });
@@ -156,7 +163,32 @@ export async function PATCH(request, { params }) {
       if (!isEditableManualOd(entry)) {
         throw new Error("OD manuelle introuvable ou non modifiable");
       }
+      const reversal = await tx.journalEntry.findFirst({
+        where: {
+          companyId,
+          sourceType: "MANUAL",
+          sourceId: `manual-od-reversal:${entry.id}`,
+        },
+        select: { number: true },
+      });
+      if (reversal) {
+        throw new Error(`OD déjà annulée par ${reversal.number}; modification interdite.`);
+      }
       const nextStatus = isDraft ? "DRAFT" : "POSTED";
+      if (entry.status === "POSTED") {
+        await assertAccountingPeriodOpen(tx, {
+          companyId,
+          date: entry.date,
+          context: "Modification OD manuelle",
+        });
+      }
+      if (nextStatus === "POSTED") {
+        await assertAccountingPeriodOpen(tx, {
+          companyId,
+          date: entryDate,
+          context: "OD manuelle",
+        });
+      }
 
       await tx.journalEntry.update({
         where: { id },
@@ -233,8 +265,26 @@ export async function DELETE(request, { params }) {
       if (!isEditableManualOd(entry)) {
         throw new Error("OD manuelle introuvable ou non supprimable");
       }
+      const reversal = await tx.journalEntry.findFirst({
+        where: {
+          companyId,
+          sourceType: "MANUAL",
+          sourceId: `manual-od-reversal:${entry.id}`,
+        },
+        select: { number: true },
+      });
+      if (reversal) {
+        throw new Error(`OD déjà annulée par ${reversal.number}; suppression interdite.`);
+      }
       if (entry.status === "POSTED" && !checkPerm("reopenPeriod", actor.role)) {
         throw new Error("Suppression d'une OD publiée réservée au responsable finance ou superadmin");
+      }
+      if (entry.status === "POSTED") {
+        await assertAccountingPeriodOpen(tx, {
+          companyId,
+          date: entry.date,
+          context: "Suppression OD manuelle",
+        });
       }
 
       await tx.transaction.deleteMany({

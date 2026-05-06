@@ -1,4 +1,4 @@
-import { absoluteUrl } from "@/lib/url";
+import { internalApiFetch } from "@/lib/url";
 import ReturnOrdersLayout from "@/components/returnOrders/ReturnOrdersLayout";
 import ReturnOrderCreateForm from "@/components/returnOrders/ReturnOrderCreateForm";
 import { notFound } from "next/navigation";
@@ -6,8 +6,7 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 async function fetchGoodsReceipt(id) {
-  const url = await absoluteUrl(`/api/goods-receipts/${id}`);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(`/api/goods-receipts/${id}`, { cache: "no-store" });
   if (!res.ok) return null;
   return res.json();
 }

@@ -1,7 +1,8 @@
-import { absoluteUrl } from "@/lib/url";
+import { internalApiFetch } from "@/lib/url";
 import Amount from "@/components/Amount";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { STOCK_NATURE_LABELS } from "@/lib/productStockNatures";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -21,8 +22,7 @@ function formatDate(value) {
 }
 
 async function fetchProductDetail(id) {
-  const url = await absoluteUrl(`/api/products/${id}`);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(`/api/products/${id}`, { cache: "no-store" });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
     throw new Error(payload?.error || "Produit introuvable.");
@@ -86,7 +86,7 @@ export default async function ProductDetailPage({ params }) {
         <div className="space-y-2">
           <p>
             <span className="font-medium text-slate-600">Nature :</span>{" "}
-            {product?.stockNature || "-"}
+            {STOCK_NATURE_LABELS[product?.stockNature] || product?.stockNature || "-"}
           </p>
           <p>
             <span className="font-medium text-slate-600">Compte stock :</span>{" "}

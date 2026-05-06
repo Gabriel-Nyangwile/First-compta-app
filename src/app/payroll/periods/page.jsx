@@ -25,6 +25,7 @@ export default async function PayrollPeriodsPage() {
       OPEN: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
       LOCKED: 'bg-blue-100 text-blue-800 border border-blue-200',
       POSTED: 'bg-green-100 text-green-800 border border-green-200',
+      SETTLED: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
     };
     return <span className={`px-2 py-[2px] rounded text-xs font-semibold ${map[status] || 'bg-gray-100 text-gray-700 border border-gray-200'}`}>{status}</span>;
   };

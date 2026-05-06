@@ -15,13 +15,15 @@ function deriveSettlementStatus(total, settled) {
   return 'PARTIAL_SETTLEMENT';
 }
 
-export async function aggregatePeriodSummary(periodId, companyId = null) {
-  const period = await prisma.payrollPeriod.findFirst({
+export async function aggregatePeriodSummary(periodId, companyId = null, db = prisma) {
+  const period = await db.payrollPeriod.findFirst({
     where: { id: periodId, ...(companyId ? { companyId } : {}) },
     include: { payslips: { include: { employee: { select: { firstName:true, lastName:true, employeeNumber:true } }, lines: { select: { code:true, amount:true, meta:true } } } } }
   });
   if (!period) return null;
-  const settlements = period.status === 'POSTED' ? await listPayrollSettlements(period.id, companyId || period.companyId || null) : [];
+  const settlements = ['POSTED', 'SETTLED'].includes(period.status)
+    ? await listPayrollSettlements(period.id, companyId || period.companyId || null, {}, db)
+    : [];
   const netSettlements = settlements.filter((settlement) => settlement.liabilityCode === 'NET_PAY');
   const hasGlobalSettlement = netSettlements.some((settlement) => !settlement.employeeId);
   const settledByLiability = new Map();

@@ -159,6 +159,39 @@ async function main() {
       `Import duplicated detected: existing asset sourceCodes=${duplicateSourceCodes.join(", ")}`
     );
   }
+  const categoryCodes = [...new Set(rows.map((line) => line.categoryCode))];
+  const categories = await prisma.assetCategory.findMany({
+    where: { companyId, code: { in: categoryCodes } },
+    select: {
+      code: true,
+      assetAccountId: true,
+      assetAccountNumber: true,
+      depreciationAccountId: true,
+      depreciationAccountNumber: true,
+      expenseAccountId: true,
+      expenseAccountNumber: true,
+    },
+  });
+  const categoryMap = new Map(categories.map((category) => [category.code, category]));
+  const missingCategoryCodes = categoryCodes.filter((code) => !categoryMap.has(code));
+  if (missingCategoryCodes.length) {
+    throw new Error(
+      `Categories introuvables: ${missingCategoryCodes.join(", ")}`
+    );
+  }
+  const incompleteCategoryCodes = categories
+    .filter(
+      (category) =>
+        !(category.assetAccountId || category.assetAccountNumber) ||
+        !(category.depreciationAccountId || category.depreciationAccountNumber) ||
+        !(category.expenseAccountId || category.expenseAccountNumber)
+    )
+    .map((category) => category.code);
+  if (incompleteCategoryCodes.length) {
+    throw new Error(
+      `Mappings comptables immobilisations incomplets: ${incompleteCategoryCodes.join(", ")}`
+    );
+  }
 
   const opening = new Date(openingDate);
   const openingPrev = prevMonth(opening);

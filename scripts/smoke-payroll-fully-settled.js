@@ -19,11 +19,15 @@ async function main() {
   const periodIdArg = getArg('--periodId=');
 
   const period = periodIdArg
-    ? await prisma.payrollPeriod.findFirst({ where: { id: periodIdArg, status: 'POSTED' }, select: { id: true, ref: true } })
-    : await prisma.payrollPeriod.findFirst({ where: { ...(periodRefArg ? { ref: periodRefArg } : {}), status: 'POSTED' }, orderBy: { postedAt: 'desc' }, select: { id: true, ref: true } });
+    ? await prisma.payrollPeriod.findFirst({ where: { id: periodIdArg, status: 'SETTLED' }, select: { id: true, ref: true } })
+    : await prisma.payrollPeriod.findFirst({
+        where: { ...(periodRefArg ? { ref: periodRefArg } : {}), status: 'SETTLED' },
+        orderBy: [{ postedAt: 'desc' }, { year: 'desc' }, { month: 'desc' }],
+        select: { id: true, ref: true },
+      });
 
   if (!period) {
-    console.log('[payroll-fully-settled] No POSTED period found');
+    console.log('[payroll-fully-settled] No SETTLED period found');
     return;
   }
 

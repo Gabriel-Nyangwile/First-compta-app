@@ -2,7 +2,13 @@
 export async function PATCH(request) {
   try {
     const { requireCompanyId } = await import('@/lib/tenant');
+    const { checkPerm } = await import('@/lib/authz');
+    const { getRequestRole } = await import('@/lib/requestAuth');
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm('approveSalesInvoice', role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const body = await request.json();
     const invoiceId = body?.invoiceId || body?.id;
     const status = body?.status;
@@ -27,7 +33,7 @@ export async function PATCH(request) {
     for (const line of invoice.invoiceLines) {
       if (line.salesOrderLineId && line.quantity) {
         const soLine = await prisma.salesOrderLine.findUnique({
-          where: { id: line.salesOrderLineId },
+          where: { id: line.salesOrderLineId, companyId },
         });
         if (!soLine) continue;
         const prev =
@@ -37,7 +43,7 @@ export async function PATCH(request) {
           line.quantity?.toNumber?.() ?? Number(line.quantity ?? 0);
         const next = Math.max(0, prev - toDecrement);
         await prisma.salesOrderLine.update({
-          where: { id: soLine.id },
+          where: { id: soLine.id, companyId },
           data: { quantityInvoiced: next.toFixed(3) },
         });
       }
@@ -57,8 +63,10 @@ export async function PATCH(request) {
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { applyOutMovement } from "@/lib/inventory";
+import { checkPerm } from "@/lib/authz";
 import { getSystemAccounts } from "@/lib/systemAccounts";
 import { finalizeBatchToJournal } from "@/lib/journal";
+import { getRequestRole } from "@/lib/requestAuth";
 import { toNumber } from "@/lib/salesOrder";
 import { requireCompanyId } from "@/lib/tenant";
 
@@ -141,6 +149,10 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("createSalesInvoice", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const data = await request.json();
     const {
       clientId,

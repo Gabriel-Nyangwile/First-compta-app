@@ -1,5 +1,7 @@
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { featureFlags } from '@/lib/features';
+import { getRequestRole } from '@/lib/requestAuth';
 import { validateContributionScheme, formatValidationError } from '@/lib/payrollValidation';
 import { requireCompanyId } from '@/lib/tenant';
 
@@ -15,6 +17,10 @@ export async function GET(request, { params }) {
 export async function PUT(req, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok: false, error: 'Payroll disabled' }), { status: 403 });
   const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
+  if (!checkPerm("managePayroll", role)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403 });
+  }
   const { id } = await params;
   try {
     const body = await req.json();
@@ -38,6 +44,10 @@ export async function PUT(req, { params }) {
 export async function DELETE(request, { params }) {
   if (!featureFlags.payroll) return new Response(JSON.stringify({ ok: false, error: 'Payroll disabled' }), { status: 403 });
   const companyId = requireCompanyId(request);
+  const role = await getRequestRole(request, { companyId });
+  if (!checkPerm("managePayroll", role)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403 });
+  }
   const { id } = await params;
   try {
     // Check references (future: transactions / payslips allocations)

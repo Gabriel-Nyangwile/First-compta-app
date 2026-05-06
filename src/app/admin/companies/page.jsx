@@ -47,7 +47,6 @@ function AdminCompaniesPageContent() {
     try {
       const res = await fetch("/api/companies", {
         cache: "no-store",
-        headers: { "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN" },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur chargement sociétés");
@@ -96,7 +95,6 @@ function AdminCompaniesPageContent() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN",
         },
         body: JSON.stringify({
           name: company.name,
@@ -135,7 +133,6 @@ function AdminCompaniesPageContent() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": process.env.NEXT_PUBLIC_DEFAULT_ROLE || "SUPERADMIN",
         },
         body: JSON.stringify(createForm),
       });

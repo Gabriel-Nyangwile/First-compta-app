@@ -1,14 +1,14 @@
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 import AssetTables from './AssetTables';
+import { internalApiFetch } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
 
 async function fetchAll() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   try {
     const [catsRes, assetsRes] = await Promise.all([
-      fetch(`${base}/api/asset-categories`, { cache: 'no-store' }),
-      fetch(`${base}/api/assets`, { cache: 'no-store' }),
+      internalApiFetch('/api/asset-categories', { cache: 'no-store' }),
+      internalApiFetch('/api/assets', { cache: 'no-store' }),
     ]);
     if (!catsRes.ok || !assetsRes.ok) {
       return { error: 'Échec chargement immobilisations', categories: [], assets: [] };

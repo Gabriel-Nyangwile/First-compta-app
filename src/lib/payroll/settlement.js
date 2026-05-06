@@ -2,6 +2,7 @@ import prisma from '../prisma.js';
 import { nextSequence } from '../sequence.js';
 import { finalizeBatchToJournal, computeDebitCredit } from '../journal.js';
 import { matchPayrollLiabilityTransactions } from './lettering.js';
+import { syncPayrollPeriodSettlementStatus } from './status.js';
 import {
   extractPayrollSettlementRef,
   getPayrollSettlementConfig,
@@ -99,9 +100,9 @@ async function resolvePayrollSettlementAccounts(period, config, opts = {}) {
   return { liabilityAccountId, bankAccountId, scopedCompanyId };
 }
 
-export async function listPayrollSettlements(periodId, companyId = null, opts = {}) {
+export async function listPayrollSettlements(periodId, companyId = null, opts = {}, db = prisma) {
   const { liabilityCode = null } = opts;
-  const journals = await prisma.journalEntry.findMany({
+  const journals = await db.journalEntry.findMany({
     where: {
       sourceType: 'PAYROLL',
       sourceId: periodId,
@@ -117,7 +118,7 @@ export async function listPayrollSettlements(periodId, companyId = null, opts = 
 
   if (!filteredJournals.length) return [];
 
-  const transactions = await prisma.transaction.findMany({
+  const transactions = await db.transaction.findMany({
     where: {
       journalEntryId: { in: filteredJournals.map((journal) => journal.id) },
       ...(companyId ? { companyId } : {}),
@@ -166,7 +167,7 @@ export async function listPayrollSettlements(periodId, companyId = null, opts = 
 }
 
 /**
- * Règle le net à payer (421) d'une période POSTED vers un compte banque/caisse.
+ * Règle le net à payer (421) d'une période POSTED/SETTLED vers un compte banque/caisse.
  * Options: { accountNumber?, dryRun?, employeeId? } -> si employeeId présent, ne règle que le(s) bulletins de cet employé.
  */
 export async function postPayrollSettlement(periodId, opts = {}) {
@@ -178,7 +179,9 @@ export async function postPayrollSettlement(periodId, opts = {}) {
     include: { payslips: { include: { lines: true } } },
   });
   if (!period) throw new Error('Period not found');
-  if (period.status !== 'POSTED') throw new Error(`Period must be POSTED (status=${period.status})`);
+  if (!['POSTED', 'SETTLED'].includes(period.status)) {
+    throw new Error(`Period must be POSTED or SETTLED (status=${period.status})`);
+  }
   if (!period.payslips.length) throw new Error('No payslips to settle');
   if (employeeId && !config.allowEmployee) {
     throw new Error(`Employee-level settlement not supported for ${liabilityCode}`);
@@ -262,7 +265,8 @@ export async function postPayrollSettlement(periodId, opts = {}) {
       companyId: scopedPeriodCompanyId,
       db: tx,
     });
-    return { journal, transactions: [debitLiability, creditBank], settlementRef, lettering };
+    const periodStatus = await syncPayrollPeriodSettlementStatus(period.id, scopedPeriodCompanyId, tx);
+    return { journal, transactions: [debitLiability, creditBank], settlementRef, lettering, periodStatus };
   });
   const { debit, credit } = computeDebitCredit(txn.transactions);
   return {
@@ -274,5 +278,7 @@ export async function postPayrollSettlement(periodId, opts = {}) {
     liabilityCode,
     settledTotal: remainingToSettle,
     lettering: txn.lettering,
+    periodStatus: txn.periodStatus?.status || period.status,
+    periodSettlementStatus: txn.periodStatus?.settlementStatus || null,
   };
 }

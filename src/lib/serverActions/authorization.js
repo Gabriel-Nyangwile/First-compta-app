@@ -1,6 +1,6 @@
 import prisma from '../prisma.js';
 import { Prisma } from '@prisma/client';
-import { autoPostTransactions, updateInvoiceSettlementStatus, updateIncomingInvoiceSettlementStatus, ensureLedgerAccountForMoneyAccount } from './money.js';
+import { autoPostTransactions, updateInvoiceSettlementStatus, updateIncomingInvoiceSettlementStatus, ensureLedgerAccountForMoneyAccount, ensureMoneyAccountForTreasurySelection } from './money.js';
 import { getCompanyCurrency } from '@/lib/companyContext';
 
 /** Utility: generate a simple docNumber. Real sequencing can replace later. */
@@ -16,7 +16,24 @@ function requireCompanyId(companyId) {
   return companyId;
 }
 
-export async function createAuthorization({ companyId, docType, scope, flow, amount, currency, beneficiaryType, beneficiaryAccountId, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
+const OTHER_ACCOUNT_PREFIXES = {
+  OTHER_ASSET: ['2', '3', '4'],
+  OTHER_PASSIVE: ['1', '4'],
+};
+
+function assertAccountNature(account, nature) {
+  if (!nature || !OTHER_ACCOUNT_PREFIXES[nature]) return;
+  const allowed = OTHER_ACCOUNT_PREFIXES[nature];
+  if (!allowed.some((prefix) => account.number?.startsWith(prefix))) {
+    throw new Error(
+      nature === 'OTHER_ASSET'
+        ? 'Le compte sélectionné doit être un compte actif ou débiteur'
+        : 'Le compte sélectionné doit être un compte passif ou créditeur'
+    );
+  }
+}
+
+export async function createAuthorization({ companyId, docType, scope, flow, amount, currency, beneficiaryType, beneficiaryAccountId, beneficiaryAccountNature, invoiceId, incomingInvoiceId, purpose, instrumentType, instrumentRef, issueDate }) {
   const scopedCompanyId = requireCompanyId(companyId);
   if (!docType) throw new Error('docType requis');
   if (!amount || Number(amount) <= 0) throw new Error('Montant > 0 requis');
@@ -61,6 +78,17 @@ export async function createAuthorization({ companyId, docType, scope, flow, amo
   if (incomingInvoiceId) {
     const invoice = await prisma.incomingInvoice.findFirst({ where: { id: incomingInvoiceId, companyId: scopedCompanyId }, select: { id: true } });
     if (!invoice) throw new Error('Facture fournisseur introuvable dans la société active');
+  }
+  if (beneficiaryAccountId) {
+    const account = await prisma.account.findFirst({
+      where: { id: beneficiaryAccountId, companyId: scopedCompanyId },
+      select: { id: true, number: true },
+    });
+    if (!account) throw new Error('Compte autre actif/passif introuvable dans la société active');
+    assertAccountNature(account, beneficiaryAccountNature);
+  }
+  if ((invoiceId || incomingInvoiceId) && beneficiaryAccountId) {
+    throw new Error('Choisir soit une facture, soit un compte autre actif/passif, pas les deux');
   }
   return prisma.treasuryAuthorization.create({
     data: {
@@ -135,6 +163,11 @@ export async function deleteAuthorization(id, companyId) {
 export async function executeAuthorizationViaMovement({ authorizationId, moneyAccountId, description, companyId }) {
   const scopedCompanyId = requireCompanyId(companyId);
   return prisma.$transaction(async (tx) => {
+    moneyAccountId = await ensureMoneyAccountForTreasurySelection(
+      moneyAccountId,
+      scopedCompanyId,
+      tx
+    );
     const auth = await tx.treasuryAuthorization.findFirst({ where: { id: authorizationId, companyId: scopedCompanyId } });
     if (!auth) throw new Error('Authorization introuvable');
     if (auth.status !== 'APPROVED') throw new Error('Authorization non APPROVED');
@@ -162,7 +195,18 @@ export async function executeAuthorizationViaMovement({ authorizationId, moneyAc
       }
     });
     // Auto-post double entry + maj statut facture / facture fournisseur
-    await autoPostTransactions({ tx, movement, moneyAccount, amount: auth.amount, direction: auth.flow === 'IN' ? 'IN' : 'OUT', kind: deriveKindFromAuthorization(auth), invoiceId: auth.invoiceId, incomingInvoiceId: auth.incomingInvoiceId, companyId: scopedCompanyId });
+    await autoPostTransactions({
+      tx,
+      movement,
+      moneyAccount,
+      amount: auth.amount,
+      direction: auth.flow === 'IN' ? 'IN' : 'OUT',
+      kind: deriveKindFromAuthorization(auth),
+      invoiceId: auth.invoiceId,
+      incomingInvoiceId: auth.incomingInvoiceId,
+      counterpartAccountId: auth.beneficiaryAccountId || null,
+      companyId: scopedCompanyId,
+    });
     if (auth.invoiceId) await updateInvoiceSettlementStatus(tx, auth.invoiceId, scopedCompanyId);
     if (auth.incomingInvoiceId) await updateIncomingInvoiceSettlementStatus(tx, auth.incomingInvoiceId, scopedCompanyId);
     // Mark executed
@@ -201,6 +245,14 @@ export async function listAuthorizations({ companyId, status, docType, scope, fl
       incomingInvoice: { select: { id: true, entryNumber: true, supplierInvoiceNumber: true, supplier: { select: { name: true } }, totalAmount: true, paidAmount: true, outstandingAmount: true } }
     }
   });
+  const beneficiaryAccountIds = [...new Set(rows.map((row) => row.beneficiaryAccountId).filter(Boolean))];
+  const beneficiaryAccounts = beneficiaryAccountIds.length
+    ? await prisma.account.findMany({
+        where: { id: { in: beneficiaryAccountIds }, companyId: scopedCompanyId },
+        select: { id: true, number: true, label: true },
+      })
+    : [];
+  const beneficiaryAccountById = new Map(beneficiaryAccounts.map((account) => [account.id, account]));
   return rows.map(r => {
     const clientName = r.invoice?.client?.name;
     const supplierName = r.incomingInvoice?.supplier?.name;
@@ -209,6 +261,7 @@ export async function listAuthorizations({ companyId, status, docType, scope, fl
     const total = r.invoice ? r.invoice.totalAmount : r.incomingInvoice ? r.incomingInvoice.totalAmount : null;
     const outstanding = r.invoice ? r.invoice.outstandingAmount : r.incomingInvoice ? r.incomingInvoice.outstandingAmount : null;
     const paid = r.invoice ? r.invoice.paidAmount : r.incomingInvoice ? r.incomingInvoice.paidAmount : null;
+    const beneficiaryAccount = r.beneficiaryAccountId ? beneficiaryAccountById.get(r.beneficiaryAccountId) : null;
     let remainingStr = null, totalStr = null, partial = false, exceededRemaining = false;
     if (total != null && outstanding != null) {
       remainingStr = outstanding.toString();
@@ -243,7 +296,9 @@ export async function listAuthorizations({ companyId, status, docType, scope, fl
       issueDate: r.issueDate,
       invoiceNumber: invoiceNumber || null,
       incomingInvoiceNumber: incomingNumber || null,
-      partyName: clientName || supplierName || null,
+      partyName: clientName || supplierName || (beneficiaryAccount ? `${beneficiaryAccount.number} - ${beneficiaryAccount.label}` : null),
+      beneficiaryAccountNumber: beneficiaryAccount?.number || null,
+      beneficiaryAccountLabel: beneficiaryAccount?.label || null,
       remainingAmount: remainingStr,
       totalLinkedAmount: totalStr,
       partial,
@@ -282,6 +337,11 @@ export async function createBankAdvice({ companyId, adviceType, amount, authoriz
 export async function linkBankAdviceToMovement({ bankAdviceId, moneyAccountId, description, companyId }) {
   const scopedCompanyId = requireCompanyId(companyId);
   return prisma.$transaction(async (tx) => {
+    moneyAccountId = await ensureMoneyAccountForTreasurySelection(
+      moneyAccountId,
+      scopedCompanyId,
+      tx
+    );
     const advice = await tx.bankAdvice.findFirst({ where: { id: bankAdviceId, companyId: scopedCompanyId } });
     if (!advice) throw new Error('Advice introuvable');
     // Determine direction

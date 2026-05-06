@@ -3,19 +3,34 @@
  * Backfill script: computes paidAmount and outstandingAmount for existing Invoice and IncomingInvoice rows
  * based on linked MoneyMovement records (direction IN for Invoice, OUT for IncomingInvoice), and updates status.
  *
- * Usage: node scripts/backfill-invoice-paid-outstanding.js [--dry-run]
+ * Usage: node scripts/backfill-invoice-paid-outstanding.js --companyId <id> [--dry-run]
  */
 import prisma from '../src/lib/prisma.js';
 import { Prisma } from '@prisma/client';
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
+const companyArgIndex = args.indexOf('--companyId');
+const companyId =
+  companyArgIndex >= 0
+    ? args[companyArgIndex + 1]
+    : (process.env.DEFAULT_COMPANY_ID || process.env.COMPANY_ID || '').trim() || null;
+
+if (!companyId) {
+  throw new Error('companyId requis (--companyId ou DEFAULT_COMPANY_ID).');
+}
 
 async function backfillInvoices() {
-  const invoices = await prisma.invoice.findMany({ select: { id: true, totalAmount: true, status: true } });
+  const invoices = await prisma.invoice.findMany({
+    where: { companyId },
+    select: { id: true, totalAmount: true, status: true },
+  });
   let updated = 0;
   for (const inv of invoices) {
-    const paidAgg = await prisma.moneyMovement.aggregate({ where: { invoiceId: inv.id, direction: 'IN' }, _sum: { amount: true } });
+    const paidAgg = await prisma.moneyMovement.aggregate({
+      where: { companyId, invoiceId: inv.id, direction: 'IN' },
+      _sum: { amount: true },
+    });
     const paid = paidAgg._sum.amount || new Prisma.Decimal(0);
     const outstanding = inv.totalAmount.minus(paid);
     let newStatus;
@@ -31,10 +46,16 @@ async function backfillInvoices() {
 }
 
 async function backfillIncomingInvoices() {
-  const incoming = await prisma.incomingInvoice.findMany({ select: { id: true, totalAmount: true, status: true } });
+  const incoming = await prisma.incomingInvoice.findMany({
+    where: { companyId },
+    select: { id: true, totalAmount: true, status: true },
+  });
   let updated = 0;
   for (const inv of incoming) {
-    const paidAgg = await prisma.moneyMovement.aggregate({ where: { incomingInvoiceId: inv.id, direction: 'OUT' }, _sum: { amount: true } });
+    const paidAgg = await prisma.moneyMovement.aggregate({
+      where: { companyId, incomingInvoiceId: inv.id, direction: 'OUT' },
+      _sum: { amount: true },
+    });
     const paid = paidAgg._sum.amount || new Prisma.Decimal(0);
     const outstanding = inv.totalAmount.minus(paid);
     let newStatus;
@@ -51,7 +72,7 @@ async function backfillIncomingInvoices() {
 
 (async () => {
   try {
-    console.log('Backfill started' + (dryRun ? ' (dry-run)' : ''));
+    console.log(`Backfill started for companyId=${companyId}` + (dryRun ? ' (dry-run)' : ''));
     const c1 = await backfillInvoices();
     const c2 = await backfillIncomingInvoices();
     console.log(`Backfill complete. Invoices processed: ${c1}, Incoming invoices processed: ${c2}`);

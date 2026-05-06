@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkPerm } from "@/lib/authz";
+import { getRequestRole } from "@/lib/requestAuth";
 import { requireCompanyId } from "@/lib/tenant";
 import {
   SALES_ORDER_STATUSES,
@@ -150,6 +152,7 @@ export async function GET(_request, context) {
 
 export async function PUT(request, context) {
   const companyId = requireCompanyId(request);
+  const role = await getRequestRole(request, { companyId });
   const params = await Promise.resolve(context?.params ?? context);
   const id = params?.id;
   if (!id) {
@@ -164,6 +167,19 @@ export async function PUT(request, context) {
     const action = body?.action ? String(body.action).toUpperCase() : null;
     if (!action) {
       return NextResponse.json({ error: "Action requise." }, { status: 400 });
+    }
+
+    if (action === "UPDATE" && !checkPerm("createSalesOrder", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (action === "CONFIRM" && !checkPerm("approveSalesOrder", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      (action === "FULFILL" || SALES_ORDER_STATUSES.has(action)) &&
+      !checkPerm("approveSalesOrder", role)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const result = await prisma.$transaction(async (tx) => {

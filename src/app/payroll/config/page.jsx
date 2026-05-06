@@ -1,12 +1,12 @@
 import { featureFlags } from '@/lib/features';
 import BackButtonLayoutHeader from '@/components/BackButtonLayoutHeader';
 import ClientTables from './ClientTables';
+import { internalApiFetch } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
 
 async function fetchAll() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const res = await fetch(`${base}/api/payroll/config`, { cache: 'no-store' });
+  const res = await internalApiFetch('/api/payroll/config', { cache: 'no-store' });
   if (!res.ok) {
     return { error: 'échec chargement configuration paie', schemes: [], rules: [], centers: [] };
   }

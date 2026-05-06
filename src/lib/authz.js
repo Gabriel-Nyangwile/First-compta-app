@@ -64,11 +64,14 @@ export const permMap = {
   // Stock & produit
   manageInventory: ['SUPERADMIN', 'FINANCE_MANAGER', 'PROCUREMENT', 'ACCOUNTANT'],
   manageProducts: ['SUPERADMIN', 'FINANCE_MANAGER', 'PROCUREMENT', 'ACCOUNTANT'],
+  manageProduction: ['SUPERADMIN', 'FINANCE_MANAGER', 'PROCUREMENT', 'ACCOUNTANT'],
 
   // Comptabilité / Journal
   postJournalEntry: ['SUPERADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT'],
   reopenPeriod: ['SUPERADMIN', 'FINANCE_MANAGER'],
   exportAccounting: ['SUPERADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT'],
+  manageOpening: ['SUPERADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT'],
+  manageClosing: ['SUPERADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT'],
 
   // Admin
   manageUsers: ['PLATFORM_ADMIN', 'SUPERADMIN'],
@@ -90,19 +93,20 @@ export function checkPerm(action, role) {
 }
 
 export async function getUserRole(req) {
+  const cookieHeader = req.headers.get('cookie') || '';
+  const match = cookieHeader.match(/(?:^|; )user-role=([^;]+)/);
+  if (match) return normalizeRole(decodeURIComponent(match[1]));
+
   const devMode = (process.env.AUTH_DEV_MODE || '').toString().trim() === '1';
   if (devMode) {
     // 1) header explicite (dev)
     const headerRole = req.headers.get('x-user-role');
     if (headerRole) return normalizeRole(headerRole);
-    // 2) cookie (dev)
-    const cookieHeader = req.headers.get('cookie') || '';
-    const match = cookieHeader.match(/(?:^|; )user-role=([^;]+)/);
-    if (match) return normalizeRole(decodeURIComponent(match[1]));
-    // 3) fallback env (dev)
+    // 2) fallback env (dev)
     return normalizeRole(process.env.DEFAULT_ROLE || 'VIEWER');
   }
-  // Prod : remplacer par la lecture de la session (NextAuth/JWT) si disponible.
-  // Par défaut, VIEWER si rien n'est fourni.
+
+  // Prod : en attendant une session signée, on se limite au cookie posé au login.
+  // Sans cookie, le rôle retombe en lecture seule.
   return normalizeRole('VIEWER');
 }

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { nextSequence } from "@/lib/sequence";
 import { applyInMovement } from "@/lib/inventory";
+import { checkPerm } from "@/lib/authz";
+import { getRequestRole } from "@/lib/requestAuth";
 import { requireCompanyId } from "@/lib/tenant";
 import {
   refreshGoodsReceiptStatus,
@@ -46,6 +48,10 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("receivePurchaseOrder", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await request.json();
     const { supplierId, purchaseOrderId, lines } = body;
     if (!supplierId && !purchaseOrderId) {

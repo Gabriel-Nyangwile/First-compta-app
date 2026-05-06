@@ -77,8 +77,13 @@ export default function ManualOdForm({
 
   async function handleSubmit(event) {
     event.preventDefault();
+    const requestedStatus =
+      event.nativeEvent?.submitter?.value ||
+      submitMode ||
+      (mode === "edit" ? initialData?.status || "POSTED" : "POSTED");
     setError("");
     setCreatedEntry(null);
+    setSubmitMode(requestedStatus);
     setSubmitting(true);
 
     try {
@@ -94,7 +99,7 @@ export default function ManualOdForm({
           date,
           description,
           supportRef,
-          status: submitMode,
+          status: requestedStatus,
           lines,
         }),
       });
@@ -313,7 +318,9 @@ export default function ManualOdForm({
             className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-300"
             type="submit"
             disabled={submitting || !canPrepare}
-            onClick={() => setSubmitMode("DRAFT")}
+            name="status"
+            value="DRAFT"
+            formNoValidate
           >
             {submitting && submitMode === "DRAFT"
               ? "Enregistrement..."
@@ -324,7 +331,8 @@ export default function ManualOdForm({
               className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               type="submit"
               disabled={submitting}
-              onClick={() => setSubmitMode("POSTED")}
+              name="status"
+              value="POSTED"
             >
               {submitting
                 ? "Enregistrement..."

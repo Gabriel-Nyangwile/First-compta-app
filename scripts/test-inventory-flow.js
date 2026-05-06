@@ -8,19 +8,19 @@ const fmtQty = (value) => Number(value).toFixed(3);
 const fmtCost = (value) => Number(value).toFixed(4);
 const fmtAmount = (value) => Number(value).toFixed(2);
 
-async function ensureInventory(client, productId) {
+async function ensureInventory(client, productId, companyId) {
   return client.productInventory.upsert({
     where: { productId },
     update: {},
-    create: { productId, qtyOnHand: "0", qtyStaged: "0", avgCost: null },
+    create: { companyId, productId, qtyOnHand: "0", qtyStaged: "0", avgCost: null },
   });
 }
 
-async function applyIn(client, { productId, qty, unitCost }) {
+async function applyIn(client, { companyId, productId, qty, unitCost }) {
   if (!qty || Number.isNaN(qty)) throw new Error("qty invalide");
   if (unitCost == null || Number.isNaN(unitCost))
     throw new Error("unitCost invalide");
-  const inv = await ensureInventory(client, productId);
+  const inv = await ensureInventory(client, productId, companyId);
   const currentQty = Number(inv.qtyOnHand);
   const currentAvg = inv.avgCost != null ? Number(inv.avgCost) : null;
 
@@ -44,9 +44,9 @@ async function applyIn(client, { productId, qty, unitCost }) {
   return { inventory: updated, avgCost: newAvg };
 }
 
-async function applyOut(client, { productId, qty }) {
+async function applyOut(client, { companyId, productId, qty }) {
   if (!qty || Number.isNaN(qty)) throw new Error("qty invalide");
-  const inv = await ensureInventory(client, productId);
+  const inv = await ensureInventory(client, productId, companyId);
   const prevQty = Number(inv.qtyOnHand);
   const avg = inv.avgCost != null ? Number(inv.avgCost) : 0;
   if (qty > prevQty + EPSILON) {
@@ -59,18 +59,48 @@ async function applyOut(client, { productId, qty }) {
   return { unitCost: avg, totalCost: avg * qty, inventory: updated };
 }
 
-async function seedSupplier() {
-  const existing = await prisma.supplier.findFirst();
-  if (existing) return existing;
-  return prisma.supplier.create({
-    data: { name: `Fournisseur test ${Date.now()}` },
+async function createTestCompany() {
+  return prisma.company.create({
+    data: { name: `Societe test inventaire ${Date.now()}` },
   });
 }
 
-async function createProduct() {
+async function cleanupTestCompany(companyId) {
+  await prisma.stockMovement.deleteMany({ where: { companyId } });
+  await prisma.returnOrderLine.deleteMany({ where: { companyId } });
+  await prisma.returnOrder.deleteMany({ where: { companyId } });
+  await prisma.goodsReceiptLine.deleteMany({ where: { companyId } });
+  await prisma.goodsReceipt.deleteMany({ where: { companyId } });
+  await prisma.purchaseOrderLine.deleteMany({ where: { companyId } });
+  await prisma.purchaseOrder.deleteMany({ where: { companyId } });
+  await prisma.productInventory.deleteMany({ where: { companyId } });
+  await prisma.product.deleteMany({ where: { companyId } });
+  await prisma.supplier.deleteMany({ where: { companyId } });
+  await prisma.sequence.deleteMany({ where: { companyId } });
+  await prisma.company.deleteMany({ where: { id: companyId } });
+}
+
+async function cleanupStaleTestCompanies() {
+  const companies = await prisma.company.findMany({
+    where: { name: { startsWith: "Societe test inventaire " } },
+    select: { id: true },
+  });
+  for (const company of companies) {
+    await cleanupTestCompany(company.id);
+  }
+}
+
+async function seedSupplier(companyId) {
+  return prisma.supplier.create({
+    data: { companyId, name: `Fournisseur test ${Date.now()}` },
+  });
+}
+
+async function createProduct(companyId) {
   const suffix = Date.now();
   return prisma.product.create({
     data: {
+      companyId,
       sku: `INV-${suffix}`,
       name: `Article inventaire test ${suffix}`,
     },
@@ -78,15 +108,17 @@ async function createProduct() {
 }
 
 async function createPurchaseAndReceipt({
+  companyId,
   productId,
   supplierId,
   qty,
   unitCost,
 }) {
   return prisma.$transaction(async (tx) => {
-    const poNumber = await nextSequence(tx, "PO", "PO-");
+    const poNumber = await nextSequence(tx, "PO", "PO-", companyId);
     const po = await tx.purchaseOrder.create({
       data: {
+        companyId,
         number: poNumber,
         supplierId,
         status: "APPROVED",
@@ -95,6 +127,7 @@ async function createPurchaseAndReceipt({
 
     const poLine = await tx.purchaseOrderLine.create({
       data: {
+        companyId,
         purchaseOrderId: po.id,
         productId,
         orderedQty: fmtQty(qty),
@@ -102,9 +135,10 @@ async function createPurchaseAndReceipt({
       },
     });
 
-    const grNumber = await nextSequence(tx, "GR", "GR-");
+    const grNumber = await nextSequence(tx, "GR", "GR-", companyId);
     const gr = await tx.goodsReceipt.create({
       data: {
+        companyId,
         number: grNumber,
         supplierId,
         purchaseOrderId: po.id,
@@ -114,6 +148,7 @@ async function createPurchaseAndReceipt({
 
     const grLine = await tx.goodsReceiptLine.create({
       data: {
+        companyId,
         goodsReceiptId: gr.id,
         purchaseOrderLineId: poLine.id,
         productId,
@@ -130,9 +165,10 @@ async function createPurchaseAndReceipt({
       data: { receivedQty: fmtQty(qty) },
     });
 
-    await applyIn(tx, { productId, qty, unitCost });
+    await applyIn(tx, { companyId, productId, qty, unitCost });
     await tx.stockMovement.create({
       data: {
+        companyId,
         productId,
         movementType: "IN",
         stage: "AVAILABLE",
@@ -147,14 +183,15 @@ async function createPurchaseAndReceipt({
   });
 }
 
-async function recordSale({ productId, qty }) {
+async function recordSale({ companyId, productId, qty }) {
   return prisma.$transaction(async (tx) => {
-    const outResult = await applyOut(tx, { productId, qty });
+    const outResult = await applyOut(tx, { companyId, productId, qty });
     const unitCost = Number.isFinite(outResult.unitCost)
       ? outResult.unitCost
       : 0;
     await tx.stockMovement.create({
       data: {
+        companyId,
         productId,
         movementType: "OUT",
         stage: "AVAILABLE",
@@ -168,6 +205,7 @@ async function recordSale({ productId, qty }) {
 }
 
 async function createReturn({
+  companyId,
   supplierId,
   purchaseOrderId,
   goodsReceiptId,
@@ -178,9 +216,10 @@ async function createReturn({
   unitCost,
 }) {
   return prisma.$transaction(async (tx) => {
-    const roNumber = await nextSequence(tx, "RETURN_ORDER", "RO-");
+    const roNumber = await nextSequence(tx, "RETURN_ORDER", "RO-", companyId);
     const order = await tx.returnOrder.create({
       data: {
+        companyId,
         number: roNumber,
         status: "DRAFT",
         supplierId,
@@ -192,6 +231,7 @@ async function createReturn({
 
     const line = await tx.returnOrderLine.create({
       data: {
+        companyId,
         returnOrderId: order.id,
         productId,
         goodsReceiptLineId,
@@ -202,7 +242,7 @@ async function createReturn({
       },
     });
 
-    const outResult = await applyOut(tx, { productId, qty });
+    const outResult = await applyOut(tx, { companyId, productId, qty });
     const unitCostUsed = Number.isFinite(outResult.unitCost)
       ? outResult.unitCost
       : unitCost;
@@ -210,6 +250,7 @@ async function createReturn({
 
     await tx.stockMovement.create({
       data: {
+        companyId,
         productId,
         movementType: "OUT",
         stage: "AVAILABLE",
@@ -236,100 +277,111 @@ async function createReturn({
 
 async function main() {
   console.log("--- Test de flux d'inventaire ---");
-  const supplier = await seedSupplier();
-  const product = await createProduct();
-  console.log("Produit créé", product.sku);
+  await cleanupStaleTestCompanies();
+  let company;
+  try {
+    company = await createTestCompany();
+    const supplier = await seedSupplier(company.id);
+    const product = await createProduct(company.id);
+    console.log("Produit créé", product.sku);
 
-  const qtyReceived = 10;
-  const unitCost = 5;
-  const saleQty = 4;
-  const returnQty = 2;
+    const qtyReceived = 10;
+    const unitCost = 5;
+    const saleQty = 4;
+    const returnQty = 2;
 
-  const { po, poLine, gr, grLine } = await createPurchaseAndReceipt({
-    productId: product.id,
-    supplierId: supplier.id,
-    qty: qtyReceived,
-    unitCost,
-  });
-  console.log(`Réception de ${qtyReceived} unités à ${unitCost}`);
+    const { po, poLine, gr, grLine } = await createPurchaseAndReceipt({
+      companyId: company.id,
+      productId: product.id,
+      supplierId: supplier.id,
+      qty: qtyReceived,
+      unitCost,
+    });
+    console.log(`Réception de ${qtyReceived} unités à ${unitCost}`);
 
-  const invAfterReceipt = await prisma.productInventory.findUnique({
-    where: { productId: product.id },
-  });
-  if (Number(invAfterReceipt?.qtyOnHand ?? 0) !== qtyReceived) {
-    throw new Error(
-      `Quantité de stock incohérente après réception, attendu ${qtyReceived} obtenu ${invAfterReceipt?.qtyOnHand}`
-    );
+    const invAfterReceipt = await prisma.productInventory.findUnique({
+      where: { productId: product.id },
+    });
+    if (Number(invAfterReceipt?.qtyOnHand ?? 0) !== qtyReceived) {
+      throw new Error(
+        `Quantité de stock incohérente après réception, attendu ${qtyReceived} obtenu ${invAfterReceipt?.qtyOnHand}`
+      );
+    }
+
+    await recordSale({ companyId: company.id, productId: product.id, qty: saleQty });
+    console.log(`Vente de ${saleQty} unités`);
+
+    const invAfterSale = await prisma.productInventory.findUnique({
+      where: { productId: product.id },
+    });
+    if (Number(invAfterSale?.qtyOnHand ?? 0) !== qtyReceived - saleQty) {
+      throw new Error(
+        `Quantité de stock incohérente après vente, attendu ${
+          qtyReceived - saleQty
+        } obtenu ${invAfterSale?.qtyOnHand}`
+      );
+    }
+
+    await createReturn({
+      companyId: company.id,
+      supplierId: supplier.id,
+      purchaseOrderId: po.id,
+      goodsReceiptId: gr.id,
+      goodsReceiptLineId: grLine.id,
+      purchaseOrderLineId: poLine.id,
+      productId: product.id,
+      qty: returnQty,
+      unitCost,
+    });
+    console.log(`Retour de ${returnQty} unités au fournisseur`);
+
+    const finalInventory = await prisma.productInventory.findUnique({
+      where: { productId: product.id },
+    });
+    const expectedFinalQty = qtyReceived - saleQty - returnQty;
+    if (Number(finalInventory?.qtyOnHand ?? 0) !== expectedFinalQty) {
+      throw new Error(
+        `Quantité de stock incohérente après retour, attendu ${expectedFinalQty} obtenu ${finalInventory?.qtyOnHand}`
+      );
+    }
+    if (
+      finalInventory?.avgCost != null &&
+      Math.abs(Number(finalInventory.avgCost) - unitCost) > EPSILON
+    ) {
+      throw new Error(
+        `Coût moyen décalé, attendu ${unitCost} obtenu ${finalInventory.avgCost}`
+      );
+    }
+
+    const poLineFinal = await prisma.purchaseOrderLine.findUnique({
+      where: { id: poLine.id },
+    });
+    if (Number(poLineFinal?.returnedQty ?? 0) !== returnQty) {
+      throw new Error(
+        `Quantité retournée incohérente sur la ligne de BC, attendu ${returnQty} obtenu ${poLineFinal?.returnedQty}`
+      );
+    }
+
+    const movements = await prisma.stockMovement.findMany({
+      where: { productId: product.id },
+      orderBy: { createdAt: "asc" },
+    });
+    if (movements.length !== 3) {
+      throw new Error(
+        `3 mouvements de stock attendus (ENTRÉE, SORTIE, RETOUR) mais ${movements.length} trouvé(s)`
+      );
+    }
+    const hasReturnLink = movements.some((m) => m.returnOrderLineId != null);
+    if (!hasReturnLink) {
+      throw new Error("Aucun mouvement de stock lié à la ligne de retour");
+    }
+
+    console.log("Test de flux d'inventaire OK");
+  } finally {
+    if (company?.id) {
+      await cleanupTestCompany(company.id);
+    }
   }
-
-  await recordSale({ productId: product.id, qty: saleQty });
-  console.log(`Vente de ${saleQty} unités`);
-
-  const invAfterSale = await prisma.productInventory.findUnique({
-    where: { productId: product.id },
-  });
-  if (Number(invAfterSale?.qtyOnHand ?? 0) !== qtyReceived - saleQty) {
-    throw new Error(
-      `Quantité de stock incohérente après vente, attendu ${
-        qtyReceived - saleQty
-      } obtenu ${invAfterSale?.qtyOnHand}`
-    );
-  }
-
-  await createReturn({
-    supplierId: supplier.id,
-    purchaseOrderId: po.id,
-    goodsReceiptId: gr.id,
-    goodsReceiptLineId: grLine.id,
-    purchaseOrderLineId: poLine.id,
-    productId: product.id,
-    qty: returnQty,
-    unitCost,
-  });
-  console.log(`Retour de ${returnQty} unités au fournisseur`);
-
-  const finalInventory = await prisma.productInventory.findUnique({
-    where: { productId: product.id },
-  });
-  const expectedFinalQty = qtyReceived - saleQty - returnQty;
-  if (Number(finalInventory?.qtyOnHand ?? 0) !== expectedFinalQty) {
-    throw new Error(
-      `Quantité de stock incohérente après retour, attendu ${expectedFinalQty} obtenu ${finalInventory?.qtyOnHand}`
-    );
-  }
-  if (
-    finalInventory?.avgCost != null &&
-    Math.abs(Number(finalInventory.avgCost) - unitCost) > EPSILON
-  ) {
-    throw new Error(
-      `Coût moyen décalé, attendu ${unitCost} obtenu ${finalInventory.avgCost}`
-    );
-  }
-
-  const poLineFinal = await prisma.purchaseOrderLine.findUnique({
-    where: { id: poLine.id },
-  });
-  if (Number(poLineFinal?.returnedQty ?? 0) !== returnQty) {
-    throw new Error(
-      `Quantité retournée incohérente sur la ligne de BC, attendu ${returnQty} obtenu ${poLineFinal?.returnedQty}`
-    );
-  }
-
-  const movements = await prisma.stockMovement.findMany({
-    where: { productId: product.id },
-    orderBy: { createdAt: "asc" },
-  });
-  if (movements.length !== 3) {
-    throw new Error(
-      `3 mouvements de stock attendus (ENTRÉE, SORTIE, RETOUR) mais ${movements.length} trouvé(s)`
-    );
-  }
-  const hasReturnLink = movements.some((m) => m.returnOrderLineId != null);
-  if (!hasReturnLink) {
-    throw new Error("Aucun mouvement de stock lié à la ligne de retour");
-  }
-
-  console.log("Test de flux d'inventaire OK");
 }
 
 main()

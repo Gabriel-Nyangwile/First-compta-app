@@ -1,10 +1,16 @@
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { generatePayslipsForPeriod } from '@/lib/payroll/engine';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 export async function POST(req, { params }) {
   try {
     const companyId = requireCompanyId(req);
+    const role = await getRequestRole(req, { companyId });
+    if (!checkPerm("managePayroll", role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
     const { id } = await params;
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
     const period = await prisma.payrollPeriod.findUnique({ where: { id, companyId } });

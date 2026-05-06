@@ -25,7 +25,17 @@ export async function matchSupplierPaymentAction({ movementId, companyId }) {
   return result;
 }
 
-export async function matchSupplierInvoiceAction({ invoiceId, companyId }) {
+export async function matchSupplierInvoiceAction({
+  invoiceId,
+  supplierId,
+  companyId,
+}) {
   if (!invoiceId) throw new Error("invoiceId requis");
-  return matchPartyInvoice({ party: "supplier", invoiceId, companyId });
+  if (!supplierId) throw new Error("supplierId requis");
+  return matchPartyInvoice({
+    party: "supplier",
+    invoiceId,
+    expectedPartyId: supplierId,
+    companyId,
+  });
 }

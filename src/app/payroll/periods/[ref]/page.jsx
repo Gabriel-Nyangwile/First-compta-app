@@ -17,6 +17,7 @@ import { listPayrollSettlements } from '@/lib/payroll/settlement';
 import { aggregatePeriodSummary } from '@/lib/payroll/aggregatePeriod';
 import { getCurrentPayrollJournal } from '@/lib/payroll/journals';
 import { getPayrollLetteringSummary } from '@/lib/payroll/lettering';
+import { isPayrollPostedLikeStatus } from '@/lib/payroll/status';
 import { formatAmount } from '@/lib/utils';
 import { cookies } from 'next/headers';
 import { getCompanyIdFromCookies } from '@/lib/tenant';
@@ -72,12 +73,12 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   };
   const fmt = (value) => formatAmount(value, currencyContext.processingCurrency);
   const payrollJe =
-    period.status === 'POSTED'
+    isPayrollPostedLikeStatus(period.status)
       ? await getCurrentPayrollJournal(prisma, period.id, companyId, { id: true, description: true })
       : null;
   const hasJournal = !!payrollJe;
   const auditRaw =
-    period.status === 'POSTED' && hasJournal
+    isPayrollPostedLikeStatus(period.status) && hasJournal
       ? await auditPayrollPeriod(period.id, prisma, companyId)
       : null;
   const periodSummary = await aggregatePeriodSummary(period.id, companyId);
@@ -89,7 +90,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
   const employeeSettlementMap = new Map((periodSummary?.employees || []).map((employee) => [employee.payslipId, employee]));
   const audit = auditRaw ? sanitizePlain(auditRaw) : null;
   const allSettlements =
-    period.status === 'POSTED' ? await listPayrollSettlements(period.id, companyId) : [];
+    isPayrollPostedLikeStatus(period.status) ? await listPayrollSettlements(period.id, companyId) : [];
   let settlements = allSettlements.filter((settlement) => settlement.liabilityCode === 'NET_PAY');
   const liabilitySettlements = allSettlements.filter((settlement) => settlement.liabilityCode !== 'NET_PAY');
   if (employeeFilter) {
@@ -124,9 +125,9 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
       <div className="text-sm text-gray-600">
         Devise de traitement: <span className="font-medium">{currencyContext.processingCurrency}</span> · Devise fiscale: <span className="font-medium">{currencyContext.fiscalCurrency}</span>
       </div>
-      {period.status === 'POSTED' && !hasJournal && (
+      {isPayrollPostedLikeStatus(period.status) && !hasJournal && (
         <div className="border rounded p-3 bg-amber-50 text-sm text-amber-900 border-amber-200">
-          La période est marquée `POSTED`, mais aucun journal de paie principal n’est lié à cette période. L’audit détaillé est donc indisponible tant que l’écriture de paie n’a pas été régénérée ou rétablie.
+          La période est marquée <code>{period.status}</code>, mais aucun journal de paie principal n’est lié à cette période. L’audit détaillé est donc indisponible tant que l’écriture de paie n’a pas été régénérée ou rétablie.
           <div className="mt-3">
             <RepairStatusButton periodId={period.id} />
           </div>
@@ -181,7 +182,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
       </aside>
       <div className="text-sm text-gray-600 flex items-center gap-4 flex-wrap">
         Statut: {period.status}
-        {period.status === 'POSTED' && isFullySettled && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">SETTLED</span>}
+        {period.status === 'SETTLED' && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200">SETTLED</span>}
         {period.status === 'POSTED' && isPartiallySettled && <span className="px-2 py-[2px] rounded text-xs font-semibold border bg-amber-100 text-amber-800 border-amber-200">PARTIAL_SETTLEMENT</span>}
         {period.status === 'OPEN' && <LockButton periodId={period.id} />}
         {period.status === 'LOCKED' && (
@@ -190,7 +191,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
             <UnlockButton periodId={period.id} />
           </>
         )}
-        {(period.status === 'OPEN' || period.status === 'LOCKED' || period.status === 'POSTED') && (
+        {(period.status === 'OPEN' || period.status === 'LOCKED' || isPayrollPostedLikeStatus(period.status)) && (
           <CloseAndNextButton periodId={period.id} />
         )}
         {period.status === 'POSTED' && (
@@ -223,7 +224,7 @@ export default async function PayrollPeriodDetail({ params, searchParams }) {
         <PayrollLetteringButton periodId={period.id} buttonLabel="Relettrer paie" />
       </div>
       {audit && <AuditPanel audit={audit} periodId={period.id} />}
-      {period.status === 'POSTED' && settlements.length > 0 && (
+      {isPayrollPostedLikeStatus(period.status) && settlements.length > 0 && (
         <section className="space-y-2">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="font-medium">Reglements net (PAYSET)</h2>

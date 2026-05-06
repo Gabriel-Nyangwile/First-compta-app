@@ -1,4 +1,4 @@
-import { absoluteUrl } from '@/lib/url';
+import { internalApiFetch } from '@/lib/url';
 import Link from 'next/link';
 import Script from 'next/script';
 import AuthorizedFetchBridge from '@/components/AuthorizedFetchBridge';
@@ -9,8 +9,7 @@ export const dynamic = 'force-dynamic';
 
 async function fetchSuppliers() {
   try {
-    const url = await absoluteUrl('/api/suppliers');
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch('/api/suppliers', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data; // legacy simple array
@@ -23,8 +22,7 @@ async function fetchSuppliers() {
 
 async function fetchProducts() {
   try {
-    const url = await absoluteUrl('/api/products');
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch('/api/products', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -37,8 +35,7 @@ async function fetchProducts() {
 
 async function fetchAssetCategories() {
   try {
-    const url = await absoluteUrl('/api/asset-categories');
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await internalApiFetch('/api/asset-categories', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data?.categories)) return data.categories;

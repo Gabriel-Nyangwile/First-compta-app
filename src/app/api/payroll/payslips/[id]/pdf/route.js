@@ -4,6 +4,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import { loadPrimaryFont, drawFooter, drawDraftWatermark } from '@/lib/pdf/utils';
 import { featureFlags } from '@/lib/features';
 import { getPayrollCurrencyContext } from '@/lib/payroll/context';
+import { isPayrollPostedLikeStatus } from '@/lib/payroll/status';
 import { requireCompanyId } from '@/lib/tenant';
 import { extractPayrollSettlementRef } from '@/lib/payroll/settlement-config';
 
@@ -170,7 +171,7 @@ export async function GET(req, { params }) {
     const pdfDoc = await PDFDocument.create();
     const pages = [];
     const font = await loadPrimaryFont(pdfDoc);
-    const isDraft = payslip.period?.status !== 'POSTED';
+    const isDraft = !isPayrollPostedLikeStatus(payslip.period?.status);
     const dbCompany = await prisma.company.findUnique({ where: { id: companyId } });
     const company = companyFromDb(dbCompany);
 

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { featureFlags } from '@/lib/features';
 import { postPayrollPeriod } from '@/lib/payroll/postings';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +11,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(req, { params }) {
   if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
   const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
+  if (!checkPerm("approvePayroll", role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   const period = await prisma.payrollPeriod.findUnique({ where: { id, companyId }, include: { payslips: true } });

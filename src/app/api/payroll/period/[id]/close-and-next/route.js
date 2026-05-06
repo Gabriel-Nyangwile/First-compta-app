@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { featureFlags } from '@/lib/features';
 import { getPayrollCurrencyContext } from '@/lib/payroll/context';
 import { postPayrollPeriod } from '@/lib/payroll/postings';
+import { isPayrollPostedLikeStatus } from '@/lib/payroll/status';
+import { getRequestRole } from '@/lib/requestAuth';
 import { nextSequence } from '@/lib/sequence';
 import { requireCompanyId } from '@/lib/tenant';
 
@@ -62,6 +65,10 @@ async function ensureNextPeriod(companyId, currentPeriod) {
 export async function POST(req, { params }) {
   if (!featureFlags.payroll) return NextResponse.json({ error: 'Payroll disabled' }, { status: 403 });
   const companyId = requireCompanyId(req);
+  const role = await getRequestRole(req, { companyId });
+  if (!checkPerm("approvePayroll", role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
@@ -114,12 +121,12 @@ export async function POST(req, { params }) {
     }
   }
 
-  if (period.status === 'POSTED') {
+  if (isPayrollPostedLikeStatus(period.status)) {
     const nextResult = await ensureNextPeriod(companyId, period);
     steps.push(nextResult.created ? 'NEXT_CREATED' : 'NEXT_EXISTS');
     return NextResponse.json({
       ok: true,
-      period: { id: period.id, ref: period.ref, month: period.month, year: period.year, status: 'POSTED' },
+      period: { id: period.id, ref: period.ref, month: period.month, year: period.year, status: period.status },
       nextPeriod: nextResult.period,
       nextCreated: nextResult.created,
       steps,

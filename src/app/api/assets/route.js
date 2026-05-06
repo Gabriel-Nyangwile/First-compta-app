@@ -12,8 +12,8 @@ export async function GET(req) {
       where: { companyId },
       include: {
         category: true,
-        depreciationLines: { orderBy: [{ year: 'asc' }, { month: 'asc' }] },
-        disposals: true,
+        depreciationLines: { where: { companyId }, orderBy: [{ year: 'asc' }, { month: 'asc' }] },
+        disposals: { where: { companyId } },
       },
       orderBy: [{ createdAt: 'desc' }],
       take: 200,

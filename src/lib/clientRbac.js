@@ -6,15 +6,30 @@ function readCookie(name) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
+function readLocalStorageRole() {
+  if (typeof localStorage === 'undefined') return null;
+
+  const directRole = localStorage.getItem('user-role');
+  if (directRole) return directRole;
+
+  const rawUser = localStorage.getItem('user');
+  if (!rawUser) return null;
+
+  try {
+    const user = JSON.parse(rawUser);
+    return user?.role || null;
+  } catch {
+    return null;
+  }
+}
+
 export function getClientRole() {
   const devMode = (process.env.NEXT_PUBLIC_AUTH_DEV_MODE || process.env.AUTH_DEV_MODE) === '1';
-  let role = null;
+  let role = readCookie('user-role') || readLocalStorageRole();
   if (devMode) {
-    role = readCookie('user-role') || (typeof localStorage !== 'undefined' ? localStorage.getItem('user-role') : null);
     if (!role) role = process.env.NEXT_PUBLIC_DEFAULT_ROLE || process.env.DEFAULT_ROLE;
   } else {
-    // Prod : utiliser la session réelle (à brancher). Fallback lecture éventuelle si fournie.
-    role = process.env.NEXT_PUBLIC_DEFAULT_ROLE || process.env.DEFAULT_ROLE;
+    role = role || process.env.NEXT_PUBLIC_DEFAULT_ROLE || process.env.DEFAULT_ROLE;
   }
   return normalizeRole(role || 'VIEWER');
 }

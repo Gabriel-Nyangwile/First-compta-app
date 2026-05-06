@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { absoluteUrl } from '@/lib/url';
+import { absoluteUrl, internalApiFetch } from '@/lib/url';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
@@ -11,12 +11,8 @@ import { getCompanyIdFromCookies } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
-async function fetchDetail(id, companyId) {
-  const url = await absoluteUrl(`/api/asset-purchase-orders/${id}`);
-  const res = await fetch(url, {
-    cache: 'no-store',
-    headers: companyId ? { 'x-company-id': companyId } : undefined,
-  });
+async function fetchDetail(id) {
+  const res = await internalApiFetch(`/api/asset-purchase-orders/${id}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
 }
@@ -25,14 +21,19 @@ async function statusAction(poId, status) {
   'use server';
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
+  const userId =
+    cookieStore.get('user-id')?.value ||
+    cookieStore.get('userId')?.value ||
+    cookieStore.get('user_id')?.value ||
+    null;
   if (!companyId) throw new Error('companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).');
   const url = await absoluteUrl(`/api/asset-purchase-orders/${poId}/status`);
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-role': process.env.DEFAULT_ROLE || 'SUPERADMIN',
       ...(companyId ? { 'x-company-id': companyId } : {}),
+      ...(userId ? { 'x-user-id': userId } : {}),
     },
     body: JSON.stringify({ status }),
   });
@@ -48,6 +49,11 @@ async function invoiceAction(poId, formData) {
   'use server';
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
+  const userId =
+    cookieStore.get('user-id')?.value ||
+    cookieStore.get('userId')?.value ||
+    cookieStore.get('user_id')?.value ||
+    null;
   if (!companyId) throw new Error('companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).');
   const supplierInvoiceNumber = formData.get('supplierInvoiceNumber')?.toString().trim();
   const receiptDate = formData.get('receiptDate')?.toString();
@@ -66,8 +72,8 @@ async function invoiceAction(poId, formData) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-role': process.env.DEFAULT_ROLE || 'SUPERADMIN',
       ...(companyId ? { 'x-company-id': companyId } : {}),
+      ...(userId ? { 'x-user-id': userId } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -245,7 +251,7 @@ export default async function Page({ params }) {
   const cookieStore = await cookies();
   const companyId = getCompanyIdFromCookies(cookieStore);
   if (!companyId) return <div className="p-6">companyId requis (cookie company-id ou DEFAULT_COMPANY_ID).</div>;
-  const po = await fetchDetail(id, companyId);
+  const po = await fetchDetail(id);
   if (!po) return <div className="p-6">BC immobilisation introuvable.</div>;
   const totalHt = (po.lines || []).reduce((s, l) => s + Number(l.unitPrice) * Number(l.quantity || 1), 0);
   const actions = [

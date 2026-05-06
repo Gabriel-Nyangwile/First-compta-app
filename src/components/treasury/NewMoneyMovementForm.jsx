@@ -99,7 +99,7 @@ export default function NewMoneyMovementForm({ accounts, defaultCurrency = 'XOF'
       if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur lors de l’enregistrement de l’opération');
       setOkMsg('Opération de trésorerie enregistrée');
   setAmount(''); setDescription(''); setHtAmount(''); setSelectedInvoice(null); setInvoiceQuery(''); setInvoiceResults([]); setVoucherRef(''); setSelectedEmployee(null); setEmployeeQuery(''); setEmployeeResults([]); setBeneficiaryLabel(''); setSupportRef('');
-      window.location.href = `/treasury?account=${moneyAccountId}`; // simple refresh
+      window.location.href = `/treasury?account=${data.movement?.moneyAccountId || moneyAccountId}`; // simple refresh
     } catch(err) {
       setError(err.message);
       if (/solde caisse insuffisant/i.test(err.message)) {
@@ -302,7 +302,7 @@ export default function NewMoneyMovementForm({ accounts, defaultCurrency = 'XOF'
       <div className="grid md:grid-cols-3 gap-3 text-sm">
         <label className="flex flex-col">Compte trésorerie
           <select value={moneyAccountId} onChange={e=>setMoneyAccountId(e.target.value)} className="mt-1 border rounded px-2 py-1">
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.label}{a.ledgerAccountNumber && !a.label.includes(a.ledgerAccountNumber) ? ` (${a.ledgerAccountNumber})` : ''}</option>)}
           </select>
         </label>
         <label className="flex flex-col">Sens
@@ -508,7 +508,7 @@ export default function NewMoneyMovementForm({ accounts, defaultCurrency = 'XOF'
       <div className="flex gap-2">
         <button disabled={loading || willBeNegative} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500 disabled:opacity-50" type="submit">{loading? 'En cours...' : 'Enregistrer'}</button>
         <button type="button" onClick={resetForm} className="px-3 py-2 text-sm border rounded hover:bg-slate-50">Réinitialiser</button>
-        <a href={selectedMoneyAccount?`/treasury?account=${selectedMoneyAccount.id}`:'/treasury'} className="px-3 py-2 text-sm border rounded hover:bg-slate-50">Actualiser le solde</a>
+        <a href={selectedMoneyAccount && !String(selectedMoneyAccount.id).startsWith('ledger:') ? `/treasury?account=${selectedMoneyAccount.id}` : '/treasury'} className="px-3 py-2 text-sm border rounded hover:bg-slate-50">Actualiser le solde</a>
       </div>
     </form>
   );

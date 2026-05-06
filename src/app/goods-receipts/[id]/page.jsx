@@ -1,10 +1,9 @@
-import { absoluteUrl } from "@/lib/url";
+import { internalApiFetch } from "@/lib/url";
 import Link from "next/link";
 import GoodsReceiptDetail from "@/components/GoodsReceiptDetail";
 
 async function fetchReceipt(id) {
-  const url = await absoluteUrl(`/api/goods-receipts/${id}`);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(`/api/goods-receipts/${id}`, { cache: "no-store" });
   if (!res.ok) return null;
   return res.json();
 }

@@ -9,6 +9,7 @@ import { requireCompanyId } from '@/lib/tenant';
     - dateEnd (ISO date)
     - clientId
     - invoiceId
+    - journalNumber
     - direction (DEBIT|CREDIT)
     - kind (RECEIVABLE|SALE|VAT_COLLECTED|PAYMENT)
     - page (>=1)
@@ -25,6 +26,7 @@ export async function GET(request) {
   const clientId = searchParams.get('clientId');
   const supplierId = searchParams.get('supplierId');
     const invoiceId = searchParams.get('invoiceId');
+    const journalNumber = searchParams.get('journalNumber')?.trim();
     const direction = searchParams.get('direction');
     const kind = searchParams.get('kind');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -43,6 +45,11 @@ export async function GET(request) {
     }
     if (clientId) where.clientId = clientId;
   if (invoiceId) where.invoiceId = invoiceId;
+  if (journalNumber) {
+    where.journalEntry = {
+      number: { contains: journalNumber, mode: 'insensitive' }
+    };
+  }
   if (supplierId) where.supplierId = supplierId;
     if (direction) where.direction = direction;
     if (kind) where.kind = kind;
@@ -59,6 +66,7 @@ export async function GET(request) {
             invoiceLine: { select: { id: true, description: true, accountId: true } },
             incomingInvoice: { select: { id: true, entryNumber: true } },
             incomingInvoiceLine: { select: { id: true, description: true, accountId: true } },
+          journalEntry: { select: { id: true, number: true, sourceType: true, description: true } },
           account: { select: { id: true, number: true, label: true } }
         },
         orderBy: { date: 'desc' },

@@ -3,6 +3,7 @@
 // If a future need arises to consolidate, we can add a grouping key.
 import { nextSequence } from './sequence.js';
 import prisma from './prisma.js';
+import { assertAccountingDatesOpen } from './fiscalYearLock.js';
 
 /**
  * Compute debit/credit totals from a list of transactions (already fetched) or raw objects
@@ -24,6 +25,7 @@ export function computeDebitCredit(transactions) {
 export async function createJournalEntry(tx, {
   sourceType = 'OTHER',
   sourceId = null,
+  supportRef = null,
   date = new Date(),
   transactionIds = [],
   description = null,
@@ -33,9 +35,17 @@ export async function createJournalEntry(tx, {
   // Fetch transactions to compute totals
   const transactions = await tx.transaction.findMany({
     where: { id: { in: transactionIds } },
-    select: { id: true, amount: true, direction: true, companyId: true },
+    select: { id: true, amount: true, direction: true, companyId: true, date: true },
   });
   const companyId = transactions.find((t) => t.companyId)?.companyId || null;
+  await assertAccountingDatesOpen(tx, [
+    { companyId, date, context: 'JournalEntry' },
+    ...transactions.map((transaction) => ({
+      companyId: transaction.companyId || companyId,
+      date: transaction.date,
+      context: 'Ligne ecriture comptable',
+    })),
+  ]);
   const { debit, credit } = computeDebitCredit(transactions);
   const balanced = Math.abs(debit - credit) < 0.01;
   if (!balanced && !allowUnbalanced) {
@@ -49,6 +59,7 @@ export async function createJournalEntry(tx, {
       date,
       sourceType,
       sourceId,
+      supportRef,
       description,
       status: 'POSTED'
     }
@@ -70,11 +81,23 @@ export async function finalizeBatchToJournal(tx, options) {
 /**
  * Backfill helper (not used directly in routes here) to retro-create journal entries for orphan transactions.
  */
-export async function backfillMissingJournalEntries() {
-  const orphan = await prisma.transaction.findMany({ where: { journalEntryId: null }, orderBy: { date: 'asc' } });
+export async function backfillMissingJournalEntries(companyId = null) {
+  const orphan = await prisma.transaction.findMany({
+    where: {
+      journalEntryId: null,
+      ...(companyId ? { companyId } : {}),
+    },
+    orderBy: [{ companyId: 'asc' }, { date: 'asc' }],
+  });
   const byKey = new Map();
   for (const t of orphan) {
-    const key = t.invoiceId || t.incomingInvoiceId || t.moneyMovementId || `MISC:${t.date.toISOString().slice(0,10)}:${t.nature}`;
+    const scopedKey = t.companyId || "NO_COMPANY";
+    const key =
+      `${scopedKey}:` +
+      (t.invoiceId ||
+        t.incomingInvoiceId ||
+        t.moneyMovementId ||
+        `MISC:${t.date.toISOString().slice(0,10)}:${t.nature}`);
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key).push(t);
   }

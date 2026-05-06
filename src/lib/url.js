@@ -57,3 +57,33 @@ export async function absoluteUrl(path) {
   const origin = getEnvOrigin() || "http://localhost:3000";
   return `${origin}${path}`;
 }
+
+async function forwardedRequestHeaders() {
+  const headersFn = await resolveHeadersModule();
+  if (!headersFn) return {};
+  try {
+    const result = headersFn();
+    const h = result && typeof result.then === "function" ? await result : result;
+    if (!h) return {};
+    const headers = {};
+    const cookie = h.get("cookie");
+    if (cookie) headers.cookie = cookie;
+    const companyId = h.get("x-company-id") || h.get("x-companyid");
+    if (companyId) headers["x-company-id"] = companyId;
+    const userId = h.get("x-user-id") || h.get("x-userid");
+    if (userId) headers["x-user-id"] = userId;
+    return headers;
+  } catch (err) {
+    return {};
+  }
+}
+
+export async function internalApiFetch(path, init = {}) {
+  const url = await absoluteUrl(path);
+  const forwarded = await forwardedRequestHeaders();
+  const headers = new Headers(init.headers || {});
+  for (const [key, value] of Object.entries(forwarded)) {
+    if (value && !headers.has(key)) headers.set(key, value);
+  }
+  return fetch(url, { ...init, headers });
+}

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { getSystemAccounts } from '@/lib/systemAccounts';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 import { finalizeBatchToJournal } from '@/lib/journal';
 import { deleteUnreferencedEmptyJournalsForSource } from '@/lib/journalCleanup';
@@ -32,6 +34,10 @@ export async function GET(request, context) {
 export async function PATCH(request, context) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("createSalesInvoice", role) && !checkPerm("approveSalesInvoice", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { id } = await context.params;
     const body = await request.json();
     const { clientId, issueDate, dueDate, vat, invoiceLines } = body || {};

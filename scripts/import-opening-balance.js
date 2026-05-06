@@ -102,6 +102,37 @@ async function main() {
   }
 
   const date = new Date(openingDate);
+  const existingOpeningJournal = await prisma.journalEntry.findFirst({
+    where: {
+      companyId,
+      sourceType: "OTHER",
+      description: `Ouverture ${openingDate}`,
+      date,
+    },
+    select: { number: true },
+  });
+
+  if (existingOpeningJournal) {
+    throw new Error(
+      `Import duplicated detected: opening balance already imported as ${existingOpeningJournal.number}`
+    );
+  }
+  const accountNumbers = [...new Set(lines.map((line) => line.accountNumber))];
+  const existingAccounts = await prisma.account.findMany({
+    where: { companyId, number: { in: accountNumbers } },
+    select: { number: true },
+  });
+  const existingAccountNumbers = new Set(
+    existingAccounts.map((account) => account.number)
+  );
+  const missingAccountNumbers = accountNumbers.filter(
+    (number) => !existingAccountNumbers.has(number)
+  );
+  if (missingAccountNumbers.length) {
+    throw new Error(
+      `Comptes introuvables: ${missingAccountNumbers.join(", ")}`
+    );
+  }
 
   if (dryRun) {
     console.log(

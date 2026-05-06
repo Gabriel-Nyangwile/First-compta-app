@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { checkPerm } from "@/lib/authz";
+import { getRequestRole } from "@/lib/requestAuth";
 import {
   createMoneyMovement,
   listMoneyMovements,
@@ -53,6 +55,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const companyId = requireCompanyId(req);
+    const role = await getRequestRole(req, { companyId });
     const body = await req.json();
     const normalizedDirection = body.direction
       ? String(body.direction).toUpperCase()
@@ -82,6 +85,11 @@ export async function POST(req) {
         { ok: false, error: "kind requis" },
         { status: 400 }
       );
+    }
+    const requiredAction =
+      normalizedDirection === "IN" ? "createCollection" : "createPayment";
+    if (!checkPerm(requiredAction, role)) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
     const movement = await createMoneyMovement({
       companyId,

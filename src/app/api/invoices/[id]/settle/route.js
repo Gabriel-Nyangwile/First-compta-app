@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { finalizeBatchToJournal } from '@/lib/journal';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 /*
@@ -17,7 +19,11 @@ import { requireCompanyId } from '@/lib/tenant';
 export async function POST(request, { params }) {
   try {
     const companyId = requireCompanyId(request);
-    const invoiceId = params.id;
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("createCollection", role) && !checkPerm("approveCollection", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const { id: invoiceId } = await params;
     const { amount, paymentDate, bankAccountId } = await request.json();
 
     if (!invoiceId) return NextResponse.json({ error: 'Invoice id manquant.' }, { status: 400 });

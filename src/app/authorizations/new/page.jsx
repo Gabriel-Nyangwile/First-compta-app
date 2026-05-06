@@ -32,7 +32,23 @@ async function create(formData) {
   const purpose = formData.get('purpose') || null;
   const invoiceId = formData.get('invoiceId') || null;
   const incomingInvoiceId = formData.get('incomingInvoiceId') || null;
-  await createAuthorization({ companyId, docType, flow, scope, amount, currency, purpose, invoiceId, incomingInvoiceId });
+  const beneficiaryType = formData.get('beneficiaryType') || null;
+  const beneficiaryAccountId = formData.get('beneficiaryAccountId') || null;
+  const beneficiaryAccountNature = formData.get('beneficiaryAccountNature') || null;
+  await createAuthorization({
+    companyId,
+    docType,
+    flow,
+    scope,
+    amount,
+    currency,
+    purpose,
+    invoiceId,
+    incomingInvoiceId,
+    beneficiaryType,
+    beneficiaryAccountId,
+    beneficiaryAccountNature,
+  });
   redirect(`/authorizations?scope=${scope}&flow=${flow}`);
 }
 
@@ -55,8 +71,17 @@ export default async function NewAuthorizationPage({ searchParams }) {
   // Suggestions d'objet basées sur le type choisi (fallback simple côté client via datalist)
   const purposeSuggestions = [
     'Paiement facture fournisseur',
+    'Paiement autre passif',
+    'Paiement dette sociale',
+    'Paiement dette fiscale',
+    'Décaissement sur autre actif',
+    'Avance ou caution versée',
     'Règlement acompte',
     'Encaissement recette',
+    'Encaissement autre actif',
+    'Encaissement autre passif',
+    'Encaissement avance reçue',
+    'Remboursement créance diverse',
     'Achat consommables',
     'Frais déplacement',
     'Frais administratifs',
@@ -105,7 +130,7 @@ export default async function NewAuthorizationPage({ searchParams }) {
           </datalist>
           <p className="text-[11px] text-slate-500 leading-snug">Ce champ décrit la finalité : ex: "Paiement facture fournisseur", "Frais déplacement". Le système propose des modèles fréquents; ajustez si besoin.</p>
         </div>
-        <InvoiceLinker />
+        <InvoiceLinker flow={resolvedFlow} />
         <button className="bg-blue-600 text-white px-4 py-2 rounded">Enregistrer l'autorisation</button>
       </form>
     </main>

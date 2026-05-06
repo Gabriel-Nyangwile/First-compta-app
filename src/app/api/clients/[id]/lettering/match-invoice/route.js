@@ -16,7 +16,11 @@ export async function POST(req, { params }) {
   }
 
   try {
-    const result = await matchClientInvoiceAction({ invoiceId, companyId });
+    const result = await matchClientInvoiceAction({
+      invoiceId,
+      clientId,
+      companyId,
+    });
     return NextResponse.json(result);
   } catch (error) {
     console.error("matchClientInvoiceAction failed", error);

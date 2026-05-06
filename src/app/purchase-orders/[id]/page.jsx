@@ -4,7 +4,7 @@ import GoodsReceiptCancelForm from "./GoodsReceiptCancelForm";
 import ApprovePurchaseOrderButton from "./ApprovePurchaseOrderButton";
 import ClosePurchaseOrderButton from "./ClosePurchaseOrderButton";
 import GoodsReceiptDetail from "@/components/GoodsReceiptDetail";
-import { absoluteUrl } from "@/lib/url";
+import { internalApiFetch } from "@/lib/url";
 
 const RECEIPT_STATUS_LABELS = {
   OPEN: "Réception créée",
@@ -177,14 +177,12 @@ function PurchaseOrderWorkflowPanel({ po, remaining, closeEnabled }) {
 }
 
 async function fetchPO(id) {
-  const url = await absoluteUrl(`/api/purchase-orders/${id}`);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(`/api/purchase-orders/${id}`, { cache: "no-store" });
   if (!res.ok) return null;
   return res.json();
 }
 async function fetchRemaining(id) {
-  const url = await absoluteUrl(`/api/purchase-orders/${id}/remaining`);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await internalApiFetch(`/api/purchase-orders/${id}/remaining`, { cache: "no-store" });
   if (!res.ok) return null;
   return res.json();
 }

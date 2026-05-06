@@ -5,7 +5,7 @@ import { requireCompanyId } from '@/lib/tenant';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req, { params }) {
-  const { id } = params;
+  const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: 'Missing id' }, { status: 400 });
   try {
     const companyId = requireCompanyId(req);

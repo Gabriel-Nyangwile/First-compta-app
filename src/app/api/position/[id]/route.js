@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkPerm } from '@/lib/authz';
 import { toPlain } from '@/lib/json';
+import { getRequestRole } from '@/lib/requestAuth';
 import { requireCompanyId } from '@/lib/tenant';
 
 // GET: Get position by ID
@@ -54,6 +56,10 @@ export async function GET(request, { params }) {
 export async function PUT(request, ctx) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("manageEmployees", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { id } = await ctx.params;
     const body = await request.json();
     const data = {};
@@ -76,6 +82,10 @@ export async function PUT(request, ctx) {
 export async function DELETE(request, { params }) {
   try {
     const companyId = requireCompanyId(request);
+    const role = await getRequestRole(request, { companyId });
+    if (!checkPerm("manageEmployees", role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { id } = await params;
     await prisma.position.delete({ where: { id, companyId } });
     return NextResponse.json({ success: true });

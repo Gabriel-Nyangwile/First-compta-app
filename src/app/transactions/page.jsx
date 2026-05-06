@@ -16,6 +16,7 @@ export default function TransactionsPage() {
     dateEnd: '',
     clientId: '', // conservé temporairement si besoin historique
     invoiceId: '',
+    journalNumber: '',
     direction: '',
     kind: ''
   });
@@ -70,7 +71,7 @@ export default function TransactionsPage() {
   const balance = useMemo(() => (sums.debit - sums.credit), [sums]);
 
   const resetFilters = () => {
-    setFilters({ dateStart:'', dateEnd:'', clientId:'', invoiceId:'', direction:'', kind:'' });
+    setFilters({ dateStart:'', dateEnd:'', clientId:'', invoiceId:'', journalNumber:'', direction:'', kind:'' });
     setPage(1);
   };
 
@@ -88,7 +89,7 @@ export default function TransactionsPage() {
         t.account?.label || t.description || ''
       ];
       if (showLineDescription) row.push(t.lineDescription || '');
-      const justificatif = t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || '';
+      const justificatif = t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || t.journalEntry?.number || '';
       row.push(justificatif, t.direction, t.kind, debit, credit);
       return row;
     });
@@ -155,6 +156,15 @@ export default function TransactionsPage() {
                   <option value="">--</option>
                   {invoices.map(inv=> <option key={inv.id} value={inv.id}>{inv.invoiceNumber}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block">Journal</label>
+                <input
+                  value={filters.journalNumber}
+                  onChange={e=>setFilters(f=>({...f,journalNumber:e.target.value}))}
+                  placeholder="JRN-000388"
+                  className="w-full border rounded px-2 py-1"
+                />
               </div>
               <div>
                 <label className="block">Direction</label>
@@ -227,7 +237,15 @@ export default function TransactionsPage() {
                           <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{t.account?.number}</td>
                           <td className="px-3 py-2">{t.account?.label || t.description || ''}</td>
                           {showLineDescription && <td className="px-3 py-2 text-xs max-w-xs whitespace-pre-wrap">{(['SALE','PURCHASE'].includes(t.kind)?(t.lineDescription||'-'):'-')}</td>}
-                          <td className="px-3 py-2">{t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || ''}</td>
+                          <td className="px-3 py-2">
+                            {t.invoice?.invoiceNumber || t.incomingInvoice?.entryNumber || (
+                              t.journalEntry ? (
+                                <Link href={`/journal/${t.journalEntry.id}`} className="text-blue-600 hover:underline">
+                                  {t.journalEntry.number}
+                                </Link>
+                              ) : ''
+                            )}
+                          </td>
                           <td className={`px-3 py-2 text-right ${isDebit ? 'text-blue-700 font-medium':''}`}>{isDebit ? <Amount value={t.amount} />:''}</td>
                           <td className={`px-3 py-2 text-right ${!isDebit ? 'text-orange-700 font-medium':''}`}>{!isDebit ? <Amount value={t.amount} />:''}</td>
                         </tr>
@@ -271,7 +289,15 @@ export default function TransactionsPage() {
                                 <td className="px-2 py-1 font-mono text-[10px] whitespace-nowrap">{r.account?.number}</td>
                                 <td className="px-2 py-1">{r.account?.label || r.description || ''}</td>
                                 {showLineDescription && <td className="px-2 py-1 max-w-xs whitespace-pre-wrap">{(['SALE','PURCHASE'].includes(r.kind)?(r.lineDescription||'-'):'-')}</td>}
-                                <td className="px-2 py-1">{r.invoice?.invoiceNumber || r.incomingInvoice?.entryNumber || ''}</td>
+                                <td className="px-2 py-1">
+                                  {r.invoice?.invoiceNumber || r.incomingInvoice?.entryNumber || (
+                                    r.journalEntry ? (
+                                      <Link href={`/journal/${r.journalEntry.id}`} className="text-blue-600 hover:underline">
+                                        {r.journalEntry.number}
+                                      </Link>
+                                    ) : ''
+                                  )}
+                                </td>
                                 <td className="px-2 py-1 text-[10px]">{r.kind}</td>
                                 <td className={`px-2 py-1 text-right ${isDebit?'text-blue-700 font-medium':''}`}>{isDebit ? <Amount value={r.amount} />:''}</td>
                                 <td className={`px-2 py-1 text-right ${!isDebit?'text-orange-700 font-medium':''}`}>{!isDebit ? <Amount value={r.amount} />:''}</td>

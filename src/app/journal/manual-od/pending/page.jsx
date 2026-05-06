@@ -2,6 +2,7 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { getCompanyIdFromCookies } from "@/lib/tenant";
+import ManualOdValidateButton from "@/components/journal/ManualOdValidateButton";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -67,6 +68,7 @@ export default async function PendingManualOdPage() {
   const rows = entries.map((entry) => ({
     ...entry,
     draft: summarizeDraft(entry),
+    draftLines: Array.isArray(entry.draftPayload?.lines) ? entry.draftPayload.lines : [],
   }));
 
   const balancedCount = rows.filter((row) => row.draft.balanced).length;
@@ -186,6 +188,15 @@ export default async function PendingManualOdPage() {
                     >
                       Détail
                     </Link>
+                    <ManualOdValidateButton
+                      entryId={entry.id}
+                      date={new Date(entry.date).toISOString().slice(0, 10)}
+                      description={entry.description || ""}
+                      supportRef={entry.supportRef || ""}
+                      lines={entry.draftLines}
+                      balanced={entry.draft.balanced}
+                      compact
+                    />
                   </div>
                 </td>
               </tr>

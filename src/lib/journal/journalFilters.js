@@ -1,61 +1,52 @@
 import { z } from 'zod';
+import {
+  JournalSourceType,
+  JournalStatus,
+  TransactionLetterStatus,
+} from '@prisma/client';
 
-// Enums from Prisma
-const JournalSourceTypeEnum = z.enum([
-  'INVOICE',
-  'INCOMING_INVOICE',
-  'PAYMENT',
-  'BANK_STATEMENT',
-  'ADJUSTMENT',
-  'OPENING_BALANCE',
-  'CLOSING',
-  'OTHER'
-]);
+const normalizeQueryValue = (value) => {
+  if (Array.isArray(value)) return value[0] || undefined;
+  if (value === '') return undefined;
+  return value;
+};
 
-const JournalStatusEnum = z.enum([
-  'DRAFT',
-  'POSTED',
-  'CANCELLED'
-]);
-
-const TransactionLetterStatusEnum = z.enum([
-  'UNMATCHED',
-  'PARTIAL',
-  'MATCHED'
-]);
+const JournalSourceTypeEnum = z.enum(Object.values(JournalSourceType));
+const JournalStatusEnum = z.enum(Object.values(JournalStatus));
+const TransactionLetterStatusEnum = z.enum(Object.values(TransactionLetterStatus));
 
 // Base filter schema
 export const JournalFiltersSchema = z.object({
   // Pagination
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(5).max(200).default(20),
+  page: z.preprocess(normalizeQueryValue, z.coerce.number().int().min(1).default(1)),
+  pageSize: z.preprocess(normalizeQueryValue, z.coerce.number().int().min(5).max(200).default(20)),
 
   // Date filters
-  dateFrom: z.string().optional().refine((val) => {
+  dateFrom: z.preprocess(normalizeQueryValue, z.string().optional()).refine((val) => {
     if (!val) return true;
     const date = new Date(val);
     return !isNaN(date.getTime());
   }, "Date invalide"),
-  dateTo: z.string().optional().refine((val) => {
+  dateTo: z.preprocess(normalizeQueryValue, z.string().optional()).refine((val) => {
     if (!val) return true;
     const date = new Date(val);
     return !isNaN(date.getTime());
   }, "Date invalide"),
 
   // Source filters
-  sourceType: JournalSourceTypeEnum.optional(),
-  status: JournalStatusEnum.optional(),
-  number: z.string().max(50).optional(),
-  sourceId: z.string().max(100).optional(),
+  sourceType: z.preprocess(normalizeQueryValue, z.union([JournalSourceTypeEnum, z.undefined()])),
+  status: z.preprocess(normalizeQueryValue, z.union([JournalStatusEnum, z.undefined()])),
+  number: z.preprocess(normalizeQueryValue, z.string().max(50).optional()),
+  sourceId: z.preprocess(normalizeQueryValue, z.string().max(100).optional()),
 
   // Account filter
-  accountNumber: z.string().max(20).optional(),
+  accountNumber: z.preprocess(normalizeQueryValue, z.string().max(20).optional()),
 
   // Lettrage filter
-  letterStatus: TransactionLetterStatusEnum.optional(),
+  letterStatus: z.preprocess(normalizeQueryValue, z.union([TransactionLetterStatusEnum, z.undefined()])),
 
   // Search
-  q: z.string().max(200).optional(),
+  q: z.preprocess(normalizeQueryValue, z.string().max(200).optional()),
 }).refine((data) => {
   // Date validation: dateFrom should be before dateTo
   if (data.dateFrom && data.dateTo) {
