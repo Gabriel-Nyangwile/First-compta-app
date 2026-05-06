@@ -22,17 +22,18 @@ function toContributionBaseKind(s) {
   return 'BRUT';
 }
 
-async function upsertPayrollAccountMapping(accountsJson) {
+async function upsertPayrollAccountMapping(accountsJson, companyId) {
   const entries = accountsJson.accounts || {};
   for (const [code, obj] of Object.entries(entries)) {
     await prisma.payrollAccountMapping.upsert({
-      where: { code },
+      where: { companyId_code: { companyId, code } },
       update: {
         accountNumber: obj.number,
         label: obj.label,
         active: true,
       },
       create: {
+        companyId,
         code,
         accountNumber: obj.number,
         label: obj.label,
@@ -145,7 +146,13 @@ async function main() {
   const payrollParams = readJson(payrollParamsFile);
   const schemes = readJson(schemesFile);
 
-  await upsertPayrollAccountMapping(accounts);
+  const company = await prisma.company.findFirst({ orderBy: { createdAt: 'asc' } });
+  if (!company) {
+    console.error('No company found in database. Run seed-minimal.js first.');
+    process.exit(1);
+  }
+
+  await upsertPayrollAccountMapping(accounts, company.id);
   await upsertTaxRuleFromParams(payrollParams);
   await upsertContributionSchemes(schemes);
 }
