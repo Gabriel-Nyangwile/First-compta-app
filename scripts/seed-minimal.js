@@ -10,11 +10,12 @@ import prisma from '../src/lib/prisma.js';
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 const DEFAULT_COMPANY_NAME = process.env.SEED_COMPANY_NAME || 'Société par défaut';
+const HAS_SUPERADMIN_ROLE = Object.prototype.hasOwnProperty.call(UserRole, 'SUPERADMIN');
 const ADMIN_ROLE = UserRole.SUPERADMIN;
 
-if (ADMIN_ROLE === undefined) {
+if (!HAS_SUPERADMIN_ROLE || ADMIN_ROLE === undefined) {
   throw new Error(
-    `UserRole.SUPERADMIN is missing from Prisma Client. Available roles: ${Object.keys(UserRole || {}).join(', ')}`
+    `UserRole.SUPERADMIN is not defined in generated Prisma Client. Available roles: ${Object.keys(UserRole || {}).join(', ')}`
   );
 }
 
