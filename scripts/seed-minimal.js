@@ -12,7 +12,7 @@ const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 const DEFAULT_COMPANY_NAME = process.env.SEED_COMPANY_NAME || 'Société par défaut';
 const ADMIN_ROLE = UserRole.SUPERADMIN;
 
-if (!ADMIN_ROLE) {
+if (ADMIN_ROLE === undefined) {
   throw new Error(
     `UserRole.SUPERADMIN is missing from Prisma Client. Available roles: ${Object.keys(UserRole || {}).join(', ')}`
   );
