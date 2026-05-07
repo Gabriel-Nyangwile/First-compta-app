@@ -4,11 +4,19 @@
  * money account exist. Safe to run multiple times (idempotent where possible).
  */
 import bcrypt from 'bcryptjs';
+import { UserRole } from '@prisma/client';
 import prisma from '../src/lib/prisma.js';
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 const DEFAULT_COMPANY_NAME = process.env.SEED_COMPANY_NAME || 'Société par défaut';
+const ADMIN_ROLE = UserRole.SUPERADMIN;
+
+if (!ADMIN_ROLE) {
+  throw new Error(
+    `UserRole.SUPERADMIN is missing from Prisma Client. Available roles: ${Object.keys(UserRole || {}).join(', ')}`
+  );
+}
 
 async function ensureDefaultCompany() {
   let company = await prisma.company.findFirst({ orderBy: { createdAt: 'asc' } });
@@ -29,7 +37,7 @@ async function ensureAdmin(company) {
       data: {
         email: ADMIN_EMAIL,
         password: hash,
-        role: 'SUPERADMIN',
+        role: ADMIN_ROLE,
         username: 'admin',
         companyId: company.id,
       },
@@ -44,9 +52,9 @@ async function ensureAdmin(company) {
   });
   if (!existing) {
     await prisma.companyMembership.create({
-      data: { companyId: company.id, userId: user.id, role: 'SUPERADMIN', isDefault: true },
+      data: { companyId: company.id, userId: user.id, role: ADMIN_ROLE, isDefault: true },
     });
-    console.log(`Created SUPERADMIN membership for ${ADMIN_EMAIL}.`);
+    console.log(`Created ${ADMIN_ROLE} membership for ${ADMIN_EMAIL}.`);
   }
   return user;
 }

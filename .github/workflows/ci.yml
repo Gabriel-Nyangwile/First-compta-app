@@ -52,11 +52,29 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
+      - name: Prisma diagnostics (version)
+        run: npx prisma -v
+
       - name: Run migrations
         run: npx prisma migrate deploy
 
+      - name: Prisma diagnostics (migration status)
+        run: npx prisma migrate status
+
       - name: Seed minimal data
+        id: seed_minimal
+        continue-on-error: true
         run: node scripts/seed-minimal.js
+
+      - name: Prisma diagnostics on seed failure
+        if: steps.seed_minimal.outcome == 'failure'
+        run: |
+          echo "Seed failed. Dumping Prisma role diagnostics."
+          node --input-type=module -e "import prisma from './src/lib/prisma.js'; const rows = await prisma.$queryRawUnsafe(\"SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'UserRole' ORDER BY enumsortorder\"); console.log('DB UserRole values:', rows.map((r) => r.enumlabel).join(', ')); await prisma.$disconnect();"
+
+      - name: Fail if seed failed
+        if: steps.seed_minimal.outcome == 'failure'
+        run: exit 1
 
       - name: Seed payroll config
         run: node scripts/seed-payroll-config.js
@@ -101,4 +119,3 @@ jobs:
         with:
           name: regression-logs
           path: artifacts
-
