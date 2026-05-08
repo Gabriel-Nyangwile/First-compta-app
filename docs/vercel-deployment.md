@@ -78,7 +78,7 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    - Confirmer que `DATABASE_URL` pointe bien vers la base de production.
 
 3. **Vérifier et appliquer les migrations Prisma**
-   - Depuis un terminal securise avec la `DATABASE_URL` de prod:
+   - Depuis un terminal sécurisé avec la `DATABASE_URL` de prod:
    ```bash
    npm run migrate:status
    npm run migrate:deploy
@@ -88,7 +88,7 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    - Vérifier la table `CompanyMembership`.
    - Vérifier les colonnes `User.companyId`, `User.isActive`, `User.canCreateCompany`.
    - Vérifier la valeur `PLATFORM_ADMIN` dans l'enum `UserRole`.
-   - Si un objet manque: migration non appliquee ou partiellement appliquee.
+   - Si un objet manque: migration non appliquée ou partiellement appliquée.
 
 5. **Redeployer apres migration**
    - Relancer un redeploiement Vercel (idealement sans cache).
@@ -104,7 +104,7 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    ```bash
    npm run vercel:predeploy && npm run build
    ```
-   - Ce garde-fou empeche un deploy prod avec migrations manquantes.
+   - Ce garde-fou empêche un deploy prod avec migrations manquantes.
 
 8. **Rollback en cas d'incident**
    - Restaurer le dernier deploiement stable.

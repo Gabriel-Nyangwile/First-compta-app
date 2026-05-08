@@ -7,5 +7,13 @@ if (env !== "production") {
   process.exit(0);
 }
 
-execSync("npx prisma migrate status", { stdio: "inherit" });
-execSync("npx prisma migrate deploy", { stdio: "inherit" });
+try {
+  execSync("npx prisma migrate status", { stdio: "inherit" });
+  execSync("npx prisma migrate deploy", { stdio: "inherit" });
+} catch (error) {
+  console.error("Prisma predeploy check failed. Verify DATABASE_URL and pending migrations.");
+  if (error?.message) {
+    console.error(error.message);
+  }
+  process.exit(1);
+}
