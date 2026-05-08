@@ -84,7 +84,7 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    npm run migrate:deploy
    ```
 
-4. **Controler les objets critiques auth en base**
+4. **Contrôler les objets critiques auth en base**
    - Vérifier la table `CompanyMembership`.
    - Vérifier les colonnes `User.companyId`, `User.isActive`, `User.canCreateCompany`.
    - Vérifier la valeur `PLATFORM_ADMIN` dans l'enum `UserRole`.
