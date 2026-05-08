@@ -58,13 +58,13 @@ npm run migrate:deploy
 
 Eviter de lancer `prisma migrate deploy` automatiquement sur les previews si elles pointent vers la base de production. Utiliser une base separee pour les environnements Preview quand des migrations sont testees.
 
-Un script de garde est disponible:
+Un script de vérification est disponible:
 
 ```bash
 npm run vercel:predeploy
 ```
 
-Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si `VERCEL_ENV=production`, afin de bloquer un deploiement prod si les migrations ne sont pas pretes.
+Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si `VERCEL_ENV=production`, afin de bloquer un deploiement prod si les migrations ne sont pas prêtes.
 
 ## Resolution pas a pas d'une erreur 500 en production
 

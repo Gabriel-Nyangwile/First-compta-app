@@ -64,7 +64,10 @@ export async function GET(request) {
     return new Response(JSON.stringify({ error: "Champs requis manquants" }), { status: 400 });
   }
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user?.password || !(await bcrypt.compare(password, user.password))) {
+  if (!user?.password) {
+    return new Response(JSON.stringify({ error: "Identifiants invalides" }), { status: 401 });
+  }
+  if (!(await bcrypt.compare(password, user.password))) {
     return new Response(JSON.stringify({ error: "Identifiants invalides" }), { status: 401 });
   }
   return new Response(
