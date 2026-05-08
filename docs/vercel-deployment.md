@@ -78,13 +78,13 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    - Confirmer que `DATABASE_URL` pointe bien vers la base de production.
 
 3. **Vérifier et appliquer les migrations Prisma**
-   - **Avant toute commande**: faire une sauvegarde de la base, confirmer l'URL cible, et verifier que vous etes bien connecte a la base de production voulue.
+   - **Avant toute commande**: faire une sauvegarde de la base, confirmer l'URL cible, et vérifier que vous etes bien connecte a la base de production voulue.
    - Depuis un terminal sécurisé avec la `DATABASE_URL` de prod:
    ```bash
    npm run migrate:status
    npm run migrate:deploy
    ```
-   - Option recommandee: lancer `migrate:status` en premier sur un environnement de lecture (ou replica) pour valider l'etat avant intervention.
+   - Option recommandée: lancer `migrate:status` en premier sur un environnement de lecture (ou replica) pour valider l'état avant intervention.
 
 4. **Contrôler les objets critiques auth en base**
    - Vérifier la table `CompanyMembership`.

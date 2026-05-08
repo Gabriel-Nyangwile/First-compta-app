@@ -13,9 +13,7 @@ function run(command, context) {
   } catch (error) {
     console.error(`${context} failed. Verify DATABASE_URL and migration state.`);
     console.error("Action: run `npm run migrate:status` with production env and review docs/vercel-deployment.md.");
-    if (error?.message) {
-      console.error(error.message);
-    }
+    console.error(error.message);
     process.exit(1);
   }
 }
