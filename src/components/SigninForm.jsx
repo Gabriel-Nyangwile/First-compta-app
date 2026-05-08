@@ -54,8 +54,11 @@ export default function SigninForm() {
       setError("Sélectionnez la société (existante ou nouvelle) avant de vous connecter.");
       return;
     }
-    const params = new URLSearchParams({ ...form, companyId: pendingCompanyId }).toString();
-    const res = await fetch(`/api/auth?${params}`);
+    const res = await fetch("/api/auth/signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, companyId: pendingCompanyId }),
+    });
     const data = await readJsonResponse(res);
     if (!res.ok) {
       setError(data.error || "Erreur inconnue");
