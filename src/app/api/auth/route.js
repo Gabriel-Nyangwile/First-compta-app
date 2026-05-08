@@ -89,7 +89,7 @@ export async function GET(request) {
           orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
         },
       },
-    );
+    });
     if (!user?.password || !(await bcrypt.compare(password, user.password))) {
       return Response.json({ error: "Identifiants invalides" }, { status: 401 });
     }
