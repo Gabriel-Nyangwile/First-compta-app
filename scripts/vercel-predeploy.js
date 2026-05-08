@@ -7,13 +7,17 @@ if (env !== "production") {
   process.exit(0);
 }
 
-try {
-  execSync("npx prisma migrate status", { stdio: "inherit" });
-  execSync("npx prisma migrate deploy", { stdio: "inherit" });
-} catch (error) {
-  console.error("Prisma predeploy check failed. Verify DATABASE_URL and pending migrations.");
-  if (error?.message) {
-    console.error(error.message);
+function run(command, context) {
+  try {
+    execSync(command, { stdio: "inherit" });
+  } catch (error) {
+    console.error(`${context} failed. Verify DATABASE_URL and migration state.`);
+    if (error?.message) {
+      console.error(error.message);
+    }
+    process.exit(1);
   }
-  process.exit(1);
 }
+
+run("npx prisma migrate status", "Prisma migrate status");
+run("npx prisma migrate deploy", "Prisma migrate deploy");
