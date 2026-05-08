@@ -72,12 +72,12 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    - Ouvrir `Vercel > Project > Functions > Logs`.
    - Rejouer l'endpoint en erreur (ex: `/api/auth`) et noter le message exact.
 
-2. **Verifier les variables d'environnement prod**
+2. **Vérifier les variables d'environnement prod**
    - Ouvrir `Vercel > Project Settings > Environment Variables`.
-   - Verifier en priorite `DATABASE_URL`, `ADMIN_TOKEN`, `NEXT_PUBLIC_APP_URL`.
+   - Vérifier en priorité `DATABASE_URL`, `ADMIN_TOKEN`, `NEXT_PUBLIC_APP_URL`.
    - Confirmer que `DATABASE_URL` pointe bien vers la base de production.
 
-3. **Verifier et appliquer les migrations Prisma**
+3. **Vérifier et appliquer les migrations Prisma**
    - Depuis un terminal securise avec la `DATABASE_URL` de prod:
    ```bash
    npm run migrate:status
@@ -85,9 +85,9 @@ Ce script execute `prisma migrate status && prisma migrate deploy` uniquement si
    ```
 
 4. **Controler les objets critiques auth en base**
-   - Verifier la table `CompanyMembership`.
-   - Verifier les colonnes `User.companyId`, `User.isActive`, `User.canCreateCompany`.
-   - Verifier la valeur `PLATFORM_ADMIN` dans l'enum `UserRole`.
+   - Vérifier la table `CompanyMembership`.
+   - Vérifier les colonnes `User.companyId`, `User.isActive`, `User.canCreateCompany`.
+   - Vérifier la valeur `PLATFORM_ADMIN` dans l'enum `UserRole`.
    - Si un objet manque: migration non appliquee ou partiellement appliquee.
 
 5. **Redeployer apres migration**

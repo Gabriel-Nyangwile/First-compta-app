@@ -8,7 +8,7 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:status": "prisma migrate status",
     "migrate:deploy": "prisma migrate deploy",
-    "vercel:predeploy": "if [ \"$VERCEL_ENV\" = \"production\" ]; then npm run migrate:status && npm run migrate:deploy; else echo \"Skip Prisma predeploy (VERCEL_ENV=$VERCEL_ENV)\"; fi",
+    "vercel:predeploy": "node scripts/vercel-predeploy.js",
     "db:reset": "node --env-file=.env.local scripts/reset-data.js --full --force",
     "db:reset:soft": "node --env-file=.env.local scripts/reset-data.js --soft --force",
     "dev:diagnostic": "node --env-file=.env.local scripts/dev-diagnostic.js",
