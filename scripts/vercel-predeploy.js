@@ -12,6 +12,7 @@ function run(command, context) {
     execSync(command, { stdio: "inherit" });
   } catch (error) {
     console.error(`${context} failed. Verify DATABASE_URL and migration state.`);
+    console.error("Action: run `npm run migrate:status` with production env and review docs/vercel-deployment.md.");
     if (error?.message) {
       console.error(error.message);
     }

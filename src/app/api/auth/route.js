@@ -77,10 +77,7 @@ export async function GET(request) {
       },
     },
   });
-  if (!user || !user.password) {
-    return new Response(JSON.stringify({ error: "Identifiants invalides" }), { status: 401 });
-  }
-  if (!(await bcrypt.compare(password, user.password))) {
+  if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
     return new Response(JSON.stringify({ error: "Identifiants invalides" }), { status: 401 });
   }
   if (!user.isActive) {
