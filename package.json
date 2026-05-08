@@ -48,6 +48,7 @@
     "reset:full": "node --env-file=.env.local scripts/reset-data.js --full --force",
     "backup:data": "node --env-file=.env.local scripts/backup-data.js",
     "seed:minimal": "node --env-file=.env.local scripts/seed-minimal.js",
+    "bootstrap:platform-admin": "node scripts/bootstrap-platform-admin.js",
     "backfill:movement:vouchers": "node --env-file=.env.local scripts/backfill-movement-voucher-refs.js",
     "backfill:authorization:transactions": "node --env-file=.env.local scripts/backfill-authorization-movements-transactions.js",
     "audit:authorization:movements": "node --env-file=.env.local scripts/audit-authorization-movements.js",

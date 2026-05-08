@@ -34,6 +34,9 @@ ADMIN_TOKEN="..."
 NEXT_PUBLIC_APP_URL="https://your-project.vercel.app"
 DEFAULT_COMPANY_ID="..."
 DEFAULT_COMPANY_CURRENCY="CDF"
+PLATFORM_ADMIN_EMAIL="admin@example.com"
+PLATFORM_ADMIN_PASSWORD="..."
+PLATFORM_ADMIN_USERNAME="platform-admin"
 ```
 
 Variables optionnelles selon les modules utilises:
@@ -57,6 +60,24 @@ npm run migrate:deploy
 ```
 
 Eviter de lancer `prisma migrate deploy` automatiquement sur les previews si elles pointent vers la base de production. Utiliser une base separee pour les environnements Preview quand des migrations sont testees.
+
+## Premier administrateur plateforme
+
+Sur une base vide, la creation de societe exige un `PLATFORM_ADMIN`. Apres les migrations, creer ou promouvoir le premier administrateur avec:
+
+```bash
+npm run bootstrap:platform-admin
+```
+
+La commande lit:
+
+```bash
+PLATFORM_ADMIN_EMAIL
+PLATFORM_ADMIN_PASSWORD
+PLATFORM_ADMIN_USERNAME
+```
+
+En production, executer cette commande depuis un environnement qui pointe vers la base Vercel/Neon avec `DATABASE_URL`.
 
 ## Lire les logs
 

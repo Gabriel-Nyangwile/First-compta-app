@@ -1,6 +1,16 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from "react";
 
+async function readJsonResponse(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text };
+  }
+}
+
 export default function SigninForm() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -14,10 +24,12 @@ export default function SigninForm() {
     async function loadCompanies() {
       try {
         const res = await fetch("/api/companies/public", { cache: "no-store" });
-        const data = await res.json();
+        const data = await readJsonResponse(res);
         if (!cancelled) setCompanies(data.companies || []);
+        if (!cancelled && !res.ok) setError(data.error || "Impossible de charger les sociétés.");
       } catch {
         if (!cancelled) setCompanies([]);
+        if (!cancelled) setError("Impossible de charger les sociétés.");
       }
     }
     const saved = localStorage.getItem("pendingCompanyId") || "";
@@ -44,7 +56,7 @@ export default function SigninForm() {
     }
     const params = new URLSearchParams({ ...form, companyId: pendingCompanyId }).toString();
     const res = await fetch(`/api/auth?${params}`);
-    const data = await res.json();
+    const data = await readJsonResponse(res);
     if (!res.ok) {
       setError(data.error || "Erreur inconnue");
       router.push('/')
