@@ -145,7 +145,7 @@ const GROUPS = [
     key: "admin",
     label: "Paramètres",
     items: [
-      { href: "/admin/users", label: "Utilisateurs (SuperAdmin)", superadminOnly: true },
+      { href: "/admin/users", label: "Utilisateurs", superadminOnly: true },
       { href: "/admin/companies", label: "Sociétés", superadminOnly: true },
     ],
   },

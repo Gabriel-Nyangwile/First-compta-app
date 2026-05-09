@@ -30,7 +30,8 @@ export default function AdminUsersPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
 
-  const isPlatformAdmin = currentUser?.role?.toString?.().toUpperCase() === "PLATFORM_ADMIN";
+  const normalizedCurrentRole = currentUser?.role?.toString?.().toUpperCase();
+  const canSelectCompany = ["PLATFORM_ADMIN", "SUPERADMIN"].includes(normalizedCurrentRole);
 
   function getCookie(name) {
     try {
@@ -88,8 +89,8 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedCompanyId || !isPlatformAdmin) loadUsers();
-  }, [q, page, pageSize, selectedCompanyId, isPlatformAdmin]);
+    if (selectedCompanyId || !canSelectCompany) loadUsers();
+  }, [q, page, pageSize, selectedCompanyId, canSelectCompany]);
 
   async function deleteUser(id) {
     if (!confirm("Supprimer cet utilisateur ?")) return;
@@ -171,10 +172,10 @@ export default function AdminUsersPage() {
       <div className="grid md:grid-cols-2 gap-6">
         <form onSubmit={handleSubmit} className="bg-white shadow p-4 rounded border">
           <h2 className="font-semibold mb-3">Créer un utilisateur</h2>
-          {isPlatformAdmin ? (
+          {canSelectCompany ? (
             <label className="f-label" htmlFor="adminCompany">Société à autoriser</label>
           ) : null}
-          {isPlatformAdmin ? (
+          {canSelectCompany ? (
             <select
               id="adminCompany"
               className="f-auth-input"
@@ -248,7 +249,7 @@ export default function AdminUsersPage() {
 
         <div className="bg-white shadow p-4 rounded border">
           <h2 className="font-semibold mb-3">Utilisateurs existants</h2>
-          {isPlatformAdmin && selectedCompanyId ? (
+          {canSelectCompany && selectedCompanyId ? (
             <p className="mb-3 text-xs text-slate-500">
               Autorisations affichées pour {companies.find((company) => company.id === selectedCompanyId)?.name || "la société sélectionnée"}.
             </p>
