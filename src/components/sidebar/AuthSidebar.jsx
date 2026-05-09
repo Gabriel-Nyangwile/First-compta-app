@@ -183,6 +183,38 @@ const GROUPS = [
   },
 ];
 
+const GROUP_ROLES = {
+  perso: ["SUPERADMIN", "HR_MANAGER"],
+  comp: ["SUPERADMIN", "FINANCE_MANAGER", "ACCOUNTANT"],
+  anal: [
+    "PLATFORM_ADMIN",
+    "SUPERADMIN",
+    "FINANCE_MANAGER",
+    "ACCOUNTANT",
+    "PROCUREMENT",
+    "SALES",
+    "HR_MANAGER",
+    "PAYROLL_CLERK",
+    "TREASURY",
+    "VIEWER",
+  ],
+  vent: ["SUPERADMIN", "SALES", "FINANCE_MANAGER"],
+  achat: ["SUPERADMIN", "FINANCE_MANAGER", "PROCUREMENT", "ACCOUNTANT"],
+  prod: ["SUPERADMIN", "FINANCE_MANAGER", "PROCUREMENT", "ACCOUNTANT"],
+  lett: ["SUPERADMIN", "FINANCE_MANAGER", "ACCOUNTANT", "TREASURY"],
+  immos: ["SUPERADMIN", "FINANCE_MANAGER", "ACCOUNTANT", "PROCUREMENT"],
+  capital: ["SUPERADMIN", "FINANCE_MANAGER", "ACCOUNTANT"],
+  admin: ["PLATFORM_ADMIN", "SUPERADMIN"],
+  tres: ["SUPERADMIN", "TREASURY", "FINANCE_MANAGER"],
+  paie: ["SUPERADMIN", "HR_MANAGER", "PAYROLL_CLERK", "FINANCE_MANAGER"],
+};
+
+function canSeeGroup(groupKey, normalizedRole) {
+  const allowed = GROUP_ROLES[groupKey];
+  if (!allowed) return true;
+  return allowed.includes(normalizedRole);
+}
+
 // Icônes minimalistes statiques (évite un hook useMemo supplémentaire variable selon early return)
 const ICONS = {
   comp: (
@@ -491,7 +523,7 @@ export default function AuthSidebar() {
   const normalizedRole = (role || "").toString().toUpperCase();
   const isSuperAdmin = normalizedRole === "SUPERADMIN" || normalizedRole === "PLATFORM_ADMIN";
   const visibleGroups = allGroups
-    .filter((g) => (g.key === "admin" ? isSuperAdmin : true))
+    .filter((g) => canSeeGroup(g.key, normalizedRole))
     .map((g) => ({
       ...g,
       items: g.items.filter((it) =>

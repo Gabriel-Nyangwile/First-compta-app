@@ -1,6 +1,7 @@
 # Sécurité / RBAC (rôles et permissions)
 
 ## Rôles supportés
+- `PLATFORM_ADMIN` : administration plateforme, création de sociétés et gestion globale des utilisateurs.
 - `SUPERADMIN` : tous les droits, administration et configuration.
 - `FINANCE_MANAGER` : validation achats/ventes, immobilisations, clôtures, trésorerie.
 - `ACCOUNTANT` : compta opérationnelle, immobilisations, journal.
@@ -21,23 +22,41 @@ La normalisation des rôles est effectuée en majuscules, remplaçant espaces/ti
 - RH/Paie : `manageEmployees`, `managePayroll`, `approvePayroll`.
 - Stock : `manageInventory`, `manageProducts`.
 - Comptabilité : `postJournalEntry`, `reopenPeriod`, `exportAccounting`.
-- Admin : `manageUsers`, `manageRoles`.
+- Production : `manageProduction`.
+- Admin : `manageUsers`, `manageRoles`, `createCompany`.
 
 ## Sources du rôle (dev vs prod)
-`getUserRole` lit, dans l’ordre :
-1) Header `x-user-role` (si `AUTH_DEV_MODE=1`)
-2) Cookie `user-role` (si `AUTH_DEV_MODE=1`)
-3) `DEFAULT_ROLE` (`VIEWER` par défaut, si `AUTH_DEV_MODE=1`)
+`getUserRole` lit le cookie `user-role` posé après connexion.
 
-En production (`AUTH_DEV_MODE` désactivé), brancher sur la session d’auth (NextAuth/JWT) au lieu de ces fallback, et ne pas utiliser `x-admin-token`.
+En mode dev (`AUTH_DEV_MODE=1`), il accepte aussi :
+1) Header `x-user-role`
+2) `DEFAULT_ROLE` (`VIEWER` par défaut)
+
+En production, les endpoints métier récupèrent aussi l'utilisateur via le cookie `user-id` et vérifient ses `CompanyMembership` actifs.
 
 ## Middleware / API
 Le middleware (`src/middleware.js`) protège les routes API mutantes en vérifiant le rôle/perm. `x-admin-token` reste un bypass en dev si configuré. HTTP 403 si insuffisant.
 
 ## UI
-- Sidebar : le lien `/admin/users` n’apparaît que pour `SUPERADMIN`.
-- Actions serveur critiques (BC immo, facture, etc.) envoient `x-user-role` (DEFAULT_ROLE ou SUPERADMIN en dev) pour éviter les 403 liés à l’absence de session.
-- UI admin utilisateurs : CRUD rôles/activation/reset MDP/suppression, avec pagination/recherche ; en dev, `x-user-role` est ajouté aux fetch.
+- Sidebar : les groupes de menu sont filtrés par rôle.
+- `PLATFORM_ADMIN` et `SUPERADMIN` voient les pages d'administration.
+- Les utilisateurs métier doivent être rattachés à la société active via `CompanyMembership`.
+- UI admin utilisateurs : CRUD rôles/activation/reset MDP/suppression, avec pagination/recherche.
+
+## Matrice UI recommandée
+
+| Rôle | Menus principaux |
+| --- | --- |
+| `PLATFORM_ADMIN` | Analyse, Paramètres |
+| `SUPERADMIN` | Tous les modules métier et Paramètres |
+| `FINANCE_MANAGER` | Comptabilité, Analyse, Ventes, Achats, Production, Lettrage, Immobilisations, Capital, Trésorerie, Paie |
+| `ACCOUNTANT` | Comptabilité, Analyse, Achats, Production, Lettrage, Immobilisations, Capital |
+| `PROCUREMENT` | Analyse, Achats, Production, Immobilisations |
+| `SALES` | Analyse, Ventes |
+| `HR_MANAGER` | Gestion du personnel, Analyse, Paie |
+| `PAYROLL_CLERK` | Analyse, Paie |
+| `TREASURY` | Analyse, Lettrage, Trésorerie |
+| `VIEWER` | Analyse |
 
 ## Bonnes pratiques
 - Toujours définir `DEFAULT_ROLE` / `user-role` en local si vous testez les actions protégées sans session.
