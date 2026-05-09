@@ -112,7 +112,11 @@
     "smoke:personnel": "node --env-file=.env.local scripts/test-personnel-summary.js && node --env-file=.env.local scripts/test-personnel-trend.js",
     "seed:cost-centers:nat-exp": "node --env-file=.env.local scripts/seed-cost-centers-nat-exp.js",
     "seed:fx": "node --env-file=.env.local scripts/seed-fx-rates.js",
-    "backfill:company": "node --env-file=.env.local scripts/backfill-company.js"
+    "backfill:company": "node --env-file=.env.local scripts/backfill-company.js",
+    "company:inventory": "node --env-file=.env.local scripts/company-inventory.mjs",
+    "company:export": "node --env-file=.env.local scripts/export-company-data.mjs",
+    "company:repair-export": "node --env-file=.env.local scripts/repair-company-export.mjs",
+    "company:import": "node scripts/import-company-data.mjs"
   },
   "type": "module",
   "dependencies": {
