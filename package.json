@@ -116,7 +116,9 @@
     "company:inventory": "node --env-file=.env.local scripts/company-inventory.mjs",
     "company:export": "node --env-file=.env.local scripts/export-company-data.mjs",
     "company:repair-export": "node --env-file=.env.local scripts/repair-company-export.mjs",
-    "company:import": "node scripts/import-company-data.mjs"
+    "company:import": "node scripts/import-company-data.mjs",
+    "company:list": "node scripts/list-companies.mjs",
+    "company:rename": "node scripts/rename-company.mjs"
   },
   "type": "module",
   "dependencies": {
