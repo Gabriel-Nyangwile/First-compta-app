@@ -3,7 +3,14 @@ import prisma from "@/lib/prisma";
 import { getRequestActor } from "@/lib/requestAuth";
 
 function isStrategicDemo(company) {
-  return company?.name?.toLowerCase?.().includes("strategic business démo");
+  const normalized = company?.name
+    ?.toString?.()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized?.includes("strategic business demo") || normalized?.includes("strategic business");
 }
 
 // GET /api/companies/public

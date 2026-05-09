@@ -27,14 +27,15 @@ function normalizeRole(role) {
 export async function PATCH(req, { params }) {
   const actor = await getRequestActor(req);
   const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
-  const companyId = isPlatformAdmin ? getCompanyIdFromRequest(req) : requireCompanyId(req);
+  const body = await req.json().catch(() => ({}));
+  const requestedCompanyId = body?.companyId?.toString?.().trim() || null;
+  const companyId = isPlatformAdmin ? requestedCompanyId || getCompanyIdFromRequest(req) : requireCompanyId(req);
   const callerRole = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
-  const body = await req.json().catch(() => ({}));
   const updates = {};
   if (body.role) {
     const norm = normalizeRole(body.role);
@@ -110,7 +111,9 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   const actor = await getRequestActor(req);
   const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
-  const companyId = isPlatformAdmin ? getCompanyIdFromRequest(req) : requireCompanyId(req);
+  const url = new URL(req.url);
+  const requestedCompanyId = url.searchParams.get("companyId")?.trim() || null;
+  const companyId = isPlatformAdmin ? requestedCompanyId || getCompanyIdFromRequest(req) : requireCompanyId(req);
   const callerRole = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

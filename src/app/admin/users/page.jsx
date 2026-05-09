@@ -26,6 +26,37 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const isPlatformAdmin = currentUser?.role?.toString?.().toUpperCase() === "PLATFORM_ADMIN";
+
+  function getCookie(name) {
+    try {
+      const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
+      return match ? decodeURIComponent(match[1]) : "";
+    } catch {
+      return "";
+    }
+  }
+
+  async function loadCompanies() {
+    try {
+      const raw = localStorage.getItem("user");
+      const parsed = raw ? JSON.parse(raw) : null;
+      setCurrentUser(parsed);
+      const res = await fetch("/api/companies/public", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Erreur chargement sociétés");
+      const list = data.companies || [];
+      setCompanies(list);
+      const active = getCookie("company-id");
+      setSelectedCompanyId((current) => current || active || list[0]?.id || "");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
 
   async function loadUsers() {
@@ -36,6 +67,7 @@ export default function AdminUsersPage() {
       params.set('page', page);
       params.set('pageSize', pageSize);
       if (q) params.set('q', q);
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId);
       const res = await fetch(`/api/admin/users?${params.toString()}`, {
         cache: "no-store",
       });
@@ -52,14 +84,21 @@ export default function AdminUsersPage() {
   
 
   useEffect(() => {
-    loadUsers();
-  }, [q, page, pageSize]);
+    loadCompanies();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCompanyId || !isPlatformAdmin) loadUsers();
+  }, [q, page, pageSize, selectedCompanyId, isPlatformAdmin]);
 
   async function deleteUser(id) {
     if (!confirm("Supprimer cet utilisateur ?")) return;
     setError(""); setSuccess("");
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      const params = new URLSearchParams();
+      if (selectedCompanyId) params.set("companyId", selectedCompanyId);
+      const suffix = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/admin/users/${id}${suffix}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Suppression échouée");
       setSuccess("Utilisateur supprimé");
@@ -77,7 +116,13 @@ export default function AdminUsersPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ role: u.role, isActive: u.isActive, canCreateCompany: u.canCreateCompany, password: u.password || undefined }),
+        body: JSON.stringify({
+          role: u.role,
+          isActive: u.isActive,
+          canCreateCompany: u.canCreateCompany,
+          password: u.password || undefined,
+          companyId: selectedCompanyId || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Maj utilisateur échouée");
@@ -100,7 +145,7 @@ export default function AdminUsersPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, companyId: selectedCompanyId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Création échouée");
@@ -126,6 +171,29 @@ export default function AdminUsersPage() {
       <div className="grid md:grid-cols-2 gap-6">
         <form onSubmit={handleSubmit} className="bg-white shadow p-4 rounded border">
           <h2 className="font-semibold mb-3">Créer un utilisateur</h2>
+          {isPlatformAdmin ? (
+            <label className="f-label" htmlFor="adminCompany">Société à autoriser</label>
+          ) : null}
+          {isPlatformAdmin ? (
+            <select
+              id="adminCompany"
+              className="f-auth-input"
+              value={selectedCompanyId}
+              onChange={(e) => {
+                setSelectedCompanyId(e.target.value);
+                setPage(1);
+                document.cookie = `company-id=${encodeURIComponent(e.target.value)}; path=/`;
+              }}
+              required
+            >
+              <option value="">-- Choisir une société --</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <label className="f-label" htmlFor="username">Nom / pseudo</label>
           <input
             id="username"
@@ -180,6 +248,11 @@ export default function AdminUsersPage() {
 
         <div className="bg-white shadow p-4 rounded border">
           <h2 className="font-semibold mb-3">Utilisateurs existants</h2>
+          {isPlatformAdmin && selectedCompanyId ? (
+            <p className="mb-3 text-xs text-slate-500">
+              Autorisations affichées pour {companies.find((company) => company.id === selectedCompanyId)?.name || "la société sélectionnée"}.
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2 mb-3 text-sm">
             <input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} className="border rounded px-2 py-1" placeholder="Rechercher email/nom" />
             <select className="border rounded px-2 py-1" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>

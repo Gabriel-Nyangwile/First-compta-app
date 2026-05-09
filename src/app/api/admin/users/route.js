@@ -27,7 +27,9 @@ function normalizeRole(role) {
 export async function GET(req) {
   const actor = await getRequestActor(req);
   const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
-  const companyId = isPlatformAdmin ? getCompanyIdFromRequest(req) : requireCompanyId(req);
+  const url = new URL(req.url);
+  const requestedCompanyId = url.searchParams.get("companyId")?.trim() || null;
+  const companyId = isPlatformAdmin ? requestedCompanyId || getCompanyIdFromRequest(req) : requireCompanyId(req);
   const role = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -41,7 +43,6 @@ export async function GET(req) {
       );
     }
   }
-  const url = new URL(req.url);
   const page = Math.max(1, Number(url.searchParams.get("page") || 1));
   const pageSize = Math.min(50, Math.max(5, Number(url.searchParams.get("pageSize") || 10)));
   const q = url.searchParams.get("q");
@@ -73,7 +74,9 @@ export async function GET(req) {
 export async function POST(req) {
   const actor = await getRequestActor(req);
   const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
-  const companyId = isPlatformAdmin ? getCompanyIdFromRequest(req) : requireCompanyId(req);
+  const body = await req.json();
+  const requestedCompanyId = body?.companyId?.toString?.().trim() || null;
+  const companyId = isPlatformAdmin ? requestedCompanyId || getCompanyIdFromRequest(req) : requireCompanyId(req);
   const callerRole = await getRequestRole(req, companyId ? { companyId } : {});
   if (!checkPerm("manageUsers", callerRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -87,7 +90,6 @@ export async function POST(req) {
       );
     }
   }
-  const body = await req.json();
   const { username, email, password, role, canCreateCompany } = body || {};
   const normalizedEmail = email?.toString?.().trim().toLowerCase();
   if (!username || !normalizedEmail || !password) {
