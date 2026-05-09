@@ -25,6 +25,7 @@ const PRIVATE_PREFIXES = [
   "/payroll",
   "/closing",
   "/opening",
+  "/help",
 ];
 
 const GROUPS = [
@@ -149,6 +150,20 @@ const GROUPS = [
     ],
   },
   {
+    key: "help",
+    label: "Aide",
+    items: [
+      { href: "/help", label: "Tous les guides" },
+      { href: "/help/achats", label: "Guide achats" },
+      { href: "/help/ventes", label: "Guide ventes" },
+      { href: "/help/production", label: "Guide production" },
+      { href: "/help/tresorerie", label: "Guide trésorerie" },
+      { href: "/help/lettrage", label: "Guide lettrage" },
+      { href: "/help/paie-personnel", label: "Guide personnel et paie" },
+      { href: "/help/capital", label: "Guide capital" },
+    ],
+  },
+  {
     key: "tres",
     label: "Trésorerie",
     items: [
@@ -205,6 +220,18 @@ const GROUP_ROLES = {
   immos: ["SUPERADMIN", "FINANCE_MANAGER", "ACCOUNTANT", "PROCUREMENT"],
   capital: ["SUPERADMIN", "FINANCE_MANAGER", "ACCOUNTANT"],
   admin: ["PLATFORM_ADMIN", "SUPERADMIN"],
+  help: [
+    "PLATFORM_ADMIN",
+    "SUPERADMIN",
+    "FINANCE_MANAGER",
+    "ACCOUNTANT",
+    "PROCUREMENT",
+    "SALES",
+    "HR_MANAGER",
+    "PAYROLL_CLERK",
+    "TREASURY",
+    "VIEWER",
+  ],
   tres: ["SUPERADMIN", "TREASURY", "FINANCE_MANAGER"],
   paie: ["SUPERADMIN", "HR_MANAGER", "PAYROLL_CLERK", "FINANCE_MANAGER"],
 };

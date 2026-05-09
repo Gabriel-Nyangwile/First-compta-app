@@ -1,14 +1,27 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getRequestActor } from "@/lib/requestAuth";
+
+function isStrategicDemo(company) {
+  return company?.name?.toLowerCase?.().includes("strategic business démo");
+}
 
 // GET /api/companies/public
-export async function GET() {
+export async function GET(req) {
   try {
+    const actor = await getRequestActor(req);
+    const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
     const companies = await prisma.company.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, legalForm: true, currency: true, address: true },
     });
-    return NextResponse.json({ companies });
+    const accessibleCompanyIds = new Set(actor?.user?.memberships?.map((item) => item.companyId) || []);
+    const visibleCompanies = companies.filter((company) => {
+      if (actor?.userId && !isPlatformAdmin) return accessibleCompanyIds.has(company.id);
+      if (!isStrategicDemo(company)) return true;
+      return isPlatformAdmin || accessibleCompanyIds.has(company.id);
+    });
+    return NextResponse.json({ companies: visibleCompanies });
   } catch (error) {
     console.error("GET /api/companies/public failed", error);
     return NextResponse.json(

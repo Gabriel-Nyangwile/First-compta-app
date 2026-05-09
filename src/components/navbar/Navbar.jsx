@@ -63,10 +63,12 @@ export default function Navbar() {
       }
     }
     loadCompanies();
+    window.addEventListener("user:login", loadCompanies);
     const saved = localStorage.getItem("pendingCompanyId") || "";
     setPendingCompanyId(saved);
     return () => {
       cancelled = true;
+      window.removeEventListener("user:login", loadCompanies);
     };
   }, []);
 
@@ -87,6 +89,32 @@ export default function Navbar() {
     if (publicMatch?.name) return publicMatch.name;
     return "Société active";
   })();
+  const canSwitchCompany =
+    !!user && ["PLATFORM_ADMIN", "SUPERADMIN"].includes(user.role?.toString?.().toUpperCase());
+
+  function switchActiveCompany(id) {
+    setActiveCompanyId(id);
+    setPending(id);
+    if (id) {
+      document.cookie = `company-id=${encodeURIComponent(id)}; path=/`;
+      try {
+        const nextCompany = companies.find((company) => company.id === id);
+        const nextUser = {
+          ...user,
+          companyId: id,
+          memberships: user?.memberships?.some?.((item) => item.companyId === id)
+            ? user.memberships
+            : [
+                ...(user?.memberships || []),
+                { companyId: id, companyName: nextCompany?.name || "Société active", role: user.role, isDefault: false },
+              ],
+        };
+        localStorage.setItem("user", JSON.stringify(nextUser));
+        setUser(nextUser);
+      } catch {}
+    }
+    window.dispatchEvent(new Event("user:login"));
+  }
 
   const UserSlot = () => {
     if (loadingUser) {
@@ -125,7 +153,21 @@ export default function Navbar() {
     }
     return (
       <div className="flex items-center gap-3">
-        {activeCompanyName ? (
+        {canSwitchCompany && companies.length ? (
+          <select
+            className="hidden sm:inline-flex max-w-[260px] rounded-full border border-blue-700/60 bg-blue-950/50 px-3 py-1 text-xs text-blue-100"
+            value={activeCompanyId || ""}
+            onChange={(event) => switchActiveCompany(event.target.value)}
+            title="Changer de société active"
+          >
+            <option value="">Société...</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+        ) : activeCompanyName ? (
           <span
             className="hidden sm:inline-flex items-center rounded-full bg-blue-950/50 border border-blue-700/60 px-3 py-1 text-xs text-blue-100 max-w-[260px] truncate"
             title={activeCompanyName}
