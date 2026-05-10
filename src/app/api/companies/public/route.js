@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getRequestActor } from "@/lib/requestAuth";
+import { getRequestActor, getUserIdFromRequest } from "@/lib/requestAuth";
 
 // GET /api/companies/public
 export async function GET(req) {
   try {
-    const actor = await getRequestActor(req);
+    let actor = null;
+    if (getUserIdFromRequest(req)) {
+      try {
+        actor = await getRequestActor(req);
+      } catch (actorError) {
+        console.warn("GET /api/companies/public actor lookup ignored", actorError);
+      }
+    }
     const isPlatformAdmin = actor?.user?.role === "PLATFORM_ADMIN";
     const companies = await prisma.company.findMany({
       orderBy: { createdAt: "desc" },
@@ -13,7 +20,7 @@ export async function GET(req) {
     });
     const accessibleCompanyIds = new Set(actor?.user?.memberships?.map((item) => item.companyId) || []);
     const visibleCompanies = companies.filter((company) => {
-      if (actor?.userId && !isPlatformAdmin) return accessibleCompanyIds.has(company.id);
+      if (actor?.user && !isPlatformAdmin) return accessibleCompanyIds.has(company.id);
       return true;
     });
     return NextResponse.json({ companies: visibleCompanies });
