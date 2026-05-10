@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkPerm } from "@/lib/authz";
 import { getRequestActor, getRequestRole } from "@/lib/requestAuth";
+import { reviewVisibleAfter } from "@/lib/accessReview";
 
 export async function POST(req, { params }) {
   const actor = await getRequestActor(req);
@@ -56,14 +57,14 @@ export async function POST(req, { params }) {
         },
         update: {
           role: "SUPERADMIN",
-          isActive: true,
+          isActive: false,
           isDefault: true,
         },
         create: {
           companyId: company.id,
           userId: request.requesterUserId,
           role: "SUPERADMIN",
-          isActive: true,
+          isActive: false,
           isDefault: true,
         },
       });
@@ -87,6 +88,7 @@ export async function POST(req, { params }) {
           createdCompanyId: company.id,
           reviewedByUserId: actor.userId,
           reviewedAt: new Date(),
+          visibleAfterAt: reviewVisibleAfter(),
           reviewNote: "Approved",
         },
         include: {

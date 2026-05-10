@@ -1,6 +1,14 @@
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { getCompanyIdFromRequest } from "@/lib/tenant";
+import {
+  activateApprovedAccessRequest,
+  activateApprovedCompanyRequest,
+  isVisibleNow,
+  pendingMessage,
+  waitingDecisionMessage,
+  waitingVisibilityMessage,
+} from "@/lib/accessReview";
 
 const allowedRoles = [
   "PLATFORM_ADMIN",
@@ -24,10 +32,18 @@ function normalizeRole(role) {
 // Inscription (signup)
 export async function POST(request) {
   try {
-    const { username, email, password } = await request.json();
+    const body = await request.json();
+    const { username, email, password } = body;
     const normalizedEmail = email?.toString?.().trim().toLowerCase();
+    const requestedCompanyId = body.companyId?.toString?.().trim() || "";
     if (!username || !normalizedEmail || !password) {
       return Response.json({ error: "Champs requis manquants" }, { status: 400 });
+    }
+    if (!requestedCompanyId) {
+      return Response.json({ error: "Sélectionnez une société ou une demande de nouvelle société." }, { status: 400 });
+    }
+    if (requestedCompanyId === "NEW" && !body.companyRequest?.requestedName?.toString?.().trim()) {
+      return Response.json({ error: "Nom de la nouvelle société requis" }, { status: 400 });
     }
     const existing = await prisma.user.findFirst({
       where: { email: { equals: normalizedEmail, mode: "insensitive" } },
@@ -35,28 +51,79 @@ export async function POST(request) {
     if (existing) {
       return Response.json({ error: "Email déjà utilisé" }, { status: 409 });
     }
+    if (requestedCompanyId !== "NEW") {
+      const company = await prisma.company.findUnique({ where: { id: requestedCompanyId }, select: { id: true } });
+      if (!company) return Response.json({ error: "Société introuvable" }, { status: 404 });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email: normalizedEmail,
-        password: hashed,
-        role: "VIEWER",
-        isActive: false,
-        canCreateCompany: false,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          username,
+          email: normalizedEmail,
+          password: hashed,
+          role: "VIEWER",
+          isActive: false,
+          canCreateCompany: false,
+          companyId: requestedCompanyId === "NEW" ? null : requestedCompanyId,
+        },
+      });
+
+      if (requestedCompanyId === "NEW") {
+        const companyRequest = body.companyRequest || {};
+        const accessRequest = await tx.companyCreationRequest.create({
+          data: {
+            requesterUserId: user.id,
+            requestedName: companyRequest.requestedName.toString().trim(),
+            address: companyRequest.address?.toString?.().trim() || null,
+            legalForm: companyRequest.legalForm?.toString?.().trim() || null,
+            currency: (companyRequest.currency || process.env.DEFAULT_COMPANY_CURRENCY || "CDF")
+              .toString()
+              .trim()
+              .toUpperCase(),
+            rccmNumber: companyRequest.rccmNumber?.toString?.().trim() || null,
+            idNatNumber: companyRequest.idNatNumber?.toString?.().trim() || null,
+            taxNumber: companyRequest.taxNumber?.toString?.().trim() || null,
+            cnssNumber: companyRequest.cnssNumber?.toString?.().trim() || null,
+            onemNumber: companyRequest.onemNumber?.toString?.().trim() || null,
+            inppNumber: companyRequest.inppNumber?.toString?.().trim() || null,
+            vatPolicy: companyRequest.vatPolicy?.toString?.().trim() || null,
+            country: companyRequest.country?.toString?.().trim() || null,
+            timezone: companyRequest.timezone?.toString?.().trim() || null,
+            fiscalYearStart: companyRequest.fiscalYearStart?.toString?.().trim() || null,
+          },
+        });
+        return { user, request: accessRequest, kind: "COMPANY_CREATION" };
+      }
+
+      const accessRequest = await tx.userAccessRequest.create({
+        data: {
+          requesterUserId: user.id,
+          companyId: requestedCompanyId,
+          requestedRole: "VIEWER",
+        },
+      });
+      return { user, request: accessRequest, kind: "COMPANY_ACCESS" };
     });
+
     return Response.json(
       {
         user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          isActive: user.isActive,
-          canCreateCompany: user.canCreateCompany,
+          id: result.user.id,
+          username: result.user.username,
+          email: result.user.email,
+          role: result.user.role,
+          isActive: result.user.isActive,
+          canCreateCompany: result.user.canCreateCompany,
         },
-        message: "Demande d'inscription enregistrée. Un PLATFORM_ADMIN doit approuver votre compte avant connexion.",
+        request: {
+          id: result.request.id,
+          kind: result.kind,
+          status: result.request.status,
+          createdAt: result.request.createdAt,
+        },
+        message: pendingMessage(),
       },
       { status: 201 },
     );
@@ -78,9 +145,9 @@ export async function GET(request) {
     if (!normalizedEmail || !password) {
       return Response.json({ error: "Champs requis manquants" }, { status: 400 });
     }
-    const requestedCompanyId =
+    let requestedCompanyId =
       (params.companyId && String(params.companyId).trim()) || getCompanyIdFromRequest(request);
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
       where: { email: { equals: normalizedEmail, mode: "insensitive" } },
       include: {
         memberships: {
@@ -93,17 +160,40 @@ export async function GET(request) {
     if (!user?.password || !(await bcrypt.compare(password, user.password))) {
       return Response.json({ error: "Identifiants invalides" }, { status: 401 });
     }
+    const statusResult = await resolvePendingAccess(user, requestedCompanyId);
+    if (statusResult instanceof Response) return statusResult;
+    if (statusResult?.companyId) requestedCompanyId = statusResult.companyId;
+    if (statusResult?.activated) {
+      user = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          memberships: {
+            where: { isActive: true },
+            include: { company: { select: { id: true, name: true } } },
+            orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+          },
+        },
+      });
+    }
     if (!user.isActive) {
       return Response.json(
-        { error: "Compte en attente d'approbation par le PLATFORM_ADMIN." },
+        { error: waitingDecisionMessage(), code: "PENDING_REVIEW" },
         { status: 403 },
       );
     }
+    const globalRole = user.role?.toString?.().toUpperCase();
+    const isGlobalAdmin = ["PLATFORM_ADMIN", "SUPERADMIN"].includes(globalRole);
     const membership =
       requestedCompanyId && requestedCompanyId !== "NEW"
         ? user.memberships.find((item) => item.companyId === requestedCompanyId) || null
         : user.memberships.find((item) => item.isDefault) || user.memberships[0] || null;
-    if (requestedCompanyId && requestedCompanyId !== "NEW" && !membership && user.companyId !== requestedCompanyId) {
+    if (
+      requestedCompanyId &&
+      requestedCompanyId !== "NEW" &&
+      !membership &&
+      user.companyId !== requestedCompanyId &&
+      !isGlobalAdmin
+    ) {
       return Response.json(
         { error: "Accès refusé à cette société pour cet utilisateur" },
         { status: 403 },
@@ -114,7 +204,7 @@ export async function GET(request) {
         ? "NEW"
         : membership?.companyId || (user.companyId === requestedCompanyId ? requestedCompanyId : user.companyId) || null;
     const activeRole =
-      membership?.role || (user.companyId === activeCompanyId ? user.role : null) || user.role;
+      membership?.role || (user.companyId === activeCompanyId ? user.role : null) || (isGlobalAdmin ? user.role : null) || user.role;
     return Response.json({
       user: {
         id: user.id,
@@ -142,3 +232,74 @@ export async function GET(request) {
 }
 
 export const dynamic = "force-dynamic";
+
+async function resolvePendingAccess(user, requestedCompanyId) {
+  if (!requestedCompanyId) return null;
+  const now = new Date();
+
+  if (requestedCompanyId === "NEW") {
+    const request = await prisma.companyCreationRequest.findFirst({
+      where: {
+        requesterUserId: user.id,
+        status: { in: ["PENDING", "APPROVED", "REJECTED"] },
+        resultDeliveredAt: null,
+      },
+      include: { createdCompany: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!request) return null;
+    if (request.status === "PENDING") {
+      return Response.json({ error: waitingDecisionMessage(), code: "PENDING_REVIEW" }, { status: 403 });
+    }
+    if (!isVisibleNow(request, now)) {
+      return Response.json({ error: waitingVisibilityMessage(), code: `${request.status}_WAITING_DELAY` }, { status: 403 });
+    }
+    if (request.status === "REJECTED") {
+      await prisma.companyCreationRequest.update({
+        where: { id: request.id },
+        data: { resultDeliveredAt: now },
+      });
+      return Response.json(
+        { error: request.reviewNote || "Votre demande de création de société a été rejetée.", code: "REQUEST_REJECTED" },
+        { status: 403 },
+      );
+    }
+    if (request.status === "APPROVED") {
+      await activateApprovedCompanyRequest(request);
+      return { activated: true, companyId: request.createdCompanyId };
+    }
+  }
+
+  const request = await prisma.userAccessRequest.findFirst({
+    where: {
+      requesterUserId: user.id,
+      companyId: requestedCompanyId,
+      status: { in: ["PENDING", "APPROVED", "REJECTED"] },
+      resultDeliveredAt: null,
+    },
+    include: { company: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!request) return null;
+  if (request.status === "PENDING") {
+    return Response.json({ error: waitingDecisionMessage(), code: "PENDING_REVIEW" }, { status: 403 });
+  }
+  if (!isVisibleNow(request, now)) {
+    return Response.json({ error: waitingVisibilityMessage(), code: `${request.status}_WAITING_DELAY` }, { status: 403 });
+  }
+  if (request.status === "REJECTED") {
+    await prisma.userAccessRequest.update({
+      where: { id: request.id },
+      data: { resultDeliveredAt: now },
+    });
+    return Response.json(
+      { error: request.reviewNote || "Votre demande d'accès a été rejetée.", code: "REQUEST_REJECTED" },
+      { status: 403 },
+    );
+  }
+  if (request.status === "APPROVED") {
+    await activateApprovedAccessRequest(request);
+    return { activated: true };
+  }
+  return null;
+}

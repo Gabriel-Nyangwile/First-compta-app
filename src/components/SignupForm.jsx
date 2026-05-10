@@ -2,10 +2,29 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SignupForm() {
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [form, setForm] = useState({ username: "", email: "", password: "", companyId: "" });
+  const [companyRequest, setCompanyRequest] = useState({ requestedName: "", legalForm: "", currency: "CDF" });
+  const [companies, setCompanies] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCompanies() {
+      try {
+        const res = await fetch("/api/companies/public", { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled) setCompanies(data.companies || []);
+      } catch {
+        if (!cancelled) setCompanies([]);
+      }
+    }
+    loadCompanies();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -14,16 +33,27 @@ export default function SignupForm() {
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        companyRequest: form.companyId === "NEW" ? companyRequest : undefined,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
       setError(data.error || "Erreur inconnue");
     } else {
       setSuccess(data.message || "Demande d'inscription envoyée.");
-      setForm({ username: "", email: "", password: "" });
+      try {
+        localStorage.setItem(
+          "pendingAccessRequest",
+          JSON.stringify({ message: data.message, request: data.request, createdAt: new Date().toISOString() }),
+        );
+        window.dispatchEvent(new Event("access:pending"));
+      } catch {}
+      setForm({ username: "", email: "", password: "", companyId: "" });
+      setCompanyRequest({ requestedName: "", legalForm: "", currency: "CDF" });
       setTimeout(() => {
-        router.push('/auth/signin');
+        router.push('/');
       }, 1500);
     }
   }
@@ -42,8 +72,58 @@ export default function SignupForm() {
     <form onSubmit={handleSubmit} className="max-w-md mx-auto p-6 bg-white">
       <h2 className="text-xl text-center font-bold mb-10">Inscription</h2>
       <p className="text-sm text-gray-600 mb-6">
-        L'inscription crée une demande d'accès. Un PLATFORM_ADMIN doit approuver votre compte avant votre première connexion.
+        L'inscription crée une demande d'accès. Une réponse sera disponible dans le délai communiqué après validation.
       </p>
+      <label htmlFor="companyId" className="f-label">Société demandée</label>
+      <select
+        id="companyId"
+        className="f-auth-input"
+        value={form.companyId}
+        onChange={(e) => setForm((f) => ({ ...f, companyId: e.target.value }))}
+        required
+      >
+        <option value="">-- Choisir --</option>
+        {companies.map((company) => (
+          <option key={company.id} value={company.id}>
+            {company.name} · {company.id.slice(0, 8)}
+          </option>
+        ))}
+        <option value="NEW">Nouvelle société</option>
+      </select>
+      {form.companyId === "NEW" ? (
+        <div className="border border-slate-200 rounded p-3 my-4">
+          <label htmlFor="requestedName" className="f-label">Nom de la société</label>
+          <input
+            type="text"
+            id="requestedName"
+            name="requestedName"
+            placeholder="Nom de la société"
+            value={companyRequest.requestedName}
+            onChange={(e) => setCompanyRequest((f) => ({ ...f, requestedName: e.target.value }))}
+            className="f-auth-input"
+            required
+          />
+          <label htmlFor="legalForm" className="f-label">Forme juridique</label>
+          <input
+            type="text"
+            id="legalForm"
+            name="legalForm"
+            placeholder="SARL, SA..."
+            value={companyRequest.legalForm}
+            onChange={(e) => setCompanyRequest((f) => ({ ...f, legalForm: e.target.value }))}
+            className="f-auth-input"
+          />
+          <label htmlFor="currency" className="f-label">Devise</label>
+          <input
+            type="text"
+            id="currency"
+            name="currency"
+            value={companyRequest.currency}
+            onChange={(e) => setCompanyRequest((f) => ({ ...f, currency: e.target.value.toUpperCase() }))}
+            className="f-auth-input"
+          />
+        </div>
+      ) : null}
       <label 
             htmlFor="userName"
             className='f-label'>Nom ou pseudo</label>

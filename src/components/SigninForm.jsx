@@ -25,7 +25,11 @@ export default function SigninForm() {
       try {
         const res = await fetch("/api/companies/public", { cache: "no-store" });
         const data = await readJsonResponse(res);
-        if (!cancelled) setCompanies(data.companies || []);
+        const list = data.companies || [];
+        if (!cancelled) setCompanies(list);
+        if (!cancelled && saved && !list.some((company) => company.id === saved)) {
+          setPending("");
+        }
         if (!cancelled && !res.ok) setError(data.error || "Impossible de charger les sociétés.");
       } catch {
         if (!cancelled) setCompanies([]);
@@ -62,13 +66,22 @@ export default function SigninForm() {
     const data = await readJsonResponse(res);
     if (!res.ok) {
       setError(data.error || "Erreur inconnue");
-      router.push('/')
-      
+      if (["REQUEST_REJECTED", "PENDING_REVIEW", "APPROVED_WAITING_DELAY", "REJECTED_WAITING_DELAY"].includes(data.code)) {
+        try {
+          localStorage.setItem(
+            "pendingAccessRequest",
+            JSON.stringify({ message: data.error, code: data.code, updatedAt: new Date().toISOString() }),
+          );
+          window.dispatchEvent(new Event("access:pending"));
+        } catch {}
+      }
+      return;
     } else {
       setUser(data.user);
       // Enregistre l'utilisateur dans le localStorage pour le layout global
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("userId", data.user.id);
+      localStorage.removeItem("pendingAccessRequest");
       // Cookie simple pour le middleware RBAC (dev only)
       if (data.user?.role) {
         document.cookie = `user-role=${encodeURIComponent(data.user.role)}; path=/`;
@@ -106,7 +119,7 @@ export default function SigninForm() {
         <option value="">-- Choisir --</option>
         {companies.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.name} {c.legalForm ? `(${c.legalForm})` : ""}
+            {c.name} {c.legalForm ? `(${c.legalForm})` : ""} · {c.id.slice(0, 8)}
           </option>
         ))}
         <option value="NEW">Nouvelle société</option>

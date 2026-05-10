@@ -10,6 +10,7 @@ export default function Navbar() {
   const [companies, setCompanies] = useState([]);
   const [pendingCompanyId, setPendingCompanyId] = useState("");
   const [activeCompanyId, setActiveCompanyId] = useState("");
+  const [pendingAccess, setPendingAccess] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,10 +26,18 @@ export default function Navbar() {
     const readUser = () => {
       try {
         const raw = localStorage.getItem('user');
+        const pendingRaw = localStorage.getItem("pendingAccessRequest");
+        const parsedPending = pendingRaw ? JSON.parse(pendingRaw) : null;
+        const pendingSince = parsedPending?.createdAt || parsedPending?.updatedAt;
+        const pendingExpired =
+          pendingSince && Date.now() - new Date(pendingSince).getTime() >= 24 * 60 * 60 * 1000;
+        if (pendingExpired) localStorage.removeItem("pendingAccessRequest");
         if (!cancelled) setUser(raw ? JSON.parse(raw) : null);
+        if (!cancelled) setPendingAccess(pendingExpired ? null : parsedPending);
         if (!cancelled) setActiveCompanyId(readCookie("company-id"));
       } catch {
         if (!cancelled) setUser(null);
+        if (!cancelled) setPendingAccess(null);
         if (!cancelled) setActiveCompanyId("");
       } finally { finish(); }
     };
@@ -38,14 +47,17 @@ export default function Navbar() {
     const onStorage = (e) => { if (e.key === 'user') { setLoadingUser(true); readUser(); } };
     const onLogin = () => { setLoadingUser(true); readUser(); };
     const onLogout = () => { setLoadingUser(true); readUser(); };
+    const onPending = () => { setLoadingUser(true); readUser(); };
     window.addEventListener('storage', onStorage);
     window.addEventListener('user:login', onLogin);
     window.addEventListener('user:logout', onLogout);
+    window.addEventListener('access:pending', onPending);
     return () => {
       cancelled = true;
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('user:login', onLogin);
       window.removeEventListener('user:logout', onLogout);
+      window.removeEventListener('access:pending', onPending);
     };
   }, []);
 
@@ -127,6 +139,13 @@ export default function Navbar() {
       );
     }
     if (!user) {
+      if (pendingAccess) {
+        return (
+          <span className="text-xs sm:text-sm text-blue-100 max-w-[320px] truncate" title={pendingAccess.message}>
+            Demande en attente
+          </span>
+        );
+      }
       return (
         <>
           <div className="hidden sm:flex items-center gap-2 text-xs">
@@ -140,7 +159,7 @@ export default function Navbar() {
               <option value="">-- Choisir --</option>
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} {c.legalForm ? `(${c.legalForm})` : ""}
+                  {c.name} {c.legalForm ? `(${c.legalForm})` : ""} · {c.id.slice(0, 8)}
                 </option>
               ))}
               <option value="NEW">Nouvelle société</option>
@@ -163,7 +182,7 @@ export default function Navbar() {
             <option value="">Société...</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
-                {company.name}
+                {company.name} · {company.id.slice(0, 8)}
               </option>
             ))}
           </select>

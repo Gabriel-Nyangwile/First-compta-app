@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkPerm } from "@/lib/authz";
 import { getRequestActor, getRequestRole } from "@/lib/requestAuth";
+import { reviewVisibleAfter } from "@/lib/accessReview";
 
 export async function POST(req, { params }) {
   const actor = await getRequestActor(req);
@@ -24,6 +25,7 @@ export async function POST(req, { params }) {
         status: "REJECTED",
         reviewedByUserId: actor.userId,
         reviewedAt: new Date(),
+        visibleAfterAt: reviewVisibleAfter(),
         reviewNote: body?.reviewNote?.toString?.().trim() || "Rejected",
       },
     });

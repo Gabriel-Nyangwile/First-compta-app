@@ -115,6 +115,13 @@ enum CompanyCreationRequestStatus {
   CANCELLED
 }
 
+enum UserAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model Company {
   id              String   @id @default(uuid())
   name            String
@@ -137,6 +144,7 @@ model Company {
   users                         User[]
   memberships                   CompanyMembership[]
   creationRequests              CompanyCreationRequest[]
+  accessRequests                UserAccessRequest[]
   accounts                      Account[]
   clients                       Client[]
   suppliers                     Supplier[]
@@ -227,6 +235,8 @@ model User {
   memberships                   CompanyMembership[]
   requestedCompanies            CompanyCreationRequest[] @relation("CompanyCreationRequester")
   reviewedCompanyRequests       CompanyCreationRequest[] @relation("CompanyCreationReviewer")
+  accessRequests                UserAccessRequest[]      @relation("UserAccessRequester")
+  reviewedAccessRequests        UserAccessRequest[]      @relation("UserAccessReviewer")
   preparedManualJournalEntries  JournalEntry[]           @relation("ManualJournalPreparedBy")
   validatedManualJournalEntries JournalEntry[]           @relation("ManualJournalValidatedBy")
   invoices                      Invoice[]
@@ -255,37 +265,62 @@ model CompanyMembership {
   @@index([companyId, isDefault])
 }
 
+model UserAccessRequest {
+  id                String                  @id @default(uuid())
+  requesterUserId   String
+  requesterUser     User                    @relation("UserAccessRequester", fields: [requesterUserId], references: [id])
+  companyId         String
+  company           Company                 @relation(fields: [companyId], references: [id])
+  status            UserAccessRequestStatus @default(PENDING)
+  requestedRole     UserRole                @default(VIEWER)
+  reviewedByUserId  String?
+  reviewedByUser    User?                   @relation("UserAccessReviewer", fields: [reviewedByUserId], references: [id])
+  reviewNote        String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  reviewedAt        DateTime?
+  visibleAfterAt    DateTime?
+  resultDeliveredAt DateTime?
+
+  @@index([companyId, status, createdAt])
+  @@index([requesterUserId, status])
+  @@index([visibleAfterAt])
+}
+
 model CompanyCreationRequest {
-  id               String                       @id @default(uuid())
-  requesterUserId  String
-  requesterUser    User                         @relation("CompanyCreationRequester", fields: [requesterUserId], references: [id])
-  reviewedByUserId String?
-  reviewedByUser   User?                        @relation("CompanyCreationReviewer", fields: [reviewedByUserId], references: [id])
-  createdCompanyId String?
-  createdCompany   Company?                     @relation(fields: [createdCompanyId], references: [id])
-  status           CompanyCreationRequestStatus @default(PENDING)
-  requestedName    String
-  address          String?
-  legalForm        String?
-  currency         String                       @default("XOF")
-  rccmNumber       String?
-  idNatNumber      String?
-  taxNumber        String?
-  cnssNumber       String?
-  onemNumber       String?
-  inppNumber       String?
-  vatPolicy        String?
-  country          String?
-  timezone         String?
-  fiscalYearStart  String?
-  reviewNote       String?
-  createdAt        DateTime                     @default(now())
-  updatedAt        DateTime                     @updatedAt
-  reviewedAt       DateTime?
+  id                String                       @id @default(uuid())
+  requesterUserId   String
+  requesterUser     User                         @relation("CompanyCreationRequester", fields: [requesterUserId], references: [id])
+  reviewedByUserId  String?
+  reviewedByUser    User?                        @relation("CompanyCreationReviewer", fields: [reviewedByUserId], references: [id])
+  createdCompanyId  String?
+  createdCompany    Company?                     @relation(fields: [createdCompanyId], references: [id])
+  status            CompanyCreationRequestStatus @default(PENDING)
+  requestedName     String
+  address           String?
+  legalForm         String?
+  currency          String                       @default("XOF")
+  rccmNumber        String?
+  idNatNumber       String?
+  taxNumber         String?
+  cnssNumber        String?
+  onemNumber        String?
+  inppNumber        String?
+  vatPolicy         String?
+  country           String?
+  timezone          String?
+  fiscalYearStart   String?
+  reviewNote        String?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  reviewedAt        DateTime?
+  visibleAfterAt    DateTime?
+  resultDeliveredAt DateTime?
 
   @@index([requesterUserId, status])
   @@index([status, createdAt])
   @@index([createdCompanyId])
+  @@index([visibleAfterAt])
 }
 
 model Account {
@@ -1016,22 +1051,22 @@ model StorageLocation {
 }
 
 model Product {
-  id                      String                @id @default(uuid())
+  id                      String                        @id @default(uuid())
   companyId               String
-  company                 Company               @relation(fields: [companyId], references: [id])
+  company                 Company                       @relation(fields: [companyId], references: [id])
   sku                     String
   name                    String
   description             String?
-  unit                    String                @default("PCS")
-  isActive                Boolean               @default(true)
-  minStockAlert           Decimal?              @db.Decimal(14, 3)
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
-  stockNature             ProductStockNature    @default(PURCHASED)
+  unit                    String                        @default("PCS")
+  isActive                Boolean                       @default(true)
+  minStockAlert           Decimal?                      @db.Decimal(14, 3)
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+  stockNature             ProductStockNature            @default(PURCHASED)
   inventoryAccountId      String?
-  inventoryAccount        Account?              @relation("ProductInventoryAccount", fields: [inventoryAccountId], references: [id])
+  inventoryAccount        Account?                      @relation("ProductInventoryAccount", fields: [inventoryAccountId], references: [id])
   stockVariationAccountId String?
-  stockVariationAccount   Account?              @relation("ProductStockVariationAccount", fields: [stockVariationAccountId], references: [id])
+  stockVariationAccount   Account?                      @relation("ProductStockVariationAccount", fields: [stockVariationAccountId], references: [id])
   // Relations
   invoiceLines            InvoiceLine[]
   // Phase 3 back-relations
@@ -1044,12 +1079,12 @@ model Product {
   returnOrderLines        ReturnOrderLine[]
   stockWithdrawalLines    StockWithdrawalLine[]
   salesOrderLines         SalesOrderLine[]
-  inventoryCountLines     InventoryCountLine[]  @relation("InventoryCountProduct")
-  billOfMaterials         BillOfMaterial[]      @relation("BillOfMaterialFinishedProduct")
-  billOfMaterialLines     BillOfMaterialLine[]  @relation("BillOfMaterialComponentProduct")
-  manufacturingOrders     ManufacturingOrder[]  @relation("ManufacturingOrderProduct")
+  inventoryCountLines     InventoryCountLine[]          @relation("InventoryCountProduct")
+  billOfMaterials         BillOfMaterial[]              @relation("BillOfMaterialFinishedProduct")
+  billOfMaterialLines     BillOfMaterialLine[]          @relation("BillOfMaterialComponentProduct")
+  manufacturingOrders     ManufacturingOrder[]          @relation("ManufacturingOrderProduct")
   manufacturingComponents ManufacturingOrderComponent[] @relation("ManufacturingComponentProduct")
-  manufacturingOutputs    ManufacturingOutput[] @relation("ManufacturingOutputProduct")
+  manufacturingOutputs    ManufacturingOutput[]         @relation("ManufacturingOutputProduct")
 
   @@unique([companyId, sku])
   @@index([name])
@@ -1071,37 +1106,37 @@ model ProductInventory {
 }
 
 model StockMovement {
-  id                    String               @id @default(uuid())
-  companyId             String
-  company               Company              @relation(fields: [companyId], references: [id])
-  date                  DateTime             @default(now())
-  productId             String
-  product               Product              @relation(fields: [productId], references: [id])
-  movementType          StockMovementType
-  stage                 StockMovementStage   @default(AVAILABLE)
-  quantity              Decimal              @db.Decimal(14, 3)
-  unitCost              Decimal?             @db.Decimal(14, 4)
-  totalCost             Decimal?             @db.Decimal(16, 2)
+  id                            String                       @id @default(uuid())
+  companyId                     String
+  company                       Company                      @relation(fields: [companyId], references: [id])
+  date                          DateTime                     @default(now())
+  productId                     String
+  product                       Product                      @relation(fields: [productId], references: [id])
+  movementType                  StockMovementType
+  stage                         StockMovementStage           @default(AVAILABLE)
+  quantity                      Decimal                      @db.Decimal(14, 3)
+  unitCost                      Decimal?                     @db.Decimal(14, 4)
+  totalCost                     Decimal?                     @db.Decimal(16, 2)
   // Provenance facture (sortie vente) - optionnel
-  invoiceLineId         String?
-  invoiceLine           InvoiceLine?         @relation(fields: [invoiceLineId], references: [id])
+  invoiceLineId                 String?
+  invoiceLine                   InvoiceLine?                 @relation(fields: [invoiceLineId], references: [id])
   // Provenance reception (entree)
   // Reference justificative unique (generee via Sequence). Optionnel pour backfill.
-  voucherRef            String?
-  goodsReceiptLineId    String?
-  goodsReceiptLine      GoodsReceiptLine?    @relation(fields: [goodsReceiptLineId], references: [id])
-  returnOrderLineId     String?
-  returnOrderLine       ReturnOrderLine?     @relation(fields: [returnOrderLineId], references: [id])
-  stockWithdrawalLineId String?
-  stockWithdrawalLine   StockWithdrawalLine? @relation(fields: [stockWithdrawalLineId], references: [id])
+  voucherRef                    String?
+  goodsReceiptLineId            String?
+  goodsReceiptLine              GoodsReceiptLine?            @relation(fields: [goodsReceiptLineId], references: [id])
+  returnOrderLineId             String?
+  returnOrderLine               ReturnOrderLine?             @relation(fields: [returnOrderLineId], references: [id])
+  stockWithdrawalLineId         String?
+  stockWithdrawalLine           StockWithdrawalLine?         @relation(fields: [stockWithdrawalLineId], references: [id])
   manufacturingOrderComponentId String?
   manufacturingOrderComponent   ManufacturingOrderComponent? @relation(fields: [manufacturingOrderComponentId], references: [id])
   manufacturingOutputId         String?
-  manufacturingOutput           ManufacturingOutput? @relation(fields: [manufacturingOutputId], references: [id])
-  inventoryCountLineId  String?              @unique
-  inventoryCountLine    InventoryCountLine?  @relation("InventoryCountMovement", fields: [inventoryCountLineId], references: [id])
+  manufacturingOutput           ManufacturingOutput?         @relation(fields: [manufacturingOutputId], references: [id])
+  inventoryCountLineId          String?                      @unique
+  inventoryCountLine            InventoryCountLine?          @relation("InventoryCountMovement", fields: [inventoryCountLineId], references: [id])
   // Futur: inventoryAdjustmentId
-  createdAt             DateTime             @default(now())
+  createdAt                     DateTime                     @default(now())
 
   @@unique([companyId, voucherRef])
   @@index([productId, date])
@@ -1115,20 +1150,20 @@ model StockMovement {
 }
 
 model BillOfMaterial {
-  id        String               @id @default(uuid())
-  companyId String
-  company   Company              @relation(fields: [companyId], references: [id])
-  code      String
-  label     String
-  productId String
-  product   Product              @relation("BillOfMaterialFinishedProduct", fields: [productId], references: [id])
-  status    BillOfMaterialStatus @default(DRAFT)
-  version   Int                  @default(1)
-  notes     String?
-  lines     BillOfMaterialLine[]
+  id                  String               @id @default(uuid())
+  companyId           String
+  company             Company              @relation(fields: [companyId], references: [id])
+  code                String
+  label               String
+  productId           String
+  product             Product              @relation("BillOfMaterialFinishedProduct", fields: [productId], references: [id])
+  status              BillOfMaterialStatus @default(DRAFT)
+  version             Int                  @default(1)
+  notes               String?
+  lines               BillOfMaterialLine[]
   manufacturingOrders ManufacturingOrder[]
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([companyId, code])
   @@unique([companyId, productId, version])
@@ -1137,50 +1172,50 @@ model BillOfMaterial {
 }
 
 model BillOfMaterialLine {
-  id                  String         @id @default(uuid())
-  companyId           String
-  company             Company        @relation(fields: [companyId], references: [id])
-  billOfMaterialId    String
-  billOfMaterial      BillOfMaterial @relation(fields: [billOfMaterialId], references: [id], onDelete: Cascade)
-  componentProductId  String
-  componentProduct    Product        @relation("BillOfMaterialComponentProduct", fields: [componentProductId], references: [id])
-  quantity            Decimal        @db.Decimal(14, 3)
-  lossRate            Decimal        @default(0) @db.Decimal(6, 4)
-  notes               String?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  id                 String         @id @default(uuid())
+  companyId          String
+  company            Company        @relation(fields: [companyId], references: [id])
+  billOfMaterialId   String
+  billOfMaterial     BillOfMaterial @relation(fields: [billOfMaterialId], references: [id], onDelete: Cascade)
+  componentProductId String
+  componentProduct   Product        @relation("BillOfMaterialComponentProduct", fields: [componentProductId], references: [id])
+  quantity           Decimal        @db.Decimal(14, 3)
+  lossRate           Decimal        @default(0) @db.Decimal(6, 4)
+  notes              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([billOfMaterialId])
   @@index([componentProductId])
 }
 
 model ManufacturingOrder {
-  id               String                   @id @default(uuid())
-  companyId        String
-  company          Company                  @relation(fields: [companyId], references: [id])
-  number           String
-  status           ManufacturingOrderStatus @default(DRAFT)
-  billOfMaterialId String?
-  billOfMaterial   BillOfMaterial?          @relation(fields: [billOfMaterialId], references: [id])
-  productId        String
-  product          Product                  @relation("ManufacturingOrderProduct", fields: [productId], references: [id])
-  plannedQty       Decimal                  @db.Decimal(14, 3)
-  producedQty      Decimal                  @default(0) @db.Decimal(14, 3)
-  scrapQty         Decimal                  @default(0) @db.Decimal(14, 3)
+  id                String                        @id @default(uuid())
+  companyId         String
+  company           Company                       @relation(fields: [companyId], references: [id])
+  number            String
+  status            ManufacturingOrderStatus      @default(DRAFT)
+  billOfMaterialId  String?
+  billOfMaterial    BillOfMaterial?               @relation(fields: [billOfMaterialId], references: [id])
+  productId         String
+  product           Product                       @relation("ManufacturingOrderProduct", fields: [productId], references: [id])
+  plannedQty        Decimal                       @db.Decimal(14, 3)
+  producedQty       Decimal                       @default(0) @db.Decimal(14, 3)
+  scrapQty          Decimal                       @default(0) @db.Decimal(14, 3)
   storageLocationId String?
-  wipAccountId     String
-  wipAccount       Account                  @relation("ManufacturingOrderWipAccount", fields: [wipAccountId], references: [id])
-  plannedDate      DateTime?
-  startedAt        DateTime?
-  completedAt      DateTime?
-  closedAt         DateTime?
-  notes            String?
-  createdById      String?
-  createdBy        User?                    @relation("ManufacturingOrderCreatedBy", fields: [createdById], references: [id])
-  components       ManufacturingOrderComponent[]
-  outputs          ManufacturingOutput[]
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
+  wipAccountId      String
+  wipAccount        Account                       @relation("ManufacturingOrderWipAccount", fields: [wipAccountId], references: [id])
+  plannedDate       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  closedAt          DateTime?
+  notes             String?
+  createdById       String?
+  createdBy         User?                         @relation("ManufacturingOrderCreatedBy", fields: [createdById], references: [id])
+  components        ManufacturingOrderComponent[]
+  outputs           ManufacturingOutput[]
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
 
   @@unique([companyId, number])
   @@index([status])
@@ -1191,20 +1226,20 @@ model ManufacturingOrder {
 }
 
 model ManufacturingOrderComponent {
-  id                    String                       @id @default(uuid())
-  companyId             String
-  company               Company                      @relation(fields: [companyId], references: [id])
-  manufacturingOrderId  String
-  manufacturingOrder    ManufacturingOrder           @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
-  productId             String
-  product               Product                      @relation("ManufacturingComponentProduct", fields: [productId], references: [id])
-  plannedQty            Decimal                      @db.Decimal(14, 3)
-  consumedQty           Decimal                      @default(0) @db.Decimal(14, 3)
-  varianceQty           Decimal                      @default(0) @db.Decimal(14, 3)
-  status                ManufacturingComponentStatus @default(PLANNED)
-  stockMovements        StockMovement[]
-  createdAt             DateTime                     @default(now())
-  updatedAt             DateTime                     @updatedAt
+  id                   String                       @id @default(uuid())
+  companyId            String
+  company              Company                      @relation(fields: [companyId], references: [id])
+  manufacturingOrderId String
+  manufacturingOrder   ManufacturingOrder           @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
+  productId            String
+  product              Product                      @relation("ManufacturingComponentProduct", fields: [productId], references: [id])
+  plannedQty           Decimal                      @db.Decimal(14, 3)
+  consumedQty          Decimal                      @default(0) @db.Decimal(14, 3)
+  varianceQty          Decimal                      @default(0) @db.Decimal(14, 3)
+  status               ManufacturingComponentStatus @default(PLANNED)
+  stockMovements       StockMovement[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
 
   @@index([manufacturingOrderId])
   @@index([productId])
@@ -1212,20 +1247,20 @@ model ManufacturingOrderComponent {
 }
 
 model ManufacturingOutput {
-  id                    String             @id @default(uuid())
-  companyId             String
-  company               Company            @relation(fields: [companyId], references: [id])
-  manufacturingOrderId  String
-  manufacturingOrder    ManufacturingOrder @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
-  productId             String
-  product               Product            @relation("ManufacturingOutputProduct", fields: [productId], references: [id])
-  quantity              Decimal            @db.Decimal(14, 3)
-  unitCost              Decimal            @db.Decimal(14, 4)
-  declaredAt            DateTime           @default(now())
-  notes                 String?
-  stockMovements        StockMovement[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  id                   String             @id @default(uuid())
+  companyId            String
+  company              Company            @relation(fields: [companyId], references: [id])
+  manufacturingOrderId String
+  manufacturingOrder   ManufacturingOrder @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
+  productId            String
+  product              Product            @relation("ManufacturingOutputProduct", fields: [productId], references: [id])
+  quantity             Decimal            @db.Decimal(14, 3)
+  unitCost             Decimal            @db.Decimal(14, 4)
+  declaredAt           DateTime           @default(now())
+  notes                String?
+  stockMovements       StockMovement[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([manufacturingOrderId])
   @@index([productId])

@@ -29,6 +29,7 @@ export default function AdminUsersPage() {
   const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [accessRequests, setAccessRequests] = useState([]);
 
   const normalizedCurrentRole = currentUser?.role?.toString?.().toUpperCase();
   const canSelectCompany = ["PLATFORM_ADMIN", "SUPERADMIN"].includes(normalizedCurrentRole);
@@ -82,6 +83,21 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }
+
+  async function loadAccessRequests() {
+    if (!selectedCompanyId) return;
+    try {
+      const params = new URLSearchParams();
+      params.set("companyId", selectedCompanyId);
+      params.set("status", "PENDING");
+      const res = await fetch(`/api/user-access-requests?${params.toString()}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Erreur chargement demandes d'accès");
+      setAccessRequests(data.requests || []);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
   
 
   useEffect(() => {
@@ -89,8 +105,32 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedCompanyId || !canSelectCompany) loadUsers();
+    if (selectedCompanyId || !canSelectCompany) {
+      loadUsers();
+      loadAccessRequests();
+    }
   }, [q, page, pageSize, selectedCompanyId, canSelectCompany]);
+
+  async function reviewAccessRequest(id, action) {
+    setError("");
+    setSuccess("");
+    const fallback = action === "approve" ? "Approved" : "Rejected";
+    const reviewNote = prompt("Message au demandeur", fallback) || fallback;
+    try {
+      const res = await fetch(`/api/user-access-requests/${id}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewNote }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Traitement échoué");
+      setSuccess("Demande traitée. La réponse sera visible après le délai de 24 heures.");
+      await loadAccessRequests();
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   async function deleteUser(id) {
     if (!confirm("Supprimer cet utilisateur ?")) return;
@@ -248,6 +288,40 @@ export default function AdminUsersPage() {
         </form>
 
         <div className="bg-white shadow p-4 rounded border">
+          <h2 className="font-semibold mb-3">Demandes d'accès en attente</h2>
+          {!selectedCompanyId ? <p className="text-sm text-gray-500">Sélectionnez une société.</p> : null}
+          {selectedCompanyId && accessRequests.length === 0 ? (
+            <p className="text-sm text-gray-500 mb-4">Aucune demande d'accès en attente.</p>
+          ) : null}
+          {accessRequests.length ? (
+            <ul className="divide-y divide-gray-200 mb-5 border rounded">
+              {accessRequests.map((request) => (
+                <li key={request.id} className="p-3 text-sm">
+                  <div className="font-medium">{request.requesterUser?.username || request.requesterUser?.email}</div>
+                  <div className="text-xs text-gray-600">{request.requesterUser?.email}</div>
+                  <div className="text-xs text-gray-500">
+                    Soumis le {new Date(request.createdAt).toLocaleString()} • Rôle demandé: {request.requestedRole}
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      className="px-2 py-1 bg-emerald-600 text-white text-xs rounded"
+                      onClick={() => reviewAccessRequest(request.id, "approve")}
+                    >
+                      Approuver
+                    </button>
+                    <button
+                      type="button"
+                      className="px-2 py-1 border rounded text-xs text-red-600"
+                      onClick={() => reviewAccessRequest(request.id, "reject")}
+                    >
+                      Rejeter
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <h2 className="font-semibold mb-3">Utilisateurs existants</h2>
           {canSelectCompany && selectedCompanyId ? (
             <p className="mb-3 text-xs text-slate-500">
