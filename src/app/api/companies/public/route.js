@@ -2,17 +2,6 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getRequestActor } from "@/lib/requestAuth";
 
-function isStrategicDemo(company) {
-  const normalized = company?.name
-    ?.toString?.()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-  return normalized?.includes("strategic business demo") || normalized?.includes("strategic business");
-}
-
 // GET /api/companies/public
 export async function GET(req) {
   try {
@@ -25,8 +14,7 @@ export async function GET(req) {
     const accessibleCompanyIds = new Set(actor?.user?.memberships?.map((item) => item.companyId) || []);
     const visibleCompanies = companies.filter((company) => {
       if (actor?.userId && !isPlatformAdmin) return accessibleCompanyIds.has(company.id);
-      if (!isStrategicDemo(company)) return true;
-      return isPlatformAdmin || accessibleCompanyIds.has(company.id);
+      return true;
     });
     return NextResponse.json({ companies: visibleCompanies });
   } catch (error) {
