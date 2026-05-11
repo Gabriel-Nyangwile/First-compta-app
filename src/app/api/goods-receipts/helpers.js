@@ -152,6 +152,7 @@ export async function recalcPurchaseOrderStatus(
       },
     });
     await audit(tx, {
+      companyId: po.companyId || companyId || null,
       entityType: "PurchaseOrder",
       entityId: po.id,
       action: "STATUS_CHANGE",
@@ -181,6 +182,7 @@ export async function recalcPurchaseOrderStatus(
       },
     });
     await audit(tx, {
+      companyId: po.companyId || companyId || null,
       entityType: "PurchaseOrder",
       entityId: po.id,
       action: "AUTO_CLOSE",

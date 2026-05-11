@@ -8,12 +8,14 @@
  * --fix  : applique la correction (comme le script backfill) pour celles qui sont inférables.
  * --limit: nombre d'exemples à afficher dans le rapport (défaut 10).
  * --json : sortie JSON structurée (utile CI / automatisation).
+ * --no-fail : conserve un code 0 même si des orphelins restent.
  */
 import prisma from '../src/lib/prisma.js';
 
 const args = process.argv.slice(2);
 const fix = args.includes('--fix');
 const asJson = args.includes('--json');
+const noFail = args.includes('--no-fail');
 const limitArg = (() => {
   const idx = args.indexOf('--limit');
   if (idx >= 0 && args[idx+1]) { const n = parseInt(args[idx+1],10); if (!isNaN(n) && n>0) return n; }
@@ -78,6 +80,9 @@ async function main() {
       out(['Remaining supplier orphans:', report.remaining.supplier]);
       out(['Remaining client orphans:', report.remaining.client]);
     }
+    if (!noFail && (report.remaining.supplier > 0 || report.remaining.client > 0)) {
+      process.exit(1);
+    }
     process.exit(0);
   }
 
@@ -100,6 +105,9 @@ async function main() {
     for (const ex of report.supplier.examples) out(['  example', ex.id, 'invoiceIn=', ex.incomingInvoiceId, 'inferred=', ex.inferredSupplierId]);
     out(['Client orphans:', report.client.count]);
     for (const ex of report.client.examples) out(['  example', ex.id, 'invoice=', ex.invoiceId, 'inferred=', ex.inferredClientId]);
+  }
+  if (!noFail && (report.supplier.count > 0 || report.client.count > 0)) {
+    process.exit(1);
   }
 }
 

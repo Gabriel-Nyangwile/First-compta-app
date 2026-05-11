@@ -6,6 +6,8 @@
  * - Create a return order and assert stock + PO updates
  */
 
+import { ensureLocalServer } from "./lib/ensure-local-server.js";
+
 let baseUrl =
   process.env.BASE_URL ||
   (process.env.PORT
@@ -411,9 +413,15 @@ function assert(condition, message) {
 }
 
 (async function main() {
+  let stopServer = () => {};
   try {
     console.log("--- TEST RETURN ORDER FLOW ---");
-    await waitForServer();
+    stopServer = await ensureLocalServer({
+      baseUrl,
+      healthPath: "/api/health",
+      label: "test-return-order",
+      disableEnv: "RETURN_ORDER_START_SERVER",
+    });
     const supplier = await ensureSupplier();
     const product = await createProduct("Produit retour test");
     const initialPO = await createPO(supplier.id, product, 5, 12.5);
@@ -526,12 +534,14 @@ function assert(condition, message) {
     assert(exceeded, "La création d'un retour excédentaire aurait dû échouer");
 
     console.log("[SUCCESS] Flux retour fournisseur validé.");
-    process.exit(0);
+    process.exitCode = 0;
   } catch (err) {
     console.error("[FAIL]", err.message);
     if (err.status) {
       console.error("Status:", err.status, "Payload:", err.data);
     }
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    stopServer();
   }
 })();

@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptsDir, "..");
+const emptyModuleUrl = "data:text/javascript,export default undefined;";
 
 function resolveAliasPath(specifier) {
   const relativePath = specifier.slice(2);
@@ -19,6 +20,10 @@ function resolveAliasPath(specifier) {
 }
 
 export async function resolve(specifier, context, defaultResolve) {
+  if (specifier === "server-only") {
+    return { url: emptyModuleUrl, shortCircuit: true };
+  }
+
   if (specifier.startsWith("@/")) {
     const resolvedPath = resolveAliasPath(specifier);
     if (!resolvedPath) {

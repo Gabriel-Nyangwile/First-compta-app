@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Basic HTTP integration test for inventory & margins.
 import assert from "assert";
+import { ensureLocalServer } from "./lib/ensure-local-server.js";
+
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 
 function authHeaders() {
@@ -37,6 +39,14 @@ async function findAccount(prefixes) {
 }
 
 async function main() {
+  const stopServer = await ensureLocalServer({
+    baseUrl: BASE,
+    healthPath: "/api/health",
+    label: "test-http-inventory",
+    disableEnv: "INVENTORY_START_SERVER",
+  });
+
+  try {
   console.log("HTTP test start (BASE=%s)", BASE);
   const inventoryAccount = await findAccount(["31"]);
   const variationAccount = await findAccount(["603", "701"]);
@@ -114,6 +124,9 @@ async function main() {
     margins.cogs
   );
   console.log("HTTP test completed.");
+  } finally {
+    stopServer();
+  }
 }
 
 main().catch((e) => {

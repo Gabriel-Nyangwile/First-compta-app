@@ -67,6 +67,7 @@ export async function POST(request, rawContext) {
       try {
         const mod = await import("@/lib/audit");
         await mod.audit(tx, {
+          companyId,
           entityType: "PurchaseOrder",
           entityId: id,
           action: "APPROVE",

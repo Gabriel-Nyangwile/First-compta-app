@@ -9,6 +9,8 @@
  *  4. Idempotence: annuler deux fois renvoie 409 la seconde avec message BC déjà cancelled.
  */
 
+import { ensureLocalServer } from "./lib/ensure-local-server.js";
+
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 
 async function waitReady(maxTries=24, delayMs=500) {
@@ -118,9 +120,15 @@ async function putAwayAllLines(receipt) {
 }
 
 (async function main(){
+  let stopServer = () => {};
   try {
     console.log('--- TEST PURCHASE ORDER CANCEL ---');
-    await waitReady();
+    stopServer = await ensureLocalServer({
+      baseUrl: BASE,
+      healthPath: '/api/health',
+      label: 'test-purchase-order-cancel',
+      disableEnv: 'PURCHASE_ORDER_START_SERVER',
+    });
     const supplier = await ensureSupplier();
     const pA = await createProduct('Prod A');
     const pB = await createProduct('Prod B');
@@ -160,5 +168,7 @@ async function putAwayAllLines(receipt) {
   } catch (e) {
     console.error('❌ Echec test annulation BC:', e.status, e.message, e.data||'');
     process.exit(1);
+  } finally {
+    stopServer();
   }
 })();

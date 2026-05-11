@@ -15,6 +15,7 @@
  */
 
 // Node 18+ fournit fetch globalement; aucune dépendance cross-fetch nécessaire.
+import { ensureLocalServer } from "./lib/ensure-local-server.js";
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 console.log("[INFO] BASE:", BASE);
@@ -460,9 +461,15 @@ async function closePO(po) {
 }
 
 (async function main() {
+  let stopServer = () => {};
   try {
     console.log("--- TEST PURCHASE ORDER FLOW ---");
-    await waitForServer();
+    stopServer = await ensureLocalServer({
+      baseUrl: BASE,
+      healthPath: "/api/health",
+      label: "test-purchase-order-flow",
+      disableEnv: "PURCHASE_ORDER_START_SERVER",
+    });
     const supplier = await ensureSupplier();
     const pA = await createProduct("Produit A");
     const pB = await createProduct("Produit B");
@@ -542,5 +549,7 @@ async function closePO(po) {
       );
     }
     process.exit(1);
+  } finally {
+    stopServer();
   }
 })();

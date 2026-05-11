@@ -11,29 +11,17 @@
  - Intentional failure test: simulate detection by altering expectations (reported but does not break success exit unless real inconsistency)
 
  Usage: node scripts/regression-line-links.js
- Requires dev server running on http://localhost:3000 (Next.js) with database migrated.
+ Starts the local dev server automatically when BASE_URL points to localhost and no server is running.
 
  Exit codes:
  0 success, 1 failure.
 */
 
 import assert from 'assert';
-import http from 'http';
+import { ensureLocalServer } from './lib/ensure-local-server.js';
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-
-async function waitForServer(maxRetries = 20, delayMs = 500) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const res = await fetch(`${BASE}/api/account/search?query=7`, { method: 'GET' });
-      if (res.ok) return true;
-    } catch (e) {
-      // ignore until retries exhausted
-    }
-    await new Promise(r => setTimeout(r, delayMs));
-  }
-  throw new Error(`Serveur indisponible après ${maxRetries} tentatives sur ${BASE}`);
-}
+let stopServer = () => {};
 
 async function api(path, opts = {}) {
   const url = `${BASE}${path}`;
@@ -234,7 +222,12 @@ function intentionalFailureProbe(invoice) {
   const results = { steps: [] };
   try {
     results.steps.push('Attente disponibilité serveur');
-    await waitForServer();
+    stopServer = await ensureLocalServer({
+      baseUrl: BASE,
+      healthPath: '/api/account/search?query=7',
+      label: 'regression-line-links',
+      disableEnv: 'REGRESSION_START_SERVER',
+    });
     results.steps.push('Préparation entités de base');
     const { revenueAccount, expenseAccount, client, supplier } = await ensureDummyAccounts();
 
@@ -271,10 +264,12 @@ function intentionalFailureProbe(invoice) {
 
   console.log('✅ Test régression étendue OK');
   console.log(JSON.stringify({ ok: true, salesId: (!sales || sales.__skipped) ? null : sales.id, salesPatchedId: patchedSales ? patchedSales.id : null, purchaseId: purchase.id, purchasePatchedId: patchedPurchase.id, failureProbe, steps: results.steps }, null, 2));
-    process.exit(0);
+    process.exitCode = 0;
   } catch (e) {
     console.error('❌ Régression échouée:', e.message);
     console.error(e.stack);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    stopServer();
   }
 })();
