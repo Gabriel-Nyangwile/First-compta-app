@@ -521,7 +521,7 @@ Après clôture :
 7. lettrage paie contrôlé
 8. dossier PDF/CSV/XLSX archivé
 
-## 25. Captures prévues pour la version illustrée
+## 25. Références techniques
 
 Les captures à maintenir dans la documentation sont :
 
@@ -543,7 +543,7 @@ Emplacement prévu :
 - `docs/assets/personnel-payroll-guide/payslip-pdf.png`
 - `docs/assets/personnel-payroll-guide/payroll-summary-pdf.png`
 
-## 26. Références techniques
+### Fichiers de référence
 
 | Élément | Fichier |
 | --- | --- |

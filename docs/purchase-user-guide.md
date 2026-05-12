@@ -305,7 +305,7 @@ Le module applique les contrôles suivants :
 | Produit sans comptes de stock | rangement refusé |
 | Facture payée | modification et suppression bloquées |
 
-## 14. Points d'audit constatés
+## 14. Références techniques et audit
 
 Le flux métier principal est cohérent et protégé :
 

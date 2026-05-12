@@ -22,13 +22,20 @@ Ce projet couvre les principaux cycles opérationnels d'une entreprise tout en g
 
 Les détails fonctionnels et techniques de la logique comptable sont dans : `docs/accounting.md` (non traduit pour l'instant).
 
-Guides opératoires disponibles :
+Guides opératoires disponibles dans le menu **Aide** :
 
 - [Index des guides opératoires](./docs/user-guides-index.md)
 - [Guide opératoire - Ventes](./docs/sales-user-guide.md)
+- [Guide opératoire - Achats](./docs/purchase-user-guide.md)
 - [Guide opératoire - Trésorerie](./docs/treasury-user-guide.md)
 - [Manuel illustré - Opérations en capital](./docs/capital-operations-user-guide.md)
+- [Guide opératoire - Production](./docs/production-user-guide.md)
 - [Guide opératoire - Gestion du personnel et paie](./docs/personnel-payroll-user-guide.md)
+
+Les sections `Références techniques` sont masquées dans l'application.
+
+Documentation d'exploitation :
+
 - [Guide d'exploitation technique](./docs/technical-operations-guide.md)
 - [Checklist release go/no-go](./docs/release-checklist.md)
 

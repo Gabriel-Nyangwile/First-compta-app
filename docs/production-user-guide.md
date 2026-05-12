@@ -112,7 +112,7 @@ La consommation automatique prélève les quantités restantes prévues par la n
 - le compte de stock produit fini est débité
 - le compte de production en cours est crédité
 
-## 8. Contrôle technique
+## 8. Références techniques
 
 Le smoke de référence est :
 

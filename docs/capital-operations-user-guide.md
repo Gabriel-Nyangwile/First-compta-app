@@ -338,7 +338,7 @@ Hypothèse :
 | Saisir les associés avant les souscriptions | la souscription dépend de l'identité de l'associé |
 | Corriger vite une erreur de souscription | cela évite de propager l'erreur dans les appels de fonds |
 | Utiliser un compte `52xxxx` en banque | contrôle imposé par l'API de paiement |
-| Utiliser un compte `57xxxx` en caisse | contrôle imposé par l'API de paiement |
+| Utiliser un compte `57xxxx` en caisse | contrôle intégré au paiement |
 | Régulariser seulement après revue des encaissements | la régularisation se base sur le minimum entre appelé et payé |
 
 ## 13. Points d'attention
@@ -348,8 +348,8 @@ Hypothèse :
 | La création d'un associé n'écrit rien en comptabilité | opération purement administrative |
 | La mise à jour d'un associé n'écrit rien en comptabilité | correction de fiche uniquement |
 | La création de l'opération de capital n'écrit rien en comptabilité | le processus comptable commence à la souscription |
-| `premiumAmount` est stocké mais non comptabilisé automatiquement | seule la partie nominale produit une écriture aujourd'hui |
-| Les comptes décrits ici reflètent l'état actuel du code | ce manuel devra être mis à jour si le schéma comptable évolue |
+| La prime d'émission est suivie mais non comptabilisée automatiquement | seule la partie nominale produit une écriture aujourd'hui |
+| Les comptes décrits ici reflètent le paramétrage actuel | ce manuel devra être mis à jour si le schéma comptable évolue |
 
 ## 14. Références techniques
 

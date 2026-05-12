@@ -394,7 +394,7 @@ Avant une clôture mensuelle ou une revue de caisse, vérifier au minimum :
 | traiter vite les avances anciennes | évite les reliquats oubliés |
 | contrôler le **solde après** dans le grand livre pour les caisses | permet de repérer rapidement une anomalie |
 
-## 16. Captures prévues pour la version illustrée
+## 16. Références techniques
 
 L'environnement local permet de préparer la structure du guide illustré. Les captures à maintenir dans cette documentation sont :
 
@@ -408,7 +408,7 @@ Emplacement prévu :
 - `docs/assets/treasury-guide/treasury-suppliers.png`
 - `docs/assets/treasury-guide/treasury-supplier-detail.png`
 
-## 17. Références techniques
+### Fichiers de référence
 
 | Élément | Fichier |
 | --- | --- |

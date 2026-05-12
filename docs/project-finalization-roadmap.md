@@ -223,7 +223,7 @@ Industrialiser la livraison et figer la documentation produit.
 | R7-03 | Séparer suite courte et suite complète | fait: `ci:quick` / `ci:full` |
 | R7-04 | Mettre à jour README fonctionnel | fait: README principal et français réalignés |
 | R7-05 | Mettre à jour changelog | fait: section Unreleased complétée |
-| R7-06 | Relire guides utilisateur | docs alignées |
+| R7-06 | Relire guides utilisateur | fait: guides Aide relus, références techniques masquées |
 | R7-07 | Préparer checklist release | fait: [release-checklist.md](./release-checklist.md) |
 
 ### Critères de sortie
@@ -261,4 +261,4 @@ Mettre à jour ce tableau à chaque session.
 | Phase 4 - Paie | En cours renforcé | statut persistant `SETTLED`, build OK, guide mis à jour | exécuter smokes période totalement réglée |
 | Phase 5 - Ouverture | Clôture technique OK | écran `/opening`, écran `/closing`, imports API, à-nouveaux N+1, verrouillage exercice et smokes `test:opening`/`test:closing` OK | revue métier finale des modèles d'import |
 | Phase 6 - Exploitation | Terminé | packs longs durcis et validés | surveillance avant release |
-| Phase 7 - CI/docs | En cours avancé | CI courte, suite complète et checklist release en place | changelog et relecture finale guides |
+| Phase 7 - CI/docs | Terminé | CI courte, suite complète, checklist release et guides Aide alignés | préparer release go/no-go |

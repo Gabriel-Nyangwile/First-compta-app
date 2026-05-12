@@ -18,13 +18,16 @@ First Compta covers the main operating cycles of a small or medium business whil
 - Production BOMs and production orders
 - Opening balances, annual closing and multi-company access control
 
-Functional guides are exposed in the application under the Help menu. The documentation entry points are:
+User guides are exposed in the application under the Help menu. Technical reference sections are hidden there. Documentation entry points are:
 
 - [User guides index](./docs/user-guides-index.md)
+- [Accounting rules](./docs/accounting.md)
+
+Operational documentation:
+
 - [Technical operations guide](./docs/technical-operations-guide.md)
 - [Release go/no-go checklist](./docs/release-checklist.md)
 - [Vercel deployment guide](./docs/vercel-deployment.md)
-- [Accounting rules](./docs/accounting.md)
 
 ## 2. Tech Stack & Architecture
 

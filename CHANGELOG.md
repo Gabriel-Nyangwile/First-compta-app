@@ -14,6 +14,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Modifié
 
 - README principal et README français réalignés avec le périmètre actuel: multi-société, achats, trésorerie, stock, paie, production, ouverture/clôture et déploiement Vercel/Neon.
+- Guides utilisateurs relus pour l'affichage Aide: sections techniques masquées et index séparé entre guides utilisateur et documents d'exploitation.
 
 ## [v0.1.1] - 2025-11-17
 
