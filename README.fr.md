@@ -1,25 +1,24 @@
 # First Compta
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/Gabriel-Nyangwile/First-compta-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Gabriel-Nyangwile/First-compta-app/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)](#couverture)
-[![Dernière version](https://img.shields.io/github/v/release/Gabriel-Nyangwile/first-compta?display_name=tag&sort=semver&label=version)](https://github.com/Gabriel-Nyangwile/first-compta/releases)
+[![Dernière version](https://img.shields.io/github/v/release/Gabriel-Nyangwile/First-compta-app?display_name=tag&sort=semver&label=version)](https://github.com/Gabriel-Nyangwile/First-compta-app/releases)
 
 > Version française – Pour la version originale en anglais, voir `README.md`.
 
-Noyau de comptabilité en partie double léger (factures, écritures, TVA) construit avec Next.js App Router + Prisma.
+Application comptable et opérationnelle multi-société construite avec Next.js App Router, Prisma et PostgreSQL.
 
 ## 1. Vue d'ensemble
 
-Ce projet implémente une couche comptable minimale mais extensible pour les factures de vente dans une stack React moderne (Next.js) :
+Ce projet couvre les principaux cycles opérationnels d'une entreprise tout en gardant deux invariants centraux : la comptabilité en partie double et l'isolation stricte par société.
 
-- Écritures en partie double (créances clients, produits, TVA collectée)
-- Grand livre des écritures avec sens débit/crédit et types sémantiques
-- Cycle de vie de la facture : brouillon → émise → payée (via écritures de règlement)
-- Export CSV & filtrage des écritures
-- Gestion des clients (CRUD) avec compte client rattaché
-- Autocomplétion comptes & clients (recherche + création inline)
-
-Le périmètre actuel se concentre sur les ventes (clients). Un module fournisseurs / achats suivra (voir Feuille de route).
+- ventes, achats, factures fournisseurs et règlements ;
+- journal, grand livre, lettrage, balance, TVA et exports ;
+- trésorerie, autorisations, mouvements banque/caisse et trésorerie fournisseur ;
+- stock, commandes d'achat, réceptions, retours et contrôles CUMP ;
+- personnel, paie, comptabilisation de la paie et règlements ;
+- production, nomenclatures et ordres de fabrication ;
+- reprises d'ouverture, clôture annuelle et accès multi-société.
 
 Les détails fonctionnels et techniques de la logique comptable sont dans : `docs/accounting.md` (non traduit pour l'instant).
 
@@ -30,14 +29,16 @@ Guides opératoires disponibles :
 - [Guide opératoire - Trésorerie](./docs/treasury-user-guide.md)
 - [Manuel illustré - Opérations en capital](./docs/capital-operations-user-guide.md)
 - [Guide opératoire - Gestion du personnel et paie](./docs/personnel-payroll-user-guide.md)
+- [Guide d'exploitation technique](./docs/technical-operations-guide.md)
+- [Checklist release go/no-go](./docs/release-checklist.md)
 
 ## 2. Stack & Architecture
 
 | Couche | Technologie | Notes |
 |-------|-------------|-------|
-| UI / Routing | Next.js (App Router, React 19) | Composants serveur + client mélangés |
-| Accès aux données | Prisma (PostgreSQL) | Modèles typés & migrations |
-| Auth (temporaire) | localStorage simplifié + événements DOM | Approche dev uniquement (pas de sessions / JWT) |
+| UI / Routing | Next.js 15.5.x App Router, React 19 | Composants serveur et client |
+| Accès aux données | Prisma (PostgreSQL) | PostgreSQL local et cible Neon/Vercel |
+| Auth / Accès | Routes auth applicatives, rôles et `CompanyMembership` | `PLATFORM_ADMIN`, `SUPERADMIN` société, rôles opérationnels |
 | PDF | Route serveur + composant React | `InvoicePDF.jsx` rendu pour téléchargement |
 | Validation | Helper central (`lib/validation/client.js`) | Normalisation & enums contrôlés |
 
@@ -47,10 +48,11 @@ Les pages résident sous `src/app/` suivant les conventions App Router. Les comp
 
 Écrans clés :
 
-- `/invoices` liste & création
-- `/invoices/[id]` détail (avec téléchargement PDF)
-- `/clients` liste, création, édition
-- `/transactions` grand livre & export CSV
+- `/dashboard`
+- `/invoices`, `/incoming-invoices`, `/purchase-orders`, `/sales-orders`
+- `/treasury`, `/journal`, `/ledger`, `/trial-balance`, `/vat-recap`
+- `/products`, `/stock-ledger`, `/stock-withdrawals`, `/return-orders`
+- `/payroll/*`, `/employee`, `/production/*`, `/opening`, `/closing`
 
 ### 2.2 Backend (Routes API)
 
@@ -155,8 +157,9 @@ Erreurs possibles :
 
 ### 7.1 Prérequis
 
-- Node.js 18+
+- Node.js compatible avec Next.js 15.5.x
 - Instance PostgreSQL
+- npm
 
 ### 7.2 Installation
 
@@ -174,7 +177,7 @@ Visiter <http://localhost:3000>
 ```bash
 npm run dev                # serveur dev
 npx prisma migrate dev     # migrations interactives
-tx prisma studio           # (corriger si script ajouté)
+npx prisma studio          # interface Prisma locale
 npx prisma generate        # génération client Prisma
 node scripts/import-accounts.js
 ```
@@ -191,21 +194,25 @@ node scripts/import-accounts.js
 - Normalisation / validation centralisées (`lib/validation/*`)
 - Noms explicites pour nouveaux `TransactionKind`
 
-## 8. Auth (Simplification Temporaire)
+## 8. Auth et accès multi-société
 
-localStorage + événements DOM (`user:login`, `user:logout`). Pas encore de persistance serveur.
+L'authentification passe par les routes API applicatives. L'accès est déterminé par le rôle utilisateur et son appartenance à une société:
 
-## 9. Feuille de Route
+- `PLATFORM_ADMIN` gère les demandes plateforme et les accès aux sociétés.
+- Le `SUPERADMIN` d'une société gère les utilisateurs de son périmètre.
+- Les utilisateurs opérationnels reçoivent des rôles ciblés, dont `VIEWER`.
+- Une inscription publique crée une demande d'accès qui doit être approuvée ou rejetée.
+- Une demande d'ouverture de société est gérée au niveau plateforme.
 
-| Phase | Focus | Points clés |
-|-------|-------|------------|
-| Suppliers & Purchases | Miroir ventes factures fournisseurs | Modèle fournisseur, comptes 401*, TVA déductible |
-| Partial Payments | Paiements partiels | Solde restant, statut PARTIAL |
-| Credit Notes | Avoirs / ajustements | Postings inverses, lien facture d'origine |
-| Multi VAT Rates | Multi taux TVA | Lignes TVA multiples & agrégation |
-| FEC / Export | Exports conformité | Génération fichier type FEC |
-| Testing | Couverture automatisée | Tests unités logique d'écritures |
-| Auth Hardening | Auth réelle | Remplacer shim localStorage |
+## 9. Statut release
+
+La phase 6 de stabilisation est clôturée: revue des scripts legacy, packs d'audit et standardisation CLI sont en place. La phase 7 couvre la CI, la documentation de release et la relecture finale des guides.
+
+Gates de release:
+
+- Gate courte: `npm run ci:quick`
+- Gate complète: `npm run ci:full`
+- Checklist opérationnelle: [docs/release-checklist.md](./docs/release-checklist.md)
 
 ## 10. Lignes Directrices Contribution
 
@@ -260,7 +267,7 @@ Notes:
 - [CHANGELOG.md](./CHANGELOG.md) – notes de version et historique
 
 ---
-Mainteneurs : mettre à jour la Feuille de route quand des fonctionnalités passent en prod.
+Mainteneurs : mettre à jour la documentation release et le changelog quand une fonctionnalité passe en production.
 
 ## 13. Intégration Continue & Tests de Régression
 
@@ -302,11 +309,7 @@ Option base URL :
 BASE_URL=http://localhost:4000 npm run test:regression
 ```
 
-### 13.3 Badge CI
-
-Remplacer `OWNER/REPO` dans l'URL du badge en haut.
-
-### 13.4 Dépannage CI
+### 13.3 Dépannage CI
 
 | Symptôme | Cause | Correction |
 |----------|-------|------------|
@@ -314,7 +317,7 @@ Remplacer `OWNER/REPO` dans l'URL du badge en haut.
 | Déséquilibre régression | Comptes 411/401 manquants | Vérifier import comptes |
 | fetch initial échoue | Server pas prêt | Ajuster boucle d'attente |
 
-### 13.5 Améliorations Futures
+### 13.4 Améliorations Futures
 
 - Export JUnit pour reporting
 - Migration Jest/Vitest pour tests granulaires

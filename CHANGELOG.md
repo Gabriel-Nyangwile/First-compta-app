@@ -6,7 +6,14 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
-- Placeholder for upcoming changes.
+### Ajouté
+
+- Checklist release go/no-go globale dans `docs/release-checklist.md`.
+- Documentation des gates `ci:quick` et `ci:full` dans les guides d'exploitation.
+
+### Modifié
+
+- README principal et README français réalignés avec le périmètre actuel: multi-société, achats, trésorerie, stock, paie, production, ouverture/clôture et déploiement Vercel/Neon.
 
 ## [v0.1.1] - 2025-11-17
 
@@ -42,5 +49,5 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - `audit:stock` peut afficher des divergences informatives; la suite n’échoue pas sur ces alertes.
 - Utiliser `BASE_URL`/`PDF_BASE_URL`/`HEALTH_BASE` pour pointer vers le port actif (souvent `http://localhost:3005`).
 
-[v0.1.1]: https://github.com/Gabriel-Nyangwile/first-compta/releases/tag/v0.1.1
-[Unreleased]: https://github.com/Gabriel-Nyangwile/first-compta/compare/v0.1.1...HEAD
+[v0.1.1]: https://github.com/Gabriel-Nyangwile/First-compta-app/releases/tag/v0.1.1
+[Unreleased]: https://github.com/Gabriel-Nyangwile/First-compta-app/compare/v0.1.1...HEAD

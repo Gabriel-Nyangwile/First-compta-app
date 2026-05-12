@@ -40,6 +40,8 @@ npm run ci:full
 
 `ci:quick` est la gate GitHub Actions courte : lint, validation Prisma, pack rapide et build. `ci:full` ajoute les packs metier longs et reste une validation manuelle avant release.
 
+La decision finale de livraison est formalisee dans [release-checklist.md](./release-checklist.md).
+
 Options du runner :
 
 ```bash

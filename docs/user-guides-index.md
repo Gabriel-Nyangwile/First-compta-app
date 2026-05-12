@@ -14,6 +14,7 @@ Ce document centralise les principaux guides utilisateurs disponibles dans le pr
 | Personnel / Paie | [Guide opératoire - Gestion du personnel et paie](./personnel-payroll-user-guide.md) |
 | Lettrage transversal | [Guide opératoire - Lettrage transversal](./lettering-user-guide.md) |
 | Exploitation technique | [Guide d'exploitation technique](./technical-operations-guide.md) |
+| Release | [Checklist release go/no-go](./release-checklist.md) |
 
 ## Ordre conseillé pour les utilisateurs
 

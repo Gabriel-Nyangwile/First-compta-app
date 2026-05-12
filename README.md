@@ -1,37 +1,41 @@
 # First Compta
 
-## Project Title
-
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/Gabriel-Nyangwile/First-compta-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Gabriel-Nyangwile/First-compta-app/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)](#coverage)
-[![Latest Release](https://img.shields.io/github/v/release/Gabriel-Nyangwile/first-compta?display_name=tag&sort=semver)](https://github.com/Gabriel-Nyangwile/first-compta/releases)
+[![Latest Release](https://img.shields.io/github/v/release/Gabriel-Nyangwile/First-compta-app?display_name=tag&sort=semver)](https://github.com/Gabriel-Nyangwile/First-compta-app/releases)
 
-Lightweight double-entry accounting kernel (invoices, ledger transactions, VAT) built with Next.js App Router + Prisma. (Version française : voir `README.fr.md`).
+Multi-company accounting and operations application built with Next.js App Router, Prisma and PostgreSQL. Version francaise: see [README.fr.md](./README.fr.md).
 
 ## 1. Overview
 
-This project implements a minimal but extensible accounting layer for sales invoices inside a modern React (Next.js) stack:
+First Compta covers the main operating cycles of a small or medium business while keeping double-entry accounting and company isolation as central invariants:
 
-- Double-entry postings (receivable, revenue, VAT collected)
-- Transaction ledger with directional debits/credits and semantic kinds
-- Invoice lifecycle: draft → issued → paid (via settlement postings)
-- CSV export & filtering for transactions
-- Client management (CRUD) with per-client receivable account link
-- Autocomplete for accounts & clients (search + inline create)
+- Sales, purchases, supplier invoices and settlements
+- General ledger, journal entries, lettering, trial balance and VAT recap
+- Treasury, bank/cash movements, authorizations and supplier treasury
+- Stock, purchase orders, goods receipts, return orders and CUMP checks
+- Payroll, personnel dashboards, payroll posting and settlements
+- Production BOMs and production orders
+- Opening balances, annual closing and multi-company access control
 
-The current scope focuses on sales (customers). A supplier / purchase module will follow (see Roadmap).
+Functional guides are exposed in the application under the Help menu. The documentation entry points are:
 
-Full functional / technical details of accounting logic live in: [docs/accounting.md](./docs/accounting.md)
+- [User guides index](./docs/user-guides-index.md)
+- [Technical operations guide](./docs/technical-operations-guide.md)
+- [Release go/no-go checklist](./docs/release-checklist.md)
+- [Vercel deployment guide](./docs/vercel-deployment.md)
+- [Accounting rules](./docs/accounting.md)
 
 ## 2. Tech Stack & Architecture
 
 | Layer | Technology | Notes |
 |-------|------------|-------|
-| UI / Routing | Next.js (App Router, React 19) | Server + Client components mixed |
-| Data Access | Prisma (PostgreSQL) | Strongly typed models & migrations |
-| Auth (temporary) | Lightweight localStorage + custom DOM events | Simplified dev-only approach (no sessions / JWT) |
+| UI / Routing | Next.js 15.5.x App Router, React 19 | Server and client components |
+| Data Access | Prisma, PostgreSQL | Local PostgreSQL and Neon/Vercel production target |
+| Auth / Access | Custom auth routes, roles and `CompanyMembership` | `PLATFORM_ADMIN`, company `SUPERADMIN`, company-scoped roles |
 | PDF | Server-side pdf-lib (multi-page) | Unified generation for client & supplier invoices (pagination + headers/footers) |
-| Validation | Central helper (`lib/validation/client.js`) | Normalization & controlled enums |
+| Validation | Shared helpers under `lib/` | Normalization, business rules and audit helpers |
+| CI / Audit | GitHub Actions + npm audit packs | Short gate `ci:quick`, full release gate `ci:full` |
 
 ### 2.1 Frontend
 
@@ -39,10 +43,13 @@ Pages live under `src/app/` following the App Router conventions. Reusable UI si
 
 Key screens:
 
-- `/invoices` list & creation page
-- `/invoices/[id]` invoice detail (with PDF download)
-- `/clients` list, create, edit flows
-- `/transactions` ledger & CSV export
+- `/dashboard`
+- `/invoices`, `/incoming-invoices`, `/purchase-orders`, `/sales-orders`
+- `/treasury`, `/journal`, `/ledger`, `/trial-balance`, `/vat-recap`
+- `/products`, `/stock-ledger`, `/stock-withdrawals`, `/return-orders`
+- `/payroll/*`, `/employee`, `/personnel/*`
+- `/production/*`, `/opening`, `/closing`
+- `/admin/*`, `/auth/*`, `/help/*`
 
 ### 2.2 Backend (API Routes)
 
@@ -148,8 +155,9 @@ Error modes:
 
 ### 7.1 Prerequisites
 
-- Node.js 18+
+- Node.js compatible with Next.js 15.5.x
 - PostgreSQL instance
+- npm
 
 ### 7.2 Setup
 
@@ -189,22 +197,25 @@ node scripts/import-accounts.js
 - Centralize normalization / validation (extend `lib/validation/*`)
 -- Use descriptive `TransactionKind` additions for new posting patterns
 
-## 8. Auth (Temporary Simplification)
+## 8. Auth and Multi-Company Access
 
-<!-- Duplicate heading fixed above -->
-Currently: localStorage user object + custom DOM events (`user:login`, `user:logout`) to trigger UI refresh. No persistence server-side yet. Replaceable later by proper session / token system.
+Authentication is handled by application API routes. Access is scoped by user role and company membership:
 
-## 9. Roadmap (Next Phases)
+- `PLATFORM_ADMIN` administers platform-level requests and company access.
+- Company `SUPERADMIN` manages users inside its company scope.
+- Operational users receive scoped roles such as viewer or domain-specific roles.
+- Public signup creates an access request; approval determines the effective membership.
+- Company creation requests are handled at platform level.
 
-| Phase | Focus | Key Items |
-|-------|-------|-----------|
-| Suppliers & Purchases | Mirror sales for supplier invoices | Supplier model, payable accounts (401*), VAT deductible, purchase invoice postings (initial PDF done) |
-| Partial Payments | Support partial settlement | Outstanding balance logic, status PARTIAL |
-| Credit Notes | Negative invoices / adjustments | Reverse postings, link to original invoice |
-| Multi VAT Rates | Multiple VAT lines per invoice | Extend line model with rate, aggregate postings |
-| FEC / Export | Compliance exports | Generate FEC-like file (France) from Transactions |
-| Testing | Automated coverage | Unit tests for posting logic & validation |
-| Auth Hardening | Real authentication | Replace local storage shim (e.g. NextAuth or custom JWT) |
+## 9. Release Status
+
+Phase 6 stabilization is complete: legacy script review, audit packs and CLI option standardization are in place. Phase 7 focuses on CI, release documentation and final user-guide review.
+
+Release gates:
+
+- Short gate: `npm run ci:quick`
+- Full gate: `npm run ci:full`
+- Operational checklist: [docs/release-checklist.md](./docs/release-checklist.md)
 
 ## 10. Contribution Guidelines
 
@@ -225,12 +236,15 @@ Currently: localStorage user object + custom DOM events (`user:login`, `user:log
 ## 12. Additional Resources
 
 - [docs/accounting.md](./docs/accounting.md) – deep-dive rules & examples
+- [docs/user-guides-index.md](./docs/user-guides-index.md) – functional guide entry point
+- [docs/technical-operations-guide.md](./docs/technical-operations-guide.md) – audit packs, scripts and operations
+- [docs/release-checklist.md](./docs/release-checklist.md) – release go/no-go gate
 - [Prisma Docs](https://www.prisma.io/docs)
 - [Next.js Docs](https://nextjs.org/docs)
 - [CHANGELOG.md](./CHANGELOG.md) – releases and version history
 
 ---
-Maintainers: update the Roadmap section as features graduate to production.
+Maintainers: update release documentation and changelog when a feature graduates to production.
 
 ## 13. Continuous Integration & Regression Tests
 
@@ -269,17 +283,7 @@ npm run ci:full
 
 Targeted domain packs remain available through `npm run ops:packs`.
 
-### 13.3 CI Badge
-
-Replace `OWNER/REPO` in the badge URL at top of this README with your real GitHub slug.
-
-Example:
-
-```text
-https://github.com/acme-org/first-compta/actions/workflows/ci.yml/badge.svg
-```
-
-### 13.4 Troubleshooting CI
+### 13.3 Troubleshooting CI
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
@@ -287,17 +291,12 @@ https://github.com/acme-org/first-compta/actions/workflows/ci.yml/badge.svg
 | Ledger imbalance | Seed/import data incomplete | Ensure `seed-minimal.js` and `import-accounts.js` ran successfully |
 | Build failure | Route/runtime regression | Reproduce locally with `npm run ci:quick` |
 
-### 13.5 Future Enhancements
+### 13.4 Future Enhancements
 
 - JUnit export for CI test reporting
 - Jest/Vitest migration for granular test cases
 - Optional scheduled full pack run
 - Data cleanup step for test artifacts
-
----
-Documentation badge section added in this commit.
-
-Happy hacking!
 
 ## 14. Maintenance Utilities
 
