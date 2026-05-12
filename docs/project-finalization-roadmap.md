@@ -218,9 +218,9 @@ Industrialiser la livraison et figer la documentation produit.
 
 | ID | Action | Résultat attendu |
 | --- | --- | --- |
-| R7-01 | Définir pipeline CI minimal | build stable |
-| R7-02 | Ajouter lint + smoke critiques | contrôle rapide |
-| R7-03 | Séparer suite courte et suite complète | stratégie claire |
+| R7-01 | Définir pipeline CI minimal | fait: workflow CI court `ci:quick` |
+| R7-02 | Ajouter lint + smoke critiques | fait: lint, Prisma validate, pack quick, build |
+| R7-03 | Séparer suite courte et suite complète | fait: `ci:quick` / `ci:full` |
 | R7-04 | Mettre à jour README fonctionnel | README fidèle |
 | R7-05 | Mettre à jour changelog | historique clair |
 | R7-06 | Relire guides utilisateur | docs alignées |

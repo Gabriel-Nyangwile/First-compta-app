@@ -31,6 +31,15 @@ npm run audit:pack:multi-company
 npm run audit:pack:opening
 ```
 
+Suites CI/release :
+
+```bash
+npm run ci:quick
+npm run ci:full
+```
+
+`ci:quick` est la gate GitHub Actions courte : lint, validation Prisma, pack rapide et build. `ci:full` ajoute les packs metier longs et reste une validation manuelle avant release.
+
 Options du runner :
 
 ```bash
@@ -50,6 +59,14 @@ node --env-file=.env.local scripts/run-audit-pack.js accounting --continue-on-er
 | Production | apres changement nomenclature, ordre de fabrication, consommation ou entree produit fini | `npm run audit:pack:production` |
 | Multi-societe | apres changement scoping, RBAC societe ou onboarding | `npm run audit:pack:multi-company` |
 | Ouverture | apres changement reprises, cloture annuelle ou verrouillage exercice | `npm run audit:pack:opening` |
+
+## 3.1 Suite courte vs suite complete
+
+| Suite | Commande | Usage |
+| --- | --- | --- |
+| Courte | `npm run ci:quick` | CI automatique, validation avant push, feedback rapide |
+| Complete | `npm run ci:full` | Gate release ou validation avant deploiement important |
+| Domaine | `npm run audit:pack:<domaine>` | Correction ciblee apres changement metier |
 
 ## 4. Regles d'usage CLI
 

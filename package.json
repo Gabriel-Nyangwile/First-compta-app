@@ -14,6 +14,8 @@
     "postinstall": "prisma generate",
     "build": "next build",
     "start": "next start",
+    "ci:quick": "npm run lint && npx prisma validate && npm run audit:pack:quick && npm run build",
+    "ci:full": "npm run ci:quick && npm run audit:pack:accounting && npm run audit:pack:payroll && npm run audit:pack:treasury && npm run audit:pack:stock && npm run audit:pack:production && npm run audit:pack:multi-company && npm run audit:pack:opening",
     "test": "npm run test:inventory-flow && npm run test:ledger-lettering && npm run test:payroll-bonus",
     "test:full": "npm run test:smoke && npm run test:multi-company:all && npm run test:inventory-flow && npm run test:ledger-lettering && npm run test:money-movement && npm run test:pdf && npm run test:client-invoice-pdf && npm run test:incoming-invoice-pdf && npm run test:pdf:both && npm run audit:invoice-balances:fix && npm run audit:invoice-balances && npm run ledger:balance && npm run audit:stock && npm run audit:stock-withdrawals && npm run test:http:inventory && npm run test:po-flow && npm run test:po-cancel && npm run test:return-order && npm run test:regression && npm run test:payroll-bonus",
     "ops:packs": "node scripts/run-audit-pack.js --list",

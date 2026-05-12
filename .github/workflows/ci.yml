@@ -5,10 +5,12 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  test:
+  quick:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -23,6 +25,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/first_compta_ci?schema=public
       NODE_ENV: test
       BASE_URL: http://localhost:3000
+      HEALTH_BASE: http://localhost:3000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,11 +47,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint & Smoke (static)
-        run: |
-          npm run lint
-          npm run test:smoke
-
       - name: Generate Prisma Client
         run: npx prisma generate
 
@@ -64,41 +62,19 @@ jobs:
       - name: Import plan comptable
         run: node scripts/import-accounts.js
 
-      - name: Build Next.js (prerender)
-        run: npm run build
+      - name: Quick CI suite
+        run: npm run ci:quick
 
-      - name: Start Next server
-        run: |
-          npm start &
-          echo "Waiting for Next.js to be ready...";
-          for i in {1..30}; do
-            if curl -sSf http://localhost:3000/api/account/search?query=7 > /dev/null; then
-              echo "Server ready"; break; fi; sleep 2;
-            if [ "$i" = "30" ]; then echo "Server not ready"; exit 1; fi;
-          done
-
-      - name: Smoke health (runtime)
-        run: npm run test:smoke
-
-      - name: Regression tests
-        run: npm run test:regression
-
-      - name: Payroll bonus test
-        run: npm run test:payroll-bonus
-
-      - name: Payroll cost centers test
-        run: npm run test:payroll-cost-centers
-
-      - name: Upload regression artifact (log)
+      - name: Upload quick audit artifact
         if: always()
         run: |
           mkdir -p artifacts
-          node scripts/regression-line-links.js > artifacts/regression-rerun.log 2>&1 || true
+          node --env-file=.env.local scripts/run-audit-pack.js quick > artifacts/audit-pack-quick.log 2>&1 || true
         
       - name: Archive artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: regression-logs
+          name: ci-quick-logs
           path: artifacts
 

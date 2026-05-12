@@ -234,14 +234,15 @@ Maintainers: update the Roadmap section as features graduate to production.
 
 ## 13. Continuous Integration & Regression Tests
 
-This repo ships with a GitHub Actions workflow (`.github/workflows/ci.yml`) that performs:
+This repo ships with a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs the short CI suite:
 
 1. Checkout & dependency install (`npm ci`)
-2. PostgreSQL service bootstrap (port 5432) + migrations (`prisma migrate deploy`)
-3. Chart of accounts import (`node scripts/import-accounts.js`)
-4. Production build (`npm run build`) then server start (`npm start`)
-5. Extended regression script: `npm run test:regression`
-6. Artifact collection (`regression-rerun.log`) even on failure
+2. PostgreSQL service bootstrap + migrations (`prisma migrate deploy`)
+3. Minimal seed, payroll config seed, and chart of accounts import
+4. `npm run ci:quick`
+5. Artifact collection (`audit-pack-quick.log`) even on failure
+
+The short suite is intentionally limited to lint, Prisma validation, the quick audit pack, and the production build. Full business packs are kept as explicit release checks.
 
 ### 13.1 Regression Script Scope
 
@@ -254,23 +255,19 @@ The script `scripts/regression-line-links.js` validates:
 
 ### 13.2 Running Locally
 
-Terminal 1:
+Short local gate:
 
 ```bash
-npm run dev
+npm run ci:quick
 ```
 
-Terminal 2 (after server ready):
+Full release gate:
 
 ```bash
-npm run test:regression
+npm run ci:full
 ```
 
-Optional: set another base URL:
-
-```bash
-BASE_URL=http://localhost:4000 npm run test:regression
-```
+Targeted domain packs remain available through `npm run ops:packs`.
 
 ### 13.3 CI Badge
 
@@ -287,14 +284,14 @@ https://github.com/acme-org/first-compta/actions/workflows/ci.yml/badge.svg
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Fails at migrations | DB not reachable yet | Increase healthcheck retries or add sleep |
-| Regression imbalance | Missing 411/401 accounts | Ensure `import-accounts.js` ran successfully |
-| fetch failed at start | Server not ready | Adjust wait loop or raise retry count in script |
+| Ledger imbalance | Seed/import data incomplete | Ensure `seed-minimal.js` and `import-accounts.js` ran successfully |
+| Build failure | Route/runtime regression | Reproduce locally with `npm run ci:quick` |
 
 ### 13.5 Future Enhancements
 
 - JUnit export for CI test reporting
 - Jest/Vitest migration for granular test cases
-- Matrix build (Node 18/20) & lint stage
+- Optional scheduled full pack run
 - Data cleanup step for test artifacts
 
 ---
