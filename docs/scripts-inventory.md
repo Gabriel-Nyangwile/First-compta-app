@@ -1,6 +1,8 @@
 # Inventaire des scripts
 
-Inventaire phase 6 au 2026-05-04. Le repertoire `scripts/` contient 201 entrees, dont 196 scripts et 5 templates Excel d'ouverture.
+Inventaire phase 6 mis a jour au 2026-05-12. Le repertoire `scripts/` contient 214 fichiers recenses en incluant les sous-dossiers, dont 208 fichiers a la racine, 209 scripts JavaScript (`.js` / `.mjs`) et 5 templates Excel d'ouverture.
+
+Cette page sert de registre de decision. Les scripts dangereux restent disponibles pour reprise d'exploitation, mais ne doivent pas entrer dans un pack d'audit sans revue dediee.
 
 ## Synthese
 
@@ -17,14 +19,62 @@ Inventaire phase 6 au 2026-05-04. Le repertoire `scripts/` contient 201 entrees,
 | Import | 9 | utile | imports comptes, journal, paie et ouverture |
 | Ouverture | 3 | critique | templates, simulation et smoke ouverture |
 | Paie | 36 | critique | tests, audits et smokes paie |
-| Purge / reset | 6 | dangereux | nettoyage destructif |
-| Rebuild / repair | 11 | correctif | regeneration et reparations comptables |
+| Purge / reset | 7 | dangereux | nettoyage destructif |
+| Rebuild / repair | 13 | correctif | regeneration et reparations comptables |
 | Seed / create | 10 | utile | donnees de base et fixtures |
 | Smoke | 3 | critique | sante applicative |
 | Test | 40 | critique | tests de flux metier |
 | Templates | 5 | utile | modeles Excel |
 | Tools | 7 | legacy / utile | aides internes |
 | Autre | 1 | critique | balance ledger |
+
+## Revue legacy / dangereux du 2026-05-12
+
+### Decisions globales
+
+| Famille | Decision | Rationale |
+| --- | --- | --- |
+| `admin-*` | Garder en legacy documente, hors packs | Scripts de suppression ponctuelle. Utilisables seulement apres sauvegarde et audit cible. |
+| `purge-*` / `reset-data.js` | Garder, mais considerer dangereux | Certains sont globaux. Usage local/reprise uniquement, jamais dans CI ni pack d'audit. |
+| `debug-*` et inspecteurs ad hoc | Garder temporairement, candidat retrait differe | Faible risque si lecture seule, mais bruit operationnel. A retirer seulement apres absence de reference. |
+| `fix-*`, `repair-*`, `rebuild-*` | Garder comme outils correctifs | Necessaires pour reprise. Dry-run ou option explicite attendue avant mutation. |
+| Scripts manuels de journal (`create-balanced-*`, `attach-orphans-*`, `auto-*`) | Garder hors npm, usage expert | Peuvent modifier le journal ou le lettrage. Ne pas promouvoir sans garde-fous supplementaires. |
+
+### Scripts destructifs a ne pas promouvoir
+
+| Script | Decision | Garde-fou existant | Action ulterieure recommandee |
+| --- | --- | --- | --- |
+| `scripts/admin-delete-incoming-invoice.js` | Garder legacy | Blocages metier, `--force` pour bypass | Ajouter un vrai `--dry-run` avant usage recurrent. |
+| `scripts/admin-delete-test-personnel-and-future-periods.js` | Garder legacy | Dry-run par defaut, `--confirm` | Recrire avec `--companyId` obligatoire si reutilise. |
+| `scripts/purge-legacy-invoices.js` | Garder legacy documente | Dry-run par defaut, `--execute`, confirmation/`--force`, export JSON | Ajouter `--companyId` avant toute reutilisation production. |
+| `scripts/purge-payroll.js` | Garder correctif | `companyId` requis, dry-run par defaut via `DRY_RUN` | Harmoniser vers `--dry-run` / `--apply`. |
+| `scripts/purge-capital.js` | Garder correctif | `companyId` requis, `--apply --force` | Rien d'immediat. |
+| `scripts/purge-stock-domain.js` | Quarantaine legacy | `--force`, mais scope global | Recrire avec `--companyId` obligatoire avant reutilisation. |
+| `scripts/purge-asset-data.mjs` | Garder correctif | `companyId` requis, dry-run par defaut, rapport backup | Rien d'immediat. |
+| `scripts/purge-orphans.mjs` | Garder correctif expert | Dry-run par defaut, export backup | Rendre `--company` obligatoire hors `--ids-file`. |
+| `scripts/reset-data.js` | Garder local uniquement | `--force` ou `RESET_CONFIRM=YES` | Ne jamais utiliser sur Neon/Vercel. Preferer reset local ephemere. |
+
+### Scripts correctifs recents valides
+
+| Script | Decision | Usage |
+| --- | --- | --- |
+| `scripts/reconcile-stock-divergences.js` | Garder | Reconciliation stock par mouvements traces, dry-run par defaut, `--apply`. |
+| `scripts/repair-cross-company-transaction-accounts.js` | Garder | Reattachement de transactions au compte homologue de la bonne societe, dry-run par defaut, `--apply`. |
+| `scripts/lib/ensure-local-server.js` | Garder | Helper de tests HTTP pour demarrer/arreter un serveur local si necessaire. |
+
+### Candidats retrait differe
+
+Ces scripts ne sont pas retires maintenant. Ils doivent d'abord etre recherches dans `package.json`, `README.md`, `docs/` et les procedures de reprise.
+
+- `scripts/debug-list-basic.js`
+- `scripts/debug-open-payslip-page.js`
+- `scripts/debug-payroll-period.js`
+- `scripts/debug-supplier-payments.js`
+- `scripts/dev-approve-last-draft-po.js`
+- `scripts/dev-approve-last-draft-po-lite.js`
+- `scripts/create-balanced-je-by-desc-only.mjs`
+- `scripts/create-balanced-je-by-desc-date.mjs`
+- `scripts/create-balanced-je-by-desc-only-dryrun.mjs`
 
 ## Scripts critiques exposes par npm
 
@@ -197,6 +247,7 @@ Inventaire phase 6 au 2026-05-04. Le repertoire `scripts/` contient 201 entrees,
 - `scripts/purge-capital.js`
 - `scripts/purge-legacy-invoices.js`
 - `scripts/purge-orphans.mjs`
+- `scripts/purge-payroll.js`
 - `scripts/purge-stock-domain.js`
 - `scripts/reset-data.js`
 
@@ -210,6 +261,8 @@ Inventaire phase 6 au 2026-05-04. Le repertoire `scripts/` contient 201 entrees,
 - `scripts/rebuild-empty-journal-sources.js`
 - `scripts/rebuild-journal.js`
 - `scripts/rebuild-transactions-from-sources.js`
+- `scripts/reconcile-stock-divergences.js`
+- `scripts/repair-cross-company-transaction-accounts.js`
 - `scripts/repair-empty-journals.js`
 - `scripts/repost-capital-subscriptions.js`
 - `scripts/revalue-inventory-cump.js`
@@ -292,6 +345,7 @@ Inventaire phase 6 au 2026-05-04. Le repertoire `scripts/` contient 201 entrees,
 - `scripts/attach-orphans-by-je.mjs`
 - `scripts/auto-attach-orphans.mjs`
 - `scripts/auto-group-orphans.mjs`
+- `scripts/lib/ensure-local-server.js`
 - `scripts/rename-asset-source.mjs`
 
 ### Autre

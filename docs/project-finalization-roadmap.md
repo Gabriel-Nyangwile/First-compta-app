@@ -181,7 +181,7 @@ Rendre les contrôles techniques et métier reproductibles.
 | R6-02 | Classer critique / utile / legacy | fait: classification par famille et criticité |
 | R6-03 | Harmoniser les options CLI | fait: conventions documentées dans `docs/technical-operations-guide.md` |
 | R6-04 | Définir packs d'audit par domaine | fait: runner `scripts/run-audit-pack.js` et commandes `audit:pack:*` |
-| R6-05 | Nettoyer scripts obsolètes | en cours: scripts legacy isolés, suppression différée après revue d'usage |
+| R6-05 | Nettoyer scripts obsolètes | fait: registre legacy/dangereux ajouté, suppressions différées documentées |
 | R6-06 | Rédiger guide exploitation technique | fait: guide exploitation ajouté |
 
 ### Packs d'audit recommandés
@@ -193,6 +193,7 @@ Rendre les contrôles techniques et métier reproductibles.
 | Trésorerie | mouvements, fournisseurs, avances |
 | Stock | inventaire, CUMP, sorties |
 | Multi-société | isolation runtime, onboarding |
+| Ouverture | imports d'ouverture, clôture annuelle |
 
 ### Commandes disponibles
 

@@ -91,3 +91,23 @@ Le catalogue complet est dans [scripts-inventory.md](./scripts-inventory.md).
 ## 7. Nettoyage et legacy
 
 Aucun script legacy n'est supprime automatiquement dans cette phase. Les scripts classes `Legacy / debug` restent disponibles, mais ne doivent pas etre ajoutes a un pack d'audit sans revue. Un script peut etre supprime seulement apres verification qu'il n'est reference ni par `package.json`, ni par une documentation, ni par une procedure de reprise.
+
+## 8. Registre des scripts dangereux
+
+Decisions phase 6 :
+
+| Famille | Statut | Regle d'exploitation |
+| --- | --- | --- |
+| `admin-*` | Legacy conserve | Suppression ponctuelle uniquement, apres backup et controle du scope. |
+| `purge-*` / `reset-data.js` | Dangereux conserve | Interdit dans CI et packs d'audit. Ne pas executer contre Neon/Vercel sans procedure explicite. |
+| `debug-*` | Candidat retrait differe | Lecture seule ou inspection ad hoc; ne pas promouvoir en npm script sans besoin durable. |
+| `fix-*`, `repair-*`, `rebuild-*` | Correctif conserve | Toujours commencer par dry-run quand disponible, puis relancer le pack du domaine. |
+
+Scripts correctifs recents valides :
+
+```bash
+npm run stock:reconcile
+npm run repair:cross-company-transaction-accounts
+```
+
+Les decisions detaillees sont maintenues dans [scripts-inventory.md](./scripts-inventory.md#revue-legacy--dangereux-du-2026-05-12).
