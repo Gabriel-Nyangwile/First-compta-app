@@ -85,7 +85,7 @@ export async function PATCH(request, context) {
     const totalTtc = totalHt + vatAmount;
 
     // Recréer transactions (supprimer anciennes liées à la facture)
-    const { vatAccount } = await getSystemAccounts();
+    const { vatAccount } = await getSystemAccounts(companyId);
     // IMPORTANT: si clientId non fourni on doit récupérer le client existant pour conserver la créance (411)
     let client = null;
     if (clientId) {

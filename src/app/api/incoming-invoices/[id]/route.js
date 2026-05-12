@@ -70,7 +70,7 @@ export async function PATCH(request, context) {
     const vatAmount = totalHt * vatRate;
     const totalTtc = totalHt + vatAmount;
 
-    const { vatDeductibleAccount } = await getSystemAccounts();
+    const { vatDeductibleAccount } = await getSystemAccounts(companyId);
     const supplier = supplierId
       ? await prisma.supplier.findFirst({ where: { id: supplierId, companyId } })
       : existing.supplier;

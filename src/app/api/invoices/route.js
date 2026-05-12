@@ -408,7 +408,7 @@ export async function POST(request) {
       invoiceLevelVat = Number([...vatBuckets.keys()][0]);
     }
 
-    const { vatAccount } = await getSystemAccounts();
+    const { vatAccount } = await getSystemAccounts(companyId);
     const clientAccountId = clientRecord?.accountId || null;
     const targetClientId = resolvedClientId;
 

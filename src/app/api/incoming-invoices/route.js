@@ -244,7 +244,7 @@ export async function POST(req) {
     // invoice.vat : si un seul taux sinon 0
     const invoiceVat = buckets.size === 1 ? Number([...buckets.keys()][0]) : 0;
 
-    const { vatDeductibleAccount } = await getSystemAccounts();
+    const { vatDeductibleAccount } = await getSystemAccounts(companyId);
 
     const invoice = await prisma.$transaction(async (tx) => {
       const entryNumber = await generateNextEntryNumber(tx, companyId);

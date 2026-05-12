@@ -69,6 +69,7 @@
     "test:po-cancel": "node --env-file=.env.local scripts/test-purchase-order-cancel.js",
     "test:po-all": "node --env-file=.env.local scripts/test-purchase-order-all.js",
     "audit:party-ids": "node --env-file=.env.local scripts/audit-party-ids.js",
+    "repair:cross-company-transaction-accounts": "node --env-file=.env.local scripts/repair-cross-company-transaction-accounts.js",
     "test:return-order": "node --env-file=.env.local scripts/test-return-order.js",
     "test:money-movement": "node --env-file=.env.local --experimental-loader ./scripts/alias-loader.mjs scripts/test-money-movement.js",
     "test:production-flow": "node --env-file=.env.local scripts/test-production-flow.js",
