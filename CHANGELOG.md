@@ -9,12 +9,15 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Ajouté
 
 - Checklist release go/no-go globale dans `docs/release-checklist.md`.
+- Journal de validation release dans `docs/release-validation-log.md`.
 - Documentation des gates `ci:quick` et `ci:full` dans les guides d'exploitation.
 
 ### Modifié
 
 - README principal et README français réalignés avec le périmètre actuel: multi-société, achats, trésorerie, stock, paie, production, ouverture/clôture et déploiement Vercel/Neon.
 - Guides utilisateurs relus pour l'affichage Aide: sections techniques masquées et index séparé entre guides utilisateur et documents d'exploitation.
+- Validation Phase 7 consignée: `ci:quick` local OK, `/api/health` Vercel OK, connexions applicatives OK.
+- Seed de configuration paie compatible avec le scoping multi-société utilisé en CI.
 
 ## [v0.1.1] - 2025-11-17
 

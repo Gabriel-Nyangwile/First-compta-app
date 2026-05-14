@@ -129,6 +129,7 @@ Rollback minimal:
 Avant tag ou livraison formelle:
 
 - mettre a jour `CHANGELOG.md`;
+- renseigner [release-validation-log.md](./release-validation-log.md);
 - verifier `README.md` et `README.fr.md`;
 - verifier les guides visibles dans le menu Aide;
 - noter les commandes d'audit executees et leur resultat.

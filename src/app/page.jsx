@@ -1,217 +1,224 @@
-import Image from 'next/image';
-import Link from 'next/link';
-import LogoutToast from '@/components/LogoutToast';
-import { HomeSectionNav, HomeSectionNavSkeleton } from '@/components/homeSection';
-import { Suspense } from 'react';
+import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
+import LogoutToast from "@/components/LogoutToast";
+import { HomeSectionNav, HomeSectionNavSkeleton } from "@/components/homeSection";
+
+const sections = [
+  { id: "plateforme", label: "Plateforme" },
+  { id: "cycles", label: "Cycles métier" },
+  { id: "controle", label: "Contrôle" },
+  { id: "scofex", label: "SCOFEX" },
+];
+
+const capabilities = [
+  {
+    title: "Vendre, encaisser, lettrer",
+    text: "De la commande client au règlement, Mizani garde le lien entre opération, facture, journal et grand livre.",
+  },
+  {
+    title: "Acheter, recevoir, valoriser",
+    text: "Bons de commande, réceptions, retours, factures fournisseurs et CUMP avancent dans un même flux contrôlé.",
+  },
+  {
+    title: "Payer, poster, rapprocher",
+    text: "Trésorerie, paie, autorisations et règlements produisent une trace comptable lisible et vérifiable.",
+  },
+];
+
+const proofPoints = [
+  "Multi-société avec accès isolés",
+  "Journal et grand livre alimentés par les flux",
+  "Packs d'audit prêts pour la release",
+  "Guides intégrés dans le menu Aide",
+];
 
 export default function HomePage() {
   return (
-    <main id="top" className="u-main-container u-padding-content-container scroll-smooth">
+    <main id="top" className="scroll-smooth bg-white text-slate-950">
       <Suspense fallback={null}>
         <LogoutToast />
       </Suspense>
-      <div className="max-w-xl p-8 bg-white rounded shadow text-center">
-        <h1 className="text-4xl font-bold mb-4 text-blue-900">SCOFEX Consulting</h1>
-        <p className="text-semibold text-gray-700">Bienvenue sur notre site</p>
-      </div>
-      <Suspense fallback={<HomeSectionNavSkeleton />}> 
-        <HomeSectionNav sections={[
-          { id: 'about', label: 'À propos' },
-          { id: 'services', label: 'Services' },
-          { id: 'engagement', label: 'Engagement' },
-          { id: 'contact', label: 'Contact' }
-        ]} />
+
+      <section className="relative min-h-[88vh] overflow-hidden bg-slate-950">
+        <Image
+          src="/images/mizani/hero.webp"
+          alt="Équipe financière utilisant Mizani"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-slate-950/58" aria-hidden="true" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/55 to-transparent" aria-hidden="true" />
+        <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col justify-center px-4 pb-20 pt-28">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-200">
+            Une solution SCOFEX Consulting
+          </p>
+          <h1 className="mt-5 max-w-4xl text-5xl font-black leading-[1.02] text-white md:text-7xl">
+            Mizani
+          </h1>
+          <p className="mt-4 max-w-2xl text-2xl font-semibold text-white md:text-3xl">
+            L'entreprise en équilibre.
+          </p>
+          <p className="mt-6 max-w-2xl text-base leading-8 text-slate-100 md:text-lg">
+            Comptabilité, paie, stock, trésorerie et production reliés dans un seul système multi-société. Chaque mouvement métier laisse une trace comptable contrôlable.
+          </p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/auth/signin"
+              className="inline-flex items-center justify-center rounded-md bg-emerald-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-sm hover:bg-emerald-300"
+            >
+              Entrer dans Mizani
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center justify-center rounded-md border border-white/70 px-5 py-3 text-sm font-bold text-white hover:bg-white/10"
+            >
+              Demander un accès
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <Suspense fallback={<HomeSectionNavSkeleton />}>
+        <HomeSectionNav sections={sections} />
       </Suspense>
-      {/* Hero */}
-      <section className="relative">
-        <div className="mx-auto max-w-6xl px-4 py-20 grid md:grid-cols-2 gap-10 items-center">
+
+      <section id="plateforme" className="bg-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight text-slate-900">Stratégie. Comptabilité. Excellence.</h1>
-            <p className="mt-4 text-slate-600 text-lg">Partenaire de confiance des CEO et grandes entreprises : 30 ans d’expérience cumulée au service de vos décisions clés.</p>
-            <div className="mt-6 flex gap-3">
-              <Link href="#services" className="rounded-xl px-5 py-3 border border-slate-300 hover:bg-slate-100">Découvrir nos services</Link>
-              <Link href="#contact" className="rounded-xl px-5 py-3 bg-slate-900 text-white hover:bg-slate-800">Contactez-nous</Link>
-            </div>
-          </div>
-          <div className="relative">
-            {/* Replace src with your hosted image path in /public/images */}
-            <div className="w-full rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden relative">
-              <Image
-                src="/images/image_1.jpg"
-                alt="Tableau de bord stratégique"
-                width={1200}
-                height={800}
-                className="w-full h-auto"
-                priority
-              />
-              <div className="absolute inset-0 rounded-2xl bg-white/40" aria-hidden="true" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* About */}
-      <section id="about" className="bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 grid md:grid-cols-2 gap-12 items-center">
-          <div className="order-2 md:order-1">
-            <h2 className="text-2xl font-bold">À propos</h2>
-            <ul className="mt-4 space-y-2 text-slate-600 leading-relaxed">
-              <li>• 30 ans d’expérience en direction, stratégie et logistique.</li>
-              <li>• Accompagnement des CEO et des grandes entreprises.</li>
-              <li>• Valeurs : Rigueur • Transparence • Excellence.</li>
-              <li>• Mission : Transformer l’expérience en résultats concrets.</li>
-            </ul>
-          </div>
-          <div className="order-1 md:order-2 relative">
-            <div className="w-full rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden relative">
-              <Image
-                src="/images/image_2.jpg"
-                alt="Réunion stratégique"
-                width={1200}
-                height={800}
-                className="w-full h-auto"
-              />
-              <div className="absolute inset-0 rounded-2xl bg-white/40" aria-hidden="true" />
-            </div>
-          </div>
-        </div>
-        <div className="mx-auto max-w-6xl px-4 pb-6 -mt-8 flex justify-end">
-          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
-            <span className="sm:hidden" aria-hidden="true">↑</span>
-            <span className="hidden sm:inline">↑ Haut de page</span>
-          </a>
-        </div>
-      </section>
-
-      {/* Services */}
-      <section id="services" className="bg-slate-50">
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="text-2xl font-bold">Services</h2>
-          <div className="mt-8 grid md:grid-cols-2 gap-8">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="aspect-[16/10] relative overflow-hidden rounded-xl ring-1 ring-slate-200">
-                <Image
-                  src="/images/image_3.jpg"
-                  alt="Comptabilité & Reporting"
-                  fill
-                  sizes="(min-width: 768px) 50vw, 100vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-white/40" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold">Expertise comptable</h3>
-              <ul className="mt-2 text-slate-600 space-y-1">
-                <li>• Tenue, contrôle, reporting & consolidation.</li>
-                <li>• Tableaux de bord, KPI & clôtures.</li>
-                <li>• Mise en place de processus et d’outils.</li>
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="aspect-[16/10] relative overflow-hidden rounded-xl ring-1 ring-slate-200">
-                <Image
-                  src="/images/image_4.png"
-                  alt="Fiscalité & Conformité"
-                  fill
-                  sizes="(min-width: 768px) 50vw, 100vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-white/40" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold">Conseil fiscal</h3>
-              <ul className="mt-2 text-slate-600 space-y-1">
-                <li>• Conformité et optimisation.</li>
-                <li>• Préparation des états financiers.</li>
-                <li>• Assistance aux audits et contrôles.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div className="mx-auto max-w-6xl px-4 pb-6 -mt-8 flex justify-end">
-          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
-            <span className="sm:hidden" aria-hidden="true">↑</span>
-            <span className="hidden sm:inline">↑ Haut de page</span>
-          </a>
-        </div>
-      </section>
-
-      {/* Engagement */}
-      <section id="engagement" className="bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 grid md:grid-cols-5 gap-8 items-center">
-          <div className="md:col-span-3">
-            <h2 className="text-2xl font-bold">Notre engagement</h2>
-            <p className="mt-3 text-slate-600">Votre partenaire fiable pour des finances claires et maîtrisées. Confidentialité, professionnalisme et solutions sur mesure orientées résultats durables.</p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {['Confidentialité','Professionnalisme','Sur-mesure','Résultats','Durabilité'].map((tag) => (
-                <span key={tag} className="rounded-full border border-slate-300 px-3 py-1 text-sm">{tag}</span>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Plateforme unifiée</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-black leading-tight text-slate-950 md:text-5xl">
+              Du geste métier au journal, sans rupture.
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600">
+              Mizani relie les équipes opérationnelles et la comptabilité. Une réception de stock, un règlement fournisseur, une paie ou une sortie de production ne reste pas un événement isolé: le contrôle comptable suit.
+            </p>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              {proofPoints.map((item) => (
+                <div key={item} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800">
+                  {item}
+                </div>
               ))}
             </div>
           </div>
-          <div className="md:col-span-2 relative">
-            <div className="w-full rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden relative">
-              <Image
-                src="/images/image_5.jpg"
-                alt="Équilibre fiscal et performance"
-                width={1200}
-                height={800}
-                className="w-full h-auto"
-              />
-              <div className="absolute inset-0 rounded-2xl bg-white/40" aria-hidden="true" />
-            </div>
+          <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-slate-200">
+            <Image
+              src="/images/mizani/operations.webp"
+              alt="Flux opérationnels connectés à la comptabilité"
+              fill
+              sizes="(min-width: 1024px) 44vw, 100vw"
+              className="object-cover"
+            />
           </div>
-        </div>
-        <div className="mx-auto max-w-6xl px-4 pb-6 -mt-8 flex justify-end">
-          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
-            <span className="sm:hidden" aria-hidden="true">↑</span>
-            <span className="hidden sm:inline">↑ Haut de page</span>
-          </a>
         </div>
       </section>
 
-      {/* Contact */}
-      <section id="contact" className="bg-slate-50">
+      <section id="cycles" className="bg-slate-50">
         <div className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="text-2xl font-bold">Contact</h2>
-          <div className="mt-6 grid md:grid-cols-2 gap-8">
-            <form className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium">Nom</label>
-                <input type="text" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Email</label>
-                <input type="email" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Objet</label>
-                <input type="text" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Message</label>
-                <textarea rows={4} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-              </div>
-              <button type="button" className="rounded-xl bg-slate-900 text-white px-5 py-3 hover:bg-slate-800">Envoyer</button>
-            </form>
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-slate-600">
-                Email : contact@scofex-consulting.com<br />
-                Téléphone : +243 XX XXX XXXX<br />
-                Adresse : Kinshasa, RDC
-              </p>
-              <div className="mt-6 flex gap-3">
-                <Link href="#" className="rounded-xl border border-slate-300 px-4 py-2 hover:bg-slate-100">Prendre rendez-vous</Link>
-                <Link href="#" className="rounded-xl px-4 py-2 bg-slate-900 text-white hover:bg-slate-800">Parler à un conseiller</Link>
-              </div>
-            </div>
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">Cycles métier</p>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 md:text-5xl">
+              Une application pour suivre l'entreprise réelle.
+            </h2>
           </div>
-        </div>
-        <div className="mx-auto max-w-6xl px-4 pb-10 -mt-4 flex justify-end">
-          <a href="#top" className="text-xs inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition" aria-label="Revenir en haut de la page">
-            <span className="sm:hidden" aria-hidden="true">↑</span>
-            <span className="hidden sm:inline">↑ Haut de page</span>
-          </a>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {capabilities.map((item) => (
+              <article key={item.title} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-950">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.text}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            <ImagePanel src="/images/mizani/multi-company.webp" alt="Gestion multi-société" label="Multi-société" />
+            <ImagePanel src="/images/mizani/stock.webp" alt="Stock et production" label="Stock et production" />
+            <ImagePanel src="/images/mizani/human-resources.webp" alt="Personnel et paie" label="Personnel et paie" />
+          </div>
         </div>
       </section>
 
+      <section id="controle" className="bg-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 lg:order-1">
+            <Image
+              src="/images/mizani/treasury.webp"
+              alt="Trésorerie et contrôle financier"
+              fill
+              sizes="(min-width: 1024px) 44vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="lg:order-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-700">Contrôle et confiance</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-black leading-tight text-slate-950 md:text-5xl">
+              La rigueur n'arrive pas en fin de mois. Elle accompagne chaque opération.
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600">
+              Les packs d'audit, la séparation des sociétés, les statuts métier et les écritures équilibrées donnent au comptable un système qui explique ce qu'il fait.
+            </p>
+            <div className="mt-8 border-l-4 border-emerald-500 pl-5">
+              <p className="text-xl font-bold leading-8 text-slate-900">
+                Mizani ne remplace pas le comptable. Il lui donne un système qui travaille proprement avec lui.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scofex" className="relative overflow-hidden bg-slate-950">
+        <Image
+          src="/images/mizani/trust.webp"
+          alt="Dirigeant et comptable en environnement professionnel"
+          fill
+          sizes="100vw"
+          className="object-cover opacity-55"
+        />
+        <div className="absolute inset-0 bg-slate-950/60" aria-hidden="true" />
+        <div className="relative mx-auto max-w-6xl px-4 py-20">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-200">SCOFEX Consulting</p>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-white md:text-5xl">
+              Une plateforme née du terrain comptable, pas d'une promesse abstraite.
+            </h2>
+            <p className="mt-5 text-base leading-8 text-slate-100">
+              Mizani prolonge l'exigence de SCOFEX Consulting: transformer l'expérience financière en décisions, en contrôles et en résultats exploitables.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/auth/signin"
+                className="inline-flex items-center justify-center rounded-md bg-white px-5 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-100"
+              >
+                Se connecter
+              </Link>
+              <Link
+                href="/help"
+                className="inline-flex items-center justify-center rounded-md border border-white/70 px-5 py-3 text-sm font-bold text-white hover:bg-white/10"
+              >
+                Voir les guides
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
+  );
+}
+
+function ImagePanel({ src, alt, label }) {
+  return (
+    <figure className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="relative aspect-[16/11]">
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes="(min-width: 768px) 33vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+      <figcaption className="px-4 py-3 text-sm font-semibold text-slate-800">{label}</figcaption>
+    </figure>
   );
 }
