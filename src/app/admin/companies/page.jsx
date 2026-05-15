@@ -176,10 +176,12 @@ function AdminCompaniesPageContent() {
     setError("");
     setSuccess("");
     try {
+      const defaultNote = action === "approve" ? "Demande approuvée" : "Demande rejetée";
+      const reviewNote = prompt("Message ou note de traitement", defaultNote) || defaultNote;
       const res = await fetch(`/api/company-creation-requests/${id}/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewNote: action === "approve" ? "Approved from admin UI" : "Rejected from admin UI" }),
+        body: JSON.stringify({ reviewNote }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Traitement échoué");
@@ -194,7 +196,7 @@ function AdminCompaniesPageContent() {
   }
 
   return (
-    <main className="p-6 max-w-5xl mx-auto space-y-4">
+    <main className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Sociétés</h1>
         <a
@@ -213,38 +215,98 @@ function AdminCompaniesPageContent() {
       {error && <p className="text-red-600">{error}</p>}
       {success && <p className="text-green-600">{success}</p>}
       <section className="border rounded bg-white p-4 space-y-3">
-        <h2 className="text-sm font-semibold">Demandes de création</h2>
-        {requests.length === 0 ? <p className="text-sm text-gray-500">Aucune demande en attente.</p> : null}
-        {requests.map((request) => (
-          <div key={request.id} className="border rounded p-3 text-sm space-y-2">
-            <div className="font-medium">{request.requestedName}</div>
-            <div className="text-gray-600">
-              Statut: {request.status}
-              {request.requesterUser ? ` • Demandeur: ${request.requesterUser.username || request.requesterUser.email}` : ""}
-            </div>
-            <div className="text-gray-500">
-              RCCM: {request.rccmNumber || "-"} • IdNat: {request.idNatNumber || "-"} • Impôt: {request.taxNumber || "-"}
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="px-3 py-1 bg-emerald-600 text-white text-xs rounded disabled:opacity-50"
-                disabled={savingId === request.id || request.status !== "PENDING"}
-                onClick={() => reviewRequest(request.id, "approve")}
-              >
-                Approuver
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1 bg-red-600 text-white text-xs rounded disabled:opacity-50"
-                disabled={savingId === request.id || request.status !== "PENDING"}
-                onClick={() => reviewRequest(request.id, "reject")}
-              >
-                Rejeter
-              </button>
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">Demandes des nouveaux venus</h2>
+          <span className="text-xs text-gray-500">
+            {requests.length} demande{requests.length > 1 ? "s" : ""}
+          </span>
+        </div>
+        {requests.length === 0 ? <p className="text-sm text-gray-500">Aucune demande enregistrée.</p> : null}
+        {requests.length ? (
+          <div className="overflow-x-auto border rounded">
+            <table className="min-w-[980px] w-full text-sm">
+              <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                <tr>
+                  <th className="px-3 py-2 text-left">Nom d'utilisateur</th>
+                  <th className="px-3 py-2 text-left">Email</th>
+                  <th className="px-3 py-2 text-left">Motif de la demande</th>
+                  <th className="px-3 py-2 text-left">Société à ouvrir</th>
+                  <th className="px-3 py-2 text-left">Statut</th>
+                  <th className="px-3 py-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {requests.map((request) => (
+                  <tr key={request.id} className="align-top">
+                    <td className="px-3 py-2">
+                      <div className="font-medium">
+                        {request.requesterUser?.username || request.requesterUser?.email || "-"}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Soumis le {new Date(request.createdAt).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {request.requesterUser?.email ? (
+                        <a className="text-blue-600 underline" href={`mailto:${request.requesterUser.email}`}>
+                          {request.requesterUser.email}
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-3 py-2 max-w-xs text-gray-700">
+                      {request.reason || "-"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{request.requestedName}</div>
+                      <div className="text-xs text-gray-500">
+                        Forme: {request.legalForm || "-"} • Devise: {request.currency || "-"}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        RCCM: {request.rccmNumber || "-"} • IdNat: {request.idNatNumber || "-"} • Impôt: {request.taxNumber || "-"}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                        request.status === "APPROVED"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : request.status === "REJECTED"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                      }`}>
+                        {request.status === "APPROVED" ? "Approuvé" : request.status === "REJECTED" ? "Rejeté" : "En attente"}
+                      </span>
+                      {request.reviewNote ? (
+                        <div className="mt-1 text-xs text-gray-500">Note: {request.reviewNote}</div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="px-3 py-1 bg-emerald-600 text-white text-xs rounded disabled:opacity-50"
+                          disabled={savingId === request.id || request.status !== "PENDING"}
+                          onClick={() => reviewRequest(request.id, "approve")}
+                        >
+                          Approuver
+                        </button>
+                        <button
+                          type="button"
+                          className="px-3 py-1 bg-red-600 text-white text-xs rounded disabled:opacity-50"
+                          disabled={savingId === request.id || request.status !== "PENDING"}
+                          onClick={() => reviewRequest(request.id, "reject")}
+                        >
+                          Rejeter
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
+        ) : null}
       </section>
       <form onSubmit={createCompany} className="border rounded bg-white p-4 space-y-3">
         <h2 className="text-sm font-semibold">Créer une société</h2>

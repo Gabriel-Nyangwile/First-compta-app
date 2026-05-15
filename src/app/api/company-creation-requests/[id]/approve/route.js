@@ -16,6 +16,8 @@ export async function POST(req, { params }) {
 
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const reviewNote = body?.reviewNote?.toString?.().trim() || "Approved";
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -89,7 +91,7 @@ export async function POST(req, { params }) {
           reviewedByUserId: actor.userId,
           reviewedAt: new Date(),
           visibleAfterAt: reviewVisibleAfter(),
-          reviewNote: "Approved",
+          reviewNote,
         },
         include: {
           createdCompany: { select: { id: true, name: true } },

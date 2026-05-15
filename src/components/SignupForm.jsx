@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 
 export default function SignupForm() {
   const [form, setForm] = useState({ username: "", email: "", password: "", companyId: "" });
-  const [companyRequest, setCompanyRequest] = useState({ requestedName: "", legalForm: "", currency: "CDF" });
+  const [companyRequest, setCompanyRequest] = useState({ requestedName: "", reason: "", legalForm: "", currency: "CDF" });
   const [companies, setCompanies] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -51,7 +51,7 @@ export default function SignupForm() {
         window.dispatchEvent(new Event("access:pending"));
       } catch {}
       setForm({ username: "", email: "", password: "", companyId: "" });
-      setCompanyRequest({ requestedName: "", legalForm: "", currency: "CDF" });
+      setCompanyRequest({ requestedName: "", reason: "", legalForm: "", currency: "CDF" });
       setTimeout(() => {
         router.push('/');
       }, 1500);
@@ -72,7 +72,7 @@ export default function SignupForm() {
     <form onSubmit={handleSubmit} className="max-w-md mx-auto p-6 bg-white">
       <h2 className="text-xl text-center font-bold mb-10">Inscription</h2>
       <p className="text-sm text-gray-600 mb-6">
-        L'inscription crée une demande d'accès. Une réponse sera disponible dans le délai communiqué après validation.
+        L'inscription donne un accès lecture seule à la société Démo. L'ouverture d'une nouvelle société reste soumise à l'approbation du Platform Admin.
       </p>
       <label htmlFor="companyId" className="f-label">Société demandée</label>
       <select
@@ -85,10 +85,10 @@ export default function SignupForm() {
         <option value="">-- Choisir --</option>
         {companies.map((company) => (
           <option key={company.id} value={company.id}>
-            {company.name} · {company.id.slice(0, 8)}
+            Parcourir {company.name} en lecture seule
           </option>
         ))}
-        <option value="NEW">Nouvelle société</option>
+        <option value="NEW">Demander l'ouverture d'une nouvelle société</option>
       </select>
       {form.companyId === "NEW" ? (
         <div className="border border-slate-200 rounded p-3 my-4">
@@ -101,6 +101,16 @@ export default function SignupForm() {
             value={companyRequest.requestedName}
             onChange={(e) => setCompanyRequest((f) => ({ ...f, requestedName: e.target.value }))}
             className="f-auth-input"
+            required
+          />
+          <label htmlFor="requestReason" className="f-label">Motif de la demande</label>
+          <textarea
+            id="requestReason"
+            name="requestReason"
+            placeholder="Expliquez brièvement le contexte, l'organisation ou le besoin."
+            value={companyRequest.reason}
+            onChange={(e) => setCompanyRequest((f) => ({ ...f, reason: e.target.value }))}
+            className="f-auth-input min-h-24"
             required
           />
           <label htmlFor="legalForm" className="f-label">Forme juridique</label>

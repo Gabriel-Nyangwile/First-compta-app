@@ -119,10 +119,10 @@ export default function SigninForm() {
         <option value="">-- Choisir --</option>
         {companies.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.name} {c.legalForm ? `(${c.legalForm})` : ""} · {c.id.slice(0, 8)}
+            {c.name} {c.legalForm ? `(${c.legalForm})` : ""} · Démo
           </option>
         ))}
-        <option value="NEW">Nouvelle société</option>
+        <option value="NEW">Suivre ma demande de nouvelle société</option>
       </select>
       <label htmlFor="email" className="f-label">
         Email

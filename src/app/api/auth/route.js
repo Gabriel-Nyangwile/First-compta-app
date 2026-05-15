@@ -9,6 +9,7 @@ import {
   waitingDecisionMessage,
   waitingVisibilityMessage,
 } from "@/lib/accessReview";
+import { findDemoCompany, isDemoCompany } from "@/lib/demoCompany";
 
 const allowedRoles = [
   "PLATFORM_ADMIN",
@@ -51,24 +52,47 @@ export async function POST(request) {
     if (existing) {
       return Response.json({ error: "Email déjà utilisé" }, { status: 409 });
     }
+    const publicCompanies = await prisma.company.findMany({ select: { id: true, name: true } });
+    const demoCompany = findDemoCompany(publicCompanies);
+    const requestedExistingCompany =
+      requestedCompanyId === "NEW" ? null : publicCompanies.find((company) => company.id === requestedCompanyId) || null;
     if (requestedCompanyId !== "NEW") {
-      const company = await prisma.company.findUnique({ where: { id: requestedCompanyId }, select: { id: true } });
+      const company = requestedExistingCompany;
       if (!company) return Response.json({ error: "Société introuvable" }, { status: 404 });
+      if (!isDemoCompany(company)) {
+        return Response.json(
+          { error: "L'inscription publique donne uniquement accès à la société Démo. Pour une nouvelle société, utilisez l'option dédiée." },
+          { status: 403 },
+        );
+      }
     }
 
     const hashed = await bcrypt.hash(password, 10);
     const result = await prisma.$transaction(async (tx) => {
+      const demoCompanyId = demoCompany?.id || requestedExistingCompany?.id || null;
       const user = await tx.user.create({
         data: {
           username,
           email: normalizedEmail,
           password: hashed,
           role: "VIEWER",
-          isActive: false,
+          isActive: Boolean(demoCompanyId),
           canCreateCompany: false,
-          companyId: requestedCompanyId === "NEW" ? null : requestedCompanyId,
+          companyId: demoCompanyId,
         },
       });
+
+      if (demoCompanyId) {
+        await tx.companyMembership.create({
+          data: {
+            companyId: demoCompanyId,
+            userId: user.id,
+            role: "VIEWER",
+            isActive: true,
+            isDefault: true,
+          },
+        });
+      }
 
       if (requestedCompanyId === "NEW") {
         const companyRequest = body.companyRequest || {};
@@ -76,6 +100,7 @@ export async function POST(request) {
           data: {
             requesterUserId: user.id,
             requestedName: companyRequest.requestedName.toString().trim(),
+            reason: companyRequest.reason?.toString?.().trim() || null,
             address: companyRequest.address?.toString?.().trim() || null,
             legalForm: companyRequest.legalForm?.toString?.().trim() || null,
             currency: (companyRequest.currency || process.env.DEFAULT_COMPANY_CURRENCY || "CDF")
@@ -97,14 +122,15 @@ export async function POST(request) {
         return { user, request: accessRequest, kind: "COMPANY_CREATION" };
       }
 
-      const accessRequest = await tx.userAccessRequest.create({
-        data: {
-          requesterUserId: user.id,
-          companyId: requestedCompanyId,
-          requestedRole: "VIEWER",
+      return {
+        user,
+        request: {
+          id: user.id,
+          status: "APPROVED",
+          createdAt: user.createdAt,
         },
-      });
-      return { user, request: accessRequest, kind: "COMPANY_ACCESS" };
+        kind: "DEMO_ACCESS",
+      };
     });
 
     return Response.json(
@@ -123,7 +149,10 @@ export async function POST(request) {
           status: result.request.status,
           createdAt: result.request.createdAt,
         },
-        message: pendingMessage(),
+        message:
+          result.kind === "DEMO_ACCESS"
+            ? "Inscription activée. Vous pouvez parcourir la société Démo en lecture seule."
+            : pendingMessage(),
       },
       { status: 201 },
     );

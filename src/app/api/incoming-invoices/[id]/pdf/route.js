@@ -18,6 +18,7 @@ import {
   truncateToWidth,
 } from '@/lib/pdf/utils';
 import { requireCompanyId } from '@/lib/tenant';
+import { isDemoCompany } from '@/lib/demoCompany';
 
 export async function GET(req, { params }) {
   const companyId = requireCompanyId(req);
@@ -107,7 +108,9 @@ export async function GET(req, { params }) {
 
   const totalPages = pages.length;
   pages.forEach((p, idx) => drawFooter(p, { font, pageNumber: idx + 1, totalPages, legal: 'Document interne fournisseur' }));
-  if (invoice.status === 'DRAFT') {
+  if (isDemoCompany(dbCompany)) {
+    pages.forEach(p => drawDraftWatermark(p, { font, text: 'ECHANTILLON' }));
+  } else if (invoice.status === 'DRAFT') {
     pages.forEach(p => drawDraftWatermark(p, { font }));
   }
 

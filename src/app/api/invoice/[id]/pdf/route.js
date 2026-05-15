@@ -20,6 +20,7 @@ import {
   truncateToWidth,
 } from '@/lib/pdf/utils';
 import prisma from '@/lib/prisma';
+import { isDemoCompany } from '@/lib/demoCompany';
 
 export async function GET(req, { params }) {
   const companyId = requireCompanyId(req);
@@ -107,7 +108,9 @@ export async function GET(req, { params }) {
   });
 
   // Watermark si statut non émis (ex: DRAFT)
-  if (invoice.status === 'DRAFT') {
+  if (isDemoCompany(dbCompany)) {
+    pages.forEach(p => drawDraftWatermark(p, { font, text: 'ECHANTILLON' }));
+  } else if (invoice.status === 'DRAFT') {
     pages.forEach(p => drawDraftWatermark(p, { font }));
   }
 

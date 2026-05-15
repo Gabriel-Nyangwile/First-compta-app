@@ -6,6 +6,7 @@ import { getRequestActor, getRequestRole } from "@/lib/requestAuth";
 function normalizePayload(body = {}) {
   return {
     requestedName: body?.requestedName?.toString?.().trim() || "",
+    reason: body?.reason?.toString?.().trim() || null,
     address: body?.address?.toString?.().trim() || null,
     legalForm: body?.legalForm?.toString?.().trim() || null,
     currency: (body?.currency || process.env.DEFAULT_COMPANY_CURRENCY || "XOF")

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { isDemoCompany } from "@/lib/demoCompany";
 import { getRequestActor, getUserIdFromRequest } from "@/lib/requestAuth";
 
 // GET /api/companies/public
@@ -23,7 +24,7 @@ export async function GET(req) {
     });
     const accessibleCompanyIds = new Set(actor?.user?.memberships?.map((item) => item.companyId) || []);
     const visibleCompanies = companies.filter((company) => {
-      if (forcePublicList) return true;
+      if (forcePublicList) return isDemoCompany(company);
       if (actor?.user && !isPlatformAdmin) return accessibleCompanyIds.has(company.id);
       return true;
     });

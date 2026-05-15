@@ -13,6 +13,7 @@ export default function CompanyRequestPage() {
   const [success, setSuccess] = useState("");
   const [form, setForm] = useState({
     requestedName: "",
+    reason: "",
     address: "",
     legalForm: "",
     currency: "CDF",
@@ -61,6 +62,7 @@ export default function CompanyRequestPage() {
       setSuccess("Demande transmise. Un administrateur plateforme doit maintenant l’approuver.");
       setForm({
         requestedName: "",
+        reason: "",
         address: "",
         legalForm: "",
         currency: "CDF",
@@ -113,6 +115,15 @@ export default function CompanyRequestPage() {
           <label className="flex flex-col gap-1 md:col-span-2">
             <span className="text-xs text-gray-600">Adresse</span>
             <input className="border rounded px-2 py-1" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+          </label>
+          <label className="flex flex-col gap-1 md:col-span-3">
+            <span className="text-xs text-gray-600">Motif de la demande *</span>
+            <textarea
+              className="border rounded px-2 py-1 min-h-24"
+              value={form.reason}
+              onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+              required
+            />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs text-gray-600">N° RCCM</span>
@@ -179,6 +190,7 @@ export default function CompanyRequestPage() {
           <div key={request.id} className="border rounded bg-white p-4 text-sm space-y-1">
             <div className="font-medium">{request.requestedName}</div>
             <div className="text-gray-600">Statut: {request.status}</div>
+            {request.reason ? <div className="text-gray-600">Motif: {request.reason}</div> : null}
             <div className="text-gray-500">Soumis le {new Date(request.createdAt).toLocaleString()}</div>
             {request.createdCompany ? <div className="text-green-700">Société créée: {request.createdCompany.name}</div> : null}
             {request.reviewNote ? <div className="text-gray-600">Note: {request.reviewNote}</div> : null}

@@ -273,6 +273,7 @@ model UserAccessRequest {
   company           Company                 @relation(fields: [companyId], references: [id])
   status            UserAccessRequestStatus @default(PENDING)
   requestedRole     UserRole                @default(VIEWER)
+  reason            String?
   reviewedByUserId  String?
   reviewedByUser    User?                   @relation("UserAccessReviewer", fields: [reviewedByUserId], references: [id])
   reviewNote        String?
@@ -297,6 +298,7 @@ model CompanyCreationRequest {
   createdCompany    Company?                     @relation(fields: [createdCompanyId], references: [id])
   status            CompanyCreationRequestStatus @default(PENDING)
   requestedName     String
+  reason            String?
   address           String?
   legalForm         String?
   currency          String                       @default("XOF")
