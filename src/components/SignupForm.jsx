@@ -13,7 +13,7 @@ export default function SignupForm() {
     let cancelled = false;
     async function loadCompanies() {
       try {
-        const res = await fetch("/api/companies/public", { cache: "no-store" });
+        const res = await fetch("/api/companies/public?context=signup", { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!cancelled) setCompanies(data.companies || []);
       } catch {

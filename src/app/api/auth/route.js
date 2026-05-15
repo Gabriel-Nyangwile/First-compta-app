@@ -183,6 +183,7 @@ export async function GET(request) {
     }
     const globalRole = user.role?.toString?.().toUpperCase();
     const isGlobalAdmin = ["PLATFORM_ADMIN", "SUPERADMIN"].includes(globalRole);
+    const isPlatformAdmin = globalRole === "PLATFORM_ADMIN";
     const membership =
       requestedCompanyId && requestedCompanyId !== "NEW"
         ? user.memberships.find((item) => item.companyId === requestedCompanyId) || null
@@ -204,7 +205,11 @@ export async function GET(request) {
         ? "NEW"
         : membership?.companyId || (user.companyId === requestedCompanyId ? requestedCompanyId : user.companyId) || null;
     const activeRole =
-      membership?.role || (user.companyId === activeCompanyId ? user.role : null) || (isGlobalAdmin ? user.role : null) || user.role;
+      (isPlatformAdmin ? user.role : null) ||
+      membership?.role ||
+      (user.companyId === activeCompanyId ? user.role : null) ||
+      (isGlobalAdmin ? user.role : null) ||
+      user.role;
     return Response.json({
       user: {
         id: user.id,

@@ -23,7 +23,7 @@ export default function SigninForm() {
     let cancelled = false;
     async function loadCompanies() {
       try {
-        const res = await fetch("/api/companies/public", { cache: "no-store" });
+        const res = await fetch("/api/companies/public?context=signin", { cache: "no-store" });
         const data = await readJsonResponse(res);
         const list = data.companies || [];
         if (!cancelled) setCompanies(list);
@@ -166,9 +166,12 @@ export default function SigninForm() {
             onClick={() => {
               localStorage.removeItem("user");
               localStorage.removeItem("userId");
+              localStorage.removeItem("pendingCompanyId");
               setUser(null);
               document.cookie = "user-role=; path=/; Max-Age=0";
               document.cookie = "user-id=; path=/; Max-Age=0";
+              document.cookie = "company-id=; path=/; Max-Age=0";
+              document.cookie = "pending-company-id=; path=/; Max-Age=0";
               window.location.reload();
             }}
           >

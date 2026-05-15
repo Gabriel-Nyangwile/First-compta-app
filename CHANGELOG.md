@@ -18,6 +18,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Guides utilisateurs relus pour l'affichage Aide: sections techniques masquées et index séparé entre guides utilisateur et documents d'exploitation.
 - Validation Phase 7 consignée: `ci:quick` local OK, `/api/health` Vercel OK, connexions applicatives OK.
 - Seed de configuration paie compatible avec le scoping multi-société utilisé en CI.
+- Connexion et approbation d'accès stabilisées: liste publique des sociétés indépendante des anciens cookies, rôle `PLATFORM_ADMIN` conservé côté serveur, cookies d'authentification nettoyés à la déconnexion.
 
 ## [v0.1.1] - 2025-11-17
 

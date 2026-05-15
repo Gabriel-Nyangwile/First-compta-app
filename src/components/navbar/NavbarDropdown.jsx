@@ -617,6 +617,12 @@ export default function NavbarDropdown({ user }) {
   if (!user) return null;
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("pendingCompanyId");
+    document.cookie = "user-role=; path=/; Max-Age=0";
+    document.cookie = "user-id=; path=/; Max-Age=0";
+    document.cookie = "company-id=; path=/; Max-Age=0";
+    document.cookie = "pending-company-id=; path=/; Max-Age=0";
     window.dispatchEvent(new Event("user:logout"));
     const url = new URL(window.location.origin + "/");
     url.searchParams.set("loggedout", "1");

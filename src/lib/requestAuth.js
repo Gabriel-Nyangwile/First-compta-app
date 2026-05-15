@@ -57,6 +57,8 @@ export async function getRequestActor(req, options = {}) {
     };
   }
 
+  const globalRole = normalizeRole(user.role);
+  const isPlatformAdmin = globalRole === "PLATFORM_ADMIN";
   const fallbackMembership =
     user.memberships.find((item) => item.companyId === user.companyId) ||
     user.memberships.find((item) => item.isDefault) ||
@@ -75,6 +77,7 @@ export async function getRequestActor(req, options = {}) {
     null;
 
   const effectiveRole =
+    (isPlatformAdmin ? user.role : null) ||
     membership?.role ||
     (requestedCompanyId && user.companyId === requestedCompanyId ? user.role : null) ||
     fallbackMembership?.role ||

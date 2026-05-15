@@ -5,8 +5,11 @@ import { getRequestActor, getUserIdFromRequest } from "@/lib/requestAuth";
 // GET /api/companies/public
 export async function GET(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const context = searchParams.get("context") || searchParams.get("scope") || "";
+    const forcePublicList = ["auth", "signin", "signup", "public"].includes(context);
     let actor = null;
-    if (getUserIdFromRequest(req)) {
+    if (!forcePublicList && getUserIdFromRequest(req)) {
       try {
         actor = await getRequestActor(req);
       } catch (actorError) {
@@ -20,6 +23,7 @@ export async function GET(req) {
     });
     const accessibleCompanyIds = new Set(actor?.user?.memberships?.map((item) => item.companyId) || []);
     const visibleCompanies = companies.filter((company) => {
+      if (forcePublicList) return true;
       if (actor?.user && !isPlatformAdmin) return accessibleCompanyIds.has(company.id);
       return true;
     });

@@ -383,7 +383,13 @@ export default function AuthSidebar() {
   const logout = () => {
     try {
       localStorage.removeItem("user");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("pendingCompanyId");
     } catch {}
+    document.cookie = "user-role=; path=/; Max-Age=0";
+    document.cookie = "user-id=; path=/; Max-Age=0";
+    document.cookie = "company-id=; path=/; Max-Age=0";
+    document.cookie = "pending-company-id=; path=/; Max-Age=0";
     window.dispatchEvent(new Event("user:logout"));
     window.location.href = "/?loggedout=1";
   };
