@@ -173,7 +173,7 @@ export default function CreateSalesOrderPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto p-8 bg-white rounded shadow mt-8">
+    <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 bg-white rounded shadow mt-8">
       <div className="flex items-center justify-between mb-4">
         <button
           type="button"
@@ -206,7 +206,7 @@ export default function CreateSalesOrderPage() {
             Si le client n'existe pas, crée sa fiche d'abord. Le compte client 411 reste optionnel sur la fiche, mais il sera requis au moment de la facturation.
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
           <div className="flex-1">
             <label className="block text-sm font-medium">Date commande</label>
             <input
@@ -246,7 +246,7 @@ export default function CreateSalesOrderPage() {
             {lines.map((line, idx) => (
               <div
                 key={idx}
-                className="grid gap-2 items-start rounded border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,2.2fr)_90px_110px_90px_minmax(260px,1.6fr)_44px]"
+                className="grid gap-2 items-start rounded border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[minmax(260px,2.2fr)_96px_120px_90px_minmax(280px,1.6fr)_44px]"
               >
                 <div className="min-w-0">
                   <ProductAutocomplete

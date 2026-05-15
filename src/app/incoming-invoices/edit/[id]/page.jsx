@@ -61,7 +61,7 @@ export default function EditIncomingInvoicePage() {
 
   return (
     <main className='min-h-screen pt-24 px-6 bg-gray-50'>
-      <div className='max-w-4xl mx-auto bg-white border rounded shadow p-6 flex flex-col gap-6'>
+      <div className='w-full max-w-7xl mx-auto bg-white border rounded shadow p-4 sm:p-6 flex flex-col gap-6'>
         <h1 className='text-xl font-semibold'>Modifier facture fournisseur {invoice.entryNumber}</h1>
         <form onSubmit={save} className='flex flex-col gap-6 text-sm'>
           <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
@@ -95,7 +95,7 @@ export default function EditIncomingInvoicePage() {
             <button type='button' onClick={addLine} className='text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded'>+ Ligne</button>
           </div>
           <div className='overflow-auto border rounded'>
-            <table className='min-w-full text-xs'>
+            <table className='min-w-[1040px] w-full text-xs'>
               <thead className='bg-gray-100'>
                 <tr>
                   <th className='px-2 py-1 text-left'>Description</th>
@@ -112,13 +112,13 @@ export default function EditIncomingInvoicePage() {
                   const lineTotal = (Number(l.quantity)||0)*(Number(l.unitPrice)||0);
                   return (
                     <tr key={idx} className='border-t'>
-                      <td className='px-2 py-1'><input value={l.description} onChange={e=>updateLine(idx,{description:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
-                      <td className='px-2 py-1 min-w-[180px]'>
+                      <td className='px-2 py-1 min-w-[280px]'><input value={l.description} onChange={e=>updateLine(idx,{description:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
+                      <td className='px-2 py-1 min-w-[280px]'>
                         <AccountAutocomplete value={l._account||null} onChange={acc=> updateLine(idx,{ accountId:acc?acc.id:'', _account:acc||null })} filterPrefix='6' />
                       </td>
-                      <td className='px-2 py-1'><input value={l.unitOfMeasure} onChange={e=>updateLine(idx,{unitOfMeasure:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
-                      <td className='px-2 py-1 w-20'><input type='number' value={l.quantity} onChange={e=>updateLine(idx,{quantity:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
-                      <td className='px-2 py-1 w-24'><input type='number' value={l.unitPrice} onChange={e=>updateLine(idx,{unitPrice:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
+                      <td className='px-2 py-1 w-24'><input value={l.unitOfMeasure} onChange={e=>updateLine(idx,{unitOfMeasure:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
+                      <td className='px-2 py-1 w-28'><input type='number' value={l.quantity} onChange={e=>updateLine(idx,{quantity:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
+                      <td className='px-2 py-1 w-28'><input type='number' value={l.unitPrice} onChange={e=>updateLine(idx,{unitPrice:e.target.value})} className='border rounded px-2 py-1 w-full' /></td>
                       <td className='px-2 py-1 text-right font-mono'><Amount value={lineTotal} /></td>
                       <td className='px-2 py-1 text-center'>{lines.length>1 && <button type='button' onClick={()=>removeLine(idx)} className='text-red-600 hover:underline'>X</button>}</td>
                     </tr>

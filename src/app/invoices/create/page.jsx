@@ -708,8 +708,8 @@ export default function CreateInvoicePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-100">
-      <div className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md border border-gray-200">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-gray-100">
+      <div className="w-full max-w-7xl bg-white p-4 sm:p-6 lg:p-8 rounded-lg shadow-md border border-gray-200">
         <div className="flex items-center justify-between mb-6">
           <button
             type="button"
@@ -1084,10 +1084,10 @@ export default function CreateInvoicePage() {
             {lines.map((line, idx) => (
               <div
                 key={idx}
-                className="flex flex-wrap gap-2 items-end border-b pb-2 mb-2"
+                className="grid gap-2 items-start rounded border border-gray-200 bg-gray-50 p-3 lg:grid-cols-[minmax(260px,2fr)_minmax(280px,1.6fr)_88px_110px_120px_90px_120px_40px]"
               >
                 {line.fromSalesOrder && (
-                  <span className="text-xs text-blue-600 font-semibold w-full">
+                  <span className="text-xs text-blue-600 font-semibold lg:col-span-8">
                     Ligne commande
                   </span>
                 )}
@@ -1098,12 +1098,12 @@ export default function CreateInvoicePage() {
                   onChange={(e) =>
                     handleLineChange(idx, "description", e.target.value)
                   }
-                  className="w-32 px-2 py-1 border rounded"
+                  className="w-full px-2 py-1 border rounded"
                   required
                 />
-                <div className="w-32">
+                <div className="min-w-0">
                   {line.fromSalesOrder ? (
-                    <div className="px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-gray-700">
+                    <div className="min-h-[34px] w-full px-2 py-1 border border-gray-300 rounded bg-gray-100 text-sm text-gray-700 break-words">
                       {line.accountNumber || "—"}
                     </div>
                   ) : (
@@ -1139,7 +1139,7 @@ export default function CreateInvoicePage() {
                   onChange={(e) =>
                     handleLineChange(idx, "unitOfMeasure", e.target.value)
                   }
-                  className={`w-20 px-2 py-1 border rounded ${
+                  className={`w-full px-2 py-1 border rounded ${
                     line.fromSalesOrder ? "bg-gray-100 text-gray-600" : ""
                   }`}
                   disabled={line.fromSalesOrder}
@@ -1155,7 +1155,7 @@ export default function CreateInvoicePage() {
                   onChange={(e) =>
                     handleLineChange(idx, "quantity", e.target.value)
                   }
-                  className="w-20 px-2 py-1 border rounded"
+                  className="w-full px-2 py-1 border rounded"
                   required
                 />
                 <input
@@ -1167,7 +1167,7 @@ export default function CreateInvoicePage() {
                   onChange={(e) =>
                     handleLineChange(idx, "unitPrice", e.target.value)
                   }
-                  className={`w-24 px-2 py-1 border rounded ${
+                  className={`w-full px-2 py-1 border rounded ${
                     line.fromSalesOrder ? "bg-gray-100 text-gray-600" : ""
                   }`}
                   disabled={line.fromSalesOrder}
@@ -1182,20 +1182,20 @@ export default function CreateInvoicePage() {
                   onChange={(e) =>
                     handleLineChange(idx, "vatRate", e.target.value)
                   }
-                  className="w-20 px-2 py-1 border rounded"
+                  className="w-full px-2 py-1 border rounded"
                 />
-                <span className="w-24 text-right font-semibold">
+                <span className="w-full text-right font-semibold lg:self-center">
                   <Amount value={line.lineTotal} />
                 </span>
                 <button
                   type="button"
                   onClick={() => removeLine(idx)}
-                  className="text-red-500 px-2"
+                  className="text-red-500 px-2 lg:self-center"
                 >
                   ✕
                 </button>
                 {line.fromSalesOrder && line.maxQuantity != null && (
-                  <div className="w-full text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 lg:col-span-8">
                     Quantité restante maximale : {line.maxQuantity}
                   </div>
                 )}

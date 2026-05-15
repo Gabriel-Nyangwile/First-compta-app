@@ -229,7 +229,7 @@ export default function CreateIncomingInvoicePage() {
 
   return (
     <main className="min-h-screen pt-24 px-6 bg-gray-50">
-      <div className="max-w-4xl mx-auto bg-white border rounded shadow p-6 flex flex-col gap-6">
+      <div className="w-full max-w-7xl mx-auto bg-white border rounded shadow p-4 sm:p-6 flex flex-col gap-6">
         <h1 className="text-xl font-semibold">
           Nouvelle facture fournisseur reçue
         </h1>
@@ -411,7 +411,7 @@ export default function CreateIncomingInvoicePage() {
             </button>
           </div>
           <div className="overflow-auto border rounded">
-            <table className="min-w-full text-xs">
+            <table className="min-w-[1040px] w-full text-xs">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="px-2 py-1 text-left">Description</th>
@@ -429,7 +429,7 @@ export default function CreateIncomingInvoicePage() {
                     Number(l.quantity || 0) * Number(l.unitPrice || 0);
                   return (
                     <tr key={idx} className="border-t">
-                      <td className="px-2 py-1">
+                      <td className="px-2 py-1 min-w-[280px]">
                         <input
                           value={l.description}
                           onChange={(e) =>
@@ -439,7 +439,7 @@ export default function CreateIncomingInvoicePage() {
                           disabled={l._locked}
                         />
                       </td>
-                      <td className="px-2 py-1 min-w-[180px]">
+                      <td className="px-2 py-1 min-w-[280px]">
                         <AccountAutocomplete
                           value={l._account || null}
                           onChange={(acc) => {
@@ -448,11 +448,10 @@ export default function CreateIncomingInvoicePage() {
                               _account: acc || null,
                             });
                           }}
-                          maxLength={8}
                           filterPrefix="6"
                         />
                       </td>
-                      <td className="px-2 py-1">
+                      <td className="px-2 py-1 w-24">
                         <input
                           value={l.unitOfMeasure}
                           onChange={(e) =>
@@ -462,7 +461,7 @@ export default function CreateIncomingInvoicePage() {
                           disabled={l._locked}
                         />
                       </td>
-                      <td className="px-2 py-1 w-20">
+                      <td className="px-2 py-1 w-28">
                         <input
                           type="number"
                           value={l.quantity}
@@ -473,7 +472,7 @@ export default function CreateIncomingInvoicePage() {
                           disabled={l._locked}
                         />
                       </td>
-                      <td className="px-2 py-1 w-24">
+                      <td className="px-2 py-1 w-28">
                         <input
                           type="number"
                           value={l.unitPrice}
