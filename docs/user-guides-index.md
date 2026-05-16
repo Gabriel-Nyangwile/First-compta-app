@@ -8,7 +8,9 @@ Ce document centralise les guides disponibles dans le projet.
 | --- | --- |
 | Ventes | [Guide opératoire - Ventes](./sales-user-guide.md) |
 | Achats | [Guide opératoire - Achats](./purchase-user-guide.md) |
+| Immobilisations | [Guide opératoire - Immobilisations](./assets-user-guide.md) |
 | Trésorerie | [Guide opératoire - Trésorerie](./treasury-user-guide.md) |
+| Ouverture / Clôture | [Guide opératoire - Ouverture et clôture d'exercice](./fiscal-year-user-guide.md) |
 | Capital | [Manuel illustré - Opérations en capital](./capital-operations-user-guide.md) |
 | Production | [Guide opératoire - Production](./production-user-guide.md) |
 | Personnel / Paie | [Guide opératoire - Gestion du personnel et paie](./personnel-payroll-user-guide.md) |

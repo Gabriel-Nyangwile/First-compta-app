@@ -20,7 +20,7 @@ function parseFiscalYearStart(value) {
   return { month, day, raw };
 }
 
-function fiscalYearRange(year, fiscalYearStart) {
+export function fiscalYearRange(year, fiscalYearStart) {
   const startInfo = parseFiscalYearStart(fiscalYearStart);
   const start = new Date(year, startInfo.month - 1, startInfo.day, 0, 0, 0, 0);
   const nextStart = new Date(year + 1, startInfo.month - 1, startInfo.day, 0, 0, 0, 0);
@@ -157,11 +157,11 @@ export async function calculateAnnualClosing({
   const totalCredit = round2(rows.reduce((sum, row) => sum + row.credit, 0));
   const ledgerDiff = round2(totalDebit - totalCredit);
   const balanceRows = rows.filter((row) => ["1", "2", "3", "4", "5"].includes(row.class));
-  const profitLossRows = rows.filter((row) => ["6", "7"].includes(row.class));
+  const profitLossRows = rows.filter((row) => ["6", "7", "8"].includes(row.class));
 
   const expenses = round2(
     rows
-      .filter((row) => row.class === "6")
+      .filter((row) => row.class === "6" || row.class === "8")
       .reduce((sum, row) => sum + (row.debit - row.credit), 0)
   );
   const revenues = round2(
@@ -183,10 +183,19 @@ export async function calculateAnnualClosing({
       amount: amountForNet(row.net),
     }));
 
+  const approvedAllocation = await prisma.profitAllocationDecision.findUnique({
+    where: { companyId_year: { companyId, year: numericYear } },
+    include: { lines: { include: { shareholder: { select: { id: true, name: true } } } } },
+  });
   const resultDirection = balanceNet > 0 ? "CREDIT" : "DEBIT";
   const resultAmount = amountForNet(balanceNet);
+  const allocationResultLines =
+    approvedAllocation?.status === "APPROVED"
+      ? buildAllocationOpeningLines(approvedAllocation, balanceNet)
+      : null;
   const requiredResultAccountNumber =
-    balanceNet > 0 ? profitAccountNumber : lossAccountNumber;
+    allocationResultLines?.[0]?.accountNumber ||
+    (balanceNet > 0 ? profitAccountNumber : lossAccountNumber);
   const requiredResultAccount =
     resultAmount > EPSILON
       ? await prisma.account.findFirst({
@@ -201,6 +210,16 @@ export async function calculateAnnualClosing({
   if (existingClosing?.status === "CLOSED") anomalies.push(`Exercice ${numericYear} deja cloture.`);
   if (resultAmount > EPSILON && !requiredResultAccount) {
     anomalies.push(`Compte de resultat introuvable: ${requiredResultAccountNumber}.`);
+  }
+  if (allocationResultLines?.length) {
+    const allocatedResultAmount = round2(
+      allocationResultLines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
+    );
+    if (Math.abs(allocatedResultAmount - resultAmount) > EPSILON) {
+      anomalies.push(
+        `Affectation AGO incoherente: total affecte ${allocatedResultAmount.toFixed(2)} pour resultat a reporter ${resultAmount.toFixed(2)}.`
+      );
+    }
   }
 
   return {
@@ -254,9 +273,57 @@ export async function calculateAnnualClosing({
         amount: resultAmount,
         accountNumber: requiredResultAccountNumber,
         account: requiredResultAccount,
+        allocation: approvedAllocation
+          ? {
+              id: approvedAllocation.id,
+              status: approvedAllocation.status,
+              corporateTaxAmount: toNumber(approvedAllocation.corporateTaxAmount),
+              netResult: toNumber(approvedAllocation.netResult),
+              distributableProfit: toNumber(approvedAllocation.distributableProfit),
+              dividendsGrossAmount: toNumber(approvedAllocation.dividendsGrossAmount),
+              irmAmount: toNumber(approvedAllocation.irmAmount),
+              retainedEarningsAmount: toNumber(approvedAllocation.retainedEarningsAmount),
+            }
+          : null,
+        allocationLines: allocationResultLines,
       },
     },
   };
+}
+
+function buildAllocationOpeningLines(decision, balanceNet) {
+  const lines = [];
+  const positive = balanceNet > EPSILON;
+  if (!positive) {
+    const amount = Math.abs(toNumber(decision.retainedEarningsAmount) || balanceNet);
+    if (amount > EPSILON) {
+      lines.push({
+        accountNumber: decision.lossRetainedAccountNumber,
+        label: "Perte nette à reporter",
+        direction: "DEBIT",
+        amount: round2(amount),
+      });
+    }
+    return lines;
+  }
+
+  const pushCredit = (accountNumber, label, amount) => {
+    const rounded = round2(amount);
+    if (rounded > EPSILON) lines.push({ accountNumber, label, direction: "CREDIT", amount: rounded });
+  };
+
+  pushCredit(decision.legalReserveAccountNumber, "Dotation réserve légale", toNumber(decision.legalReserveAmount));
+  pushCredit(
+    decision.statutoryReserveAccountNumber || decision.optionalReserveAccountNumber,
+    "Dotation réserves statutaires",
+    toNumber(decision.statutoryReserveAmount)
+  );
+  pushCredit(decision.optionalReserveAccountNumber, "Dotation réserves facultatives", toNumber(decision.optionalReserveAmount));
+  pushCredit(decision.dividendsPayableAccountNumber, "Dividendes nets à payer", toNumber(decision.dividendsNetAmount));
+  pushCredit(decision.irmPayableAccountNumber, "IRM à reverser", toNumber(decision.irmAmount));
+  pushCredit(decision.retainedEarningsAccountNumber, "Report à nouveau créditeur", toNumber(decision.retainedEarningsAmount));
+
+  return lines;
 }
 
 async function resolveResultAccount(tx, { companyId, resultAccountNumber, resultAccountLabel }) {
@@ -299,14 +366,16 @@ export async function generateAnnualOpening({
   }
 
   const resultAccountNumber =
-    analysis.totals.balanceNet > 0 ? profitAccountNumber : lossAccountNumber;
+    analysis.opening.result.allocationLines?.[0]?.accountNumber ||
+    (analysis.totals.balanceNet > 0 ? profitAccountNumber : lossAccountNumber);
   const resultAccountLabel =
     analysis.totals.balanceNet > 0 ? "Resultat beneficiaire" : "Resultat deficitaire";
   const openingDate = new Date(analysis.range.nextStart);
 
   const created = await prisma.$transaction(async (tx) => {
+    const allocationLines = analysis.opening.result.allocationLines || [];
     const needsResultAccount = analysis.opening.result.amount > EPSILON;
-    const resultAccount = needsResultAccount
+    const resultAccount = needsResultAccount && !allocationLines.length
       ? await resolveResultAccount(tx, {
           companyId,
           resultAccountNumber,
@@ -329,7 +398,27 @@ export async function generateAnnualOpening({
       transactionIds.push(transaction.id);
     }
 
-    if (needsResultAccount) {
+    if (allocationLines.length) {
+      for (const line of allocationLines) {
+        const account = await resolveResultAccount(tx, {
+          companyId,
+          resultAccountNumber: line.accountNumber,
+          resultAccountLabel: line.label,
+        });
+        const transaction = await tx.transaction.create({
+          data: {
+            companyId,
+            date: openingDate,
+            description: `${analysis.opening.description} ${line.label}`,
+            amount: line.amount,
+            direction: line.direction,
+            kind: "ADJUSTMENT",
+            accountId: account.id,
+          },
+        });
+        transactionIds.push(transaction.id);
+      }
+    } else if (needsResultAccount) {
       const resultTransaction = await tx.transaction.create({
         data: {
           companyId,
@@ -364,6 +453,12 @@ export async function generateAnnualOpening({
         note: `Cloture ${analysis.year} et a-nouveaux ${analysis.year + 1}`,
       },
     });
+    if (analysis.opening.result.allocation?.id) {
+      await tx.profitAllocationDecision.update({
+        where: { id: analysis.opening.result.allocation.id },
+        data: { openingJournalEntryId: journalEntry.id },
+      });
+    }
     return {
       journalEntry: {
         id: journalEntry.id,

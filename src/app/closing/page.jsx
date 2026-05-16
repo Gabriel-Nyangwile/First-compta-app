@@ -31,6 +31,29 @@ export default function ClosingPage() {
   const [profitAccountNumber, setProfitAccountNumber] = useState("121100");
   const [lossAccountNumber, setLossAccountNumber] = useState("129100");
   const [report, setReport] = useState(null);
+  const [allocationReport, setAllocationReport] = useState(null);
+  const [allocationForm, setAllocationForm] = useState({
+    corporateTaxRate: "0.30",
+    minimumTaxRate: "0.01",
+    legalReserveRate: "0.10",
+    legalReserveCapRate: "0.20",
+    irmRate: "0.20",
+    statutoryReserveAmount: "0",
+    optionalReserveAmount: "0",
+    dividendsGrossAmount: "0",
+    taxExpenseAccountNumber: "891000",
+    minimumTaxExpenseAccountNumber: "895000",
+    taxPayableAccountNumber: "441000",
+    legalReserveAccountNumber: "113800",
+    statutoryReserveAccountNumber: "113800",
+    optionalReserveAccountNumber: "118100",
+    retainedEarningsAccountNumber: "121100",
+    lossRetainedAccountNumber: "129100",
+    dividendsPayableAccountNumber: "465000",
+    irmPayableAccountNumber: "447000",
+    agoReference: "",
+    decisionDate: new Date().toISOString().slice(0, 10),
+  });
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const role = useMemo(() => getClientRole(), []);
@@ -48,10 +71,58 @@ export default function ClosingPage() {
       const res = await fetch(`/api/closing/annual?${params.toString()}`, { cache: "no-store" });
       const data = await res.json();
       setReport(data);
+      setAllocationReport(null);
       if (!res.ok) throw new Error(data.error || "Controle impossible");
     } catch (err) {
       setError(err.message);
     } finally {
+      setBusy("");
+    }
+  }
+
+  function setAllocationField(field, value) {
+    setAllocationForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function allocationPayload() {
+    return { year, ...allocationForm };
+  }
+
+  async function simulateAllocation() {
+    setBusy("allocation");
+    setError("");
+    try {
+      const params = new URLSearchParams(allocationPayload());
+      const res = await fetch(`/api/closing/profit-allocation?${params.toString()}`, { cache: "no-store" });
+      const data = await res.json();
+      setAllocationReport(data);
+      if (!res.ok) throw new Error(data.error || "Simulation affectation impossible");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function approveAllocation() {
+    const confirmed = window.confirm(
+      "Valider le calcul fiscal et la decision AGO ? L'impot societe sera comptabilise si necessaire."
+    );
+    if (!confirmed) return;
+    setBusy("approve-allocation");
+    setError("");
+    try {
+      const res = await fetch("/api/closing/profit-allocation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(allocationPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Validation affectation impossible");
+      await simulateAllocation();
+      await control();
+    } catch (err) {
+      setError(err.message);
       setBusy("");
     }
   }
@@ -203,6 +274,183 @@ export default function ClosingPage() {
               </ul>
             </div>
           )}
+
+          <div className="border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <h2 className="font-semibold text-slate-900">Impôt société et affectation AGO</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Cette étape calcule l'IS ou l'impôt minimum, puis prépare l'affectation du résultat net selon la décision AGO.
+              </p>
+            </div>
+            <div className="space-y-4 p-4">
+              <div className="grid gap-3 md:grid-cols-5">
+                {[
+                  ["corporateTaxRate", "Taux IS", "0.30"],
+                  ["minimumTaxRate", "Impôt minimum", "0.01"],
+                  ["legalReserveRate", "Réserve légale", "0.10"],
+                  ["legalReserveCapRate", "Plafond réserve", "0.20"],
+                  ["irmRate", "IRM dividendes", "0.20"],
+                ].map(([field, label, placeholder]) => (
+                  <label key={field} className="text-sm font-medium text-gray-700">
+                    {label}
+                    <input
+                      value={allocationForm[field]}
+                      onChange={(event) => setAllocationField(field, event.target.value)}
+                      placeholder={placeholder}
+                      className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                ))}
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Réserves statutaires
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={allocationForm.statutoryReserveAmount}
+                    onChange={(event) => setAllocationField("statutoryReserveAmount", event.target.value)}
+                    className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Réserves facultatives
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={allocationForm.optionalReserveAmount}
+                    onChange={(event) => setAllocationField("optionalReserveAmount", event.target.value)}
+                    className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Dividendes bruts
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={allocationForm.dividendsGrossAmount}
+                    onChange={(event) => setAllocationField("dividendsGrossAmount", event.target.value)}
+                    className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-3 md:grid-cols-4">
+                {[
+                  ["taxExpenseAccountNumber", "Compte charge IS"],
+                  ["minimumTaxExpenseAccountNumber", "Compte impôt minimum"],
+                  ["taxPayableAccountNumber", "Compte IS à payer"],
+                  ["legalReserveAccountNumber", "Compte réserve légale"],
+                  ["statutoryReserveAccountNumber", "Compte réserve statutaire"],
+                  ["optionalReserveAccountNumber", "Compte réserve facultative"],
+                  ["retainedEarningsAccountNumber", "Compte RAN créditeur"],
+                  ["lossRetainedAccountNumber", "Compte RAN débiteur"],
+                  ["dividendsPayableAccountNumber", "Compte dividendes à payer"],
+                  ["irmPayableAccountNumber", "Compte IRM à reverser"],
+                ].map(([field, label]) => (
+                  <label key={field} className="text-sm font-medium text-gray-700">
+                    {label}
+                    <input
+                      value={allocationForm[field]}
+                      onChange={(event) => setAllocationField(field, event.target.value)}
+                      className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                ))}
+                <label className="text-sm font-medium text-gray-700">
+                  Référence AGO
+                  <input
+                    value={allocationForm.agoReference}
+                    onChange={(event) => setAllocationField("agoReference", event.target.value)}
+                    className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Date AGO
+                  <input
+                    type="date"
+                    value={allocationForm.decisionDate}
+                    onChange={(event) => setAllocationField("decisionDate", event.target.value)}
+                    className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={simulateAllocation}
+                  disabled={!!busy}
+                  className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+                >
+                  Simuler fiscalité / AGO
+                </button>
+                <button
+                  type="button"
+                  onClick={approveAllocation}
+                  disabled={!!busy || !allocationReport?.ok}
+                  className="rounded bg-blue-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  Valider fiscalité / AGO
+                </button>
+              </div>
+              {allocationReport && (
+                <div className="space-y-3">
+                  {!!allocationReport.anomalies?.length && (
+                    <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      <div className="font-medium">Anomalies affectation</div>
+                      <ul className="mt-1 list-disc pl-5">
+                        {allocationReport.anomalies.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="grid gap-3 md:grid-cols-4">
+                    {[
+                      ["CA annuel", allocationReport.result?.turnover],
+                      ["Résultat avant impôt", allocationReport.result?.preTaxResult],
+                      ["Impôt société", allocationReport.result?.corporateTaxAmount],
+                      ["Résultat net", allocationReport.result?.netResult],
+                      ["RAN débiteur apuré", allocationReport.result?.priorDebitRetainedEarnings],
+                      ["Réserve légale", allocationReport.result?.legalReserveAmount],
+                      ["Bénéfice distribuable", allocationReport.result?.distributableProfit],
+                      ["Report à nouveau final", allocationReport.result?.retainedEarningsAmount],
+                    ].map(([label, value]) => (
+                      <div key={label} className="border border-slate-200 p-3">
+                        <div className="text-xs uppercase text-slate-500">{label}</div>
+                        <div className="mt-1 font-semibold text-slate-900">{fmt(value)}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {allocationReport.dividendLines?.length ? (
+                    <div className="overflow-auto border rounded">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Associé</th>
+                            <th className="px-3 py-2 text-right">Base</th>
+                            <th className="px-3 py-2 text-right">Dividende brut</th>
+                            <th className="px-3 py-2 text-right">IRM</th>
+                            <th className="px-3 py-2 text-right">Net à payer</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {allocationReport.dividendLines.map((line) => (
+                            <tr key={line.shareholderId}>
+                              <td className="px-3 py-2">{line.shareholderName}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmt(line.basisAmount)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmt(line.grossDividend)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmt(line.irmAmount)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmt(line.netDividend)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
 
           {closingRecord && (
             <div className="border border-emerald-200 bg-emerald-50">

@@ -205,6 +205,8 @@ model Company {
   payrollVariables              PayrollVariable[]
   shareholders                  Shareholder[]
   capitalOperations             CapitalOperation[]
+  profitAllocationDecisions     ProfitAllocationDecision[]
+  dividendAllocationLines       DividendAllocationLine[]
   capitalSubscriptions          CapitalSubscription[]
   capitalCalls                  CapitalCall[]
   capitalPayments               CapitalPayment[]
@@ -519,6 +521,8 @@ model JournalEntry {
   capitalPayments               CapitalPayment[]               @relation("CapitalPaymentJournal")
   missionAdvanceRegularizations MissionAdvanceRegularization[]
   fiscalYearClosings            FiscalYearClosing[]
+  taxProfitAllocationDecisions     ProfitAllocationDecision[]   @relation("ProfitAllocationTaxJournal")
+  openingProfitAllocationDecisions ProfitAllocationDecision[]   @relation("ProfitAllocationOpeningJournal")
 
   @@unique([companyId, number])
   @@index([sourceType, sourceId])
@@ -2277,6 +2281,7 @@ model Shareholder {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   subscriptions CapitalSubscription[]
+  dividendLines  DividendAllocationLine[]
 }
 
 model CapitalOperation {
@@ -2362,4 +2367,89 @@ model CapitalPayment {
   @@index([callId])
   @@index([accountId])
   @@index([journalEntryId])
+}
+
+enum ProfitAllocationStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+enum CorporateTaxMode {
+  NONE
+  STANDARD_IS
+  MINIMUM_TURNOVER
+}
+
+model ProfitAllocationDecision {
+  id                             String                  @id @default(uuid())
+  companyId                      String
+  company                        Company                 @relation(fields: [companyId], references: [id])
+  year                           Int
+  status                         ProfitAllocationStatus  @default(DRAFT)
+  decisionDate                   DateTime?
+  agoReference                   String?
+  preTaxResult                   Decimal                 @db.Decimal(16, 2)
+  turnover                       Decimal                 @db.Decimal(16, 2)
+  corporateTaxMode               CorporateTaxMode        @default(NONE)
+  corporateTaxRate               Decimal                 @db.Decimal(8, 6)
+  minimumTaxRate                 Decimal                 @db.Decimal(8, 6)
+  corporateTaxAmount             Decimal                 @db.Decimal(16, 2)
+  netResult                      Decimal                 @db.Decimal(16, 2)
+  priorDebitRetainedEarnings     Decimal                 @db.Decimal(16, 2)
+  priorCreditRetainedEarnings    Decimal                 @db.Decimal(16, 2)
+  capitalAmount                  Decimal                 @db.Decimal(16, 2)
+  legalReserveCurrent            Decimal                 @db.Decimal(16, 2)
+  legalReserveCap                Decimal                 @db.Decimal(16, 2)
+  legalReserveRate               Decimal                 @db.Decimal(8, 6)
+  legalReserveAmount             Decimal                 @db.Decimal(16, 2)
+  statutoryReserveAmount         Decimal                 @db.Decimal(16, 2)
+  optionalReserveAmount          Decimal                 @db.Decimal(16, 2)
+  distributableProfit            Decimal                 @db.Decimal(16, 2)
+  dividendsGrossAmount           Decimal                 @db.Decimal(16, 2)
+  irmRate                        Decimal                 @db.Decimal(8, 6)
+  irmAmount                      Decimal                 @db.Decimal(16, 2)
+  dividendsNetAmount             Decimal                 @db.Decimal(16, 2)
+  retainedEarningsAmount         Decimal                 @db.Decimal(16, 2)
+  taxExpenseAccountNumber        String
+  taxPayableAccountNumber        String
+  legalReserveAccountNumber      String
+  statutoryReserveAccountNumber  String?
+  optionalReserveAccountNumber   String
+  retainedEarningsAccountNumber  String
+  lossRetainedAccountNumber      String
+  dividendsPayableAccountNumber  String
+  irmPayableAccountNumber        String
+  taxJournalEntryId              String?
+  taxJournalEntry                JournalEntry?           @relation("ProfitAllocationTaxJournal", fields: [taxJournalEntryId], references: [id])
+  openingJournalEntryId          String?
+  openingJournalEntry            JournalEntry?           @relation("ProfitAllocationOpeningJournal", fields: [openingJournalEntryId], references: [id])
+  lines                          DividendAllocationLine[]
+  meta                           Json?
+  createdAt                      DateTime                @default(now())
+  updatedAt                      DateTime                @updatedAt
+
+  @@unique([companyId, year])
+  @@index([companyId, status])
+  @@index([taxJournalEntryId])
+  @@index([openingJournalEntryId])
+}
+
+model DividendAllocationLine {
+  id                         String                   @id @default(uuid())
+  companyId                  String
+  company                    Company                  @relation(fields: [companyId], references: [id])
+  decisionId                 String
+  decision                   ProfitAllocationDecision  @relation(fields: [decisionId], references: [id])
+  shareholderId              String
+  shareholder                Shareholder               @relation(fields: [shareholderId], references: [id])
+  basisAmount                Decimal                  @db.Decimal(16, 2)
+  ownershipPct               Decimal                  @db.Decimal(8, 6)
+  grossDividend              Decimal                  @db.Decimal(16, 2)
+  irmAmount                  Decimal                  @db.Decimal(16, 2)
+  netDividend                Decimal                  @db.Decimal(16, 2)
+  createdAt                  DateTime                 @default(now())
+
+  @@index([decisionId])
+  @@index([shareholderId])
 }
